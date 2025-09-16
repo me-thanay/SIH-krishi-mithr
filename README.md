@@ -1,36 +1,245 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌱 Smart AgriTech - AI-Powered Agriculture Platform
 
-## Getting Started
+A comprehensive agricultural advisory platform that combines AI-powered insights, real-time monitoring, and intelligent recommendations for modern farmers.
 
-First, run the development server:
+## 🚀 Features
 
+- **Real-time Multilingual Crop Advisory** - AI-powered recommendations in local languages
+- **Soil Health & Fertilizer Recommendations** - Advanced soil analysis with precise recommendations
+- **Weather Alerts & Predictive Insights** - Accurate forecasts and climate-based farming insights
+- **Pest & Disease Detection via Photos** - AI-powered image recognition for instant diagnosis
+- **Market Price Tracking & Forecasting** - Real-time prices and predictive analytics
+- **Voice Support for Low-literate Users** - Voice-enabled interface for accessibility
+- **Continuous Learning from Feedback** - AI system that learns from farmer interactions
+- **WhatsApp Bot Integration** - Direct support via familiar platform
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Next.js 14** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first styling
+- **Framer Motion** - Smooth animations and transitions
+- **Lucide React** - Beautiful icons
+
+### Backend
+- **FastAPI** - Modern Python web framework
+- **Uvicorn** - ASGI server
+- **Pydantic** - Data validation
+- **Python-dotenv** - Environment management
+- **Structlog** - Structured logging
+
+## 📦 Installation
+
+### Prerequisites
+- Node.js 18+ 
+- Python 3.8+
+- npm or yarn
+
+### Frontend Setup
 ```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build for production
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Backend Setup
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Start backend server
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🔧 Environment Configuration
 
-## Learn More
+Copy `env.example` to `.env` and configure:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# WhatsApp Configuration
+WHATSAPP_ACCESS_TOKEN=your_token_here
+WHATSAPP_PHONE_NUMBER_ID=your_phone_id_here
+WHATSAPP_VERIFY_TOKEN=kissan_verification_token
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Weather API
+OPENWEATHER_API_KEY=your_openweather_api_key_here
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Webhook URL (for production)
+WEBHOOK_URL=https://your-domain.com/api/webhook/whatsapp
+```
 
-## Deploy on Vercel
+## 🔌 API Endpoints
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Weather Service
+- `GET /api/weather/current?city=mumbai` - Current weather
+- `GET /api/weather/forecast?city=mumbai` - 5-day forecast
+- `GET /api/weather/alerts?city=mumbai` - Weather alerts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Pest Detection
+- `POST /api/pest/detect` - Upload image for pest detection
+- `GET /api/pest/pests` - List all known pests
+- `GET /api/pest/pest/{pest_name}` - Get pest information
+
+### Soil Advisory
+- `POST /api/soil/analyze` - Upload soil image for analysis
+- `GET /api/soil/types` - List soil types
+- `GET /api/soil/recommendations` - Get soil recommendations
+
+### Market Prices
+- `GET /api/market/current` - Current commodity prices
+- `GET /api/market/commodities` - List available commodities
+- `GET /api/market/forecast/{commodity}` - Price forecast
+- `GET /api/market/trends/{commodity}` - Price trends
+
+### Dealer Network
+- `GET /api/dealers/dealers` - Find dealers
+- `GET /api/dealers/dealers/{dealer_id}` - Dealer details
+- `GET /api/dealers/products` - Product listings
+- `POST /api/dealers/products` - Create product listing
+- `POST /api/dealers/deals/request` - Create deal request
+
+### Farming Tools
+- `GET /api/tools/tools` - Search farming tools
+- `GET /api/tools/tools/{tool_id}` - Tool details
+- `GET /api/tools/categories` - Tool categories
+- `GET /api/tools/recommendations` - Tool recommendations
+- `POST /api/tools/tools/inquiry` - Create tool inquiry
+
+### WhatsApp Webhook
+- `GET /api/webhook/whatsapp` - Verify webhook
+- `POST /api/webhook/whatsapp` - Receive messages
+- `GET /api/webhook/whatsapp/status` - Webhook status
+
+## 📱 WhatsApp Bot Usage
+
+### Phone Number: +91 76709 97498
+
+### Available Commands:
+- `kissan` - Activate the bot
+- `weather [city]` - Get weather updates
+- `pest` + photo - Detect pests in crops
+- `soil` + photo - Analyze soil samples
+- `price [crop]` - Check market prices
+- `dealers [location]` - Find nearby dealers
+- `tools [category]` - Browse farming equipment
+- `help` - Show all available commands
+
+## 🎨 UI Components
+
+The platform includes a comprehensive set of reusable components:
+
+- **Button** - Customizable button with variants
+- **Card** - Content containers with shadows
+- **FeatureCard** - Animated feature showcase cards
+- **FloatingElement** - Floating animation wrapper
+- **ScrollAnimationContainer** - Scroll-triggered animations
+
+## 🌟 Key Features
+
+### Animated UI
+- Smooth Framer Motion animations
+- Floating background elements
+- Scroll-triggered animations
+- Interactive hover effects
+
+### Responsive Design
+- Mobile-first approach
+- Adaptive layouts for all screen sizes
+- Touch-friendly interactions
+
+### Accessibility
+- Voice support for low-literate users
+- Keyboard navigation
+- Screen reader compatibility
+- High contrast support
+
+## 🚀 Development
+
+### Frontend Development
+```bash
+# Start development server
+npm run dev
+
+# Run linting
+npm run lint
+
+# Type checking
+npx tsc --noEmit
+```
+
+### Backend Development
+```bash
+# Start with auto-reload
+python -m uvicorn app.main:app --reload
+
+# Run tests
+pytest
+
+# API documentation
+# Visit http://localhost:8000/docs
+```
+
+## 📊 Project Structure
+
+```
+smart-agritech/
+├── src/
+│   ├── app/
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components/
+│   │   ├── ui/
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── feature-card.tsx
+│   │   │   ├── floating-element.tsx
+│   │   │   └── scroll-animation-container.tsx
+│   │   └── smart-agri-tech.tsx
+│   └── lib/
+│       └── utils.ts
+├── app/
+│   ├── routers/
+│   │   ├── weather.py
+│   │   ├── pest_detection.py
+│   │   ├── soil_advisory.py
+│   │   ├── market_prices.py
+│   │   ├── dealer_network.py
+│   │   ├── farming_tools.py
+│   │   └── whatsapp_webhook.py
+│   └── main.py
+├── package.json
+├── requirements.txt
+├── tailwind.config.js
+├── next.config.js
+└── README.md
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 📞 Support
+
+- **WhatsApp**: +91 76709 97498
+- **Email**: support@smartagritech.com
+- **Documentation**: http://localhost:8000/docs
+
+---
+
+Built with ❤️ for farmers worldwide 🌱

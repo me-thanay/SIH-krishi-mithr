@@ -91,7 +91,7 @@ export function AgriExpandableTabsDemo() {
 }
 
 export function DefaultDemo() {
-  const tabs = [
+  const tabs: TabItem[] = [
     { title: "Dashboard", icon: Home },
     { title: "Notifications", icon: CloudRain },
     { type: "separator" },
@@ -108,7 +108,7 @@ export function DefaultDemo() {
 }
 
 export function CustomColorDemo() {
-  const tabs = [
+  const tabs: TabItem[] = [
     { title: "Profile", icon: Users },
     { title: "Messages", icon: MessageCircle },
     { type: "separator" },

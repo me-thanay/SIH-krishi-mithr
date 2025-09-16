@@ -1,12 +1,16 @@
 import React from 'react'
 import { PriceTrendChart } from '@/components/ui/price-trend-chart'
 
+type Trend = 'up' | 'down' | 'stable'
+type PricePoint = { date: string; price: number }
+type CommodityTrend = { commodity: string; color: string; trend: Trend; data: PricePoint[] }
+
 export default function ChartDemo() {
-  const sampleTrends = [
+  const sampleTrends: CommodityTrend[] = [
     {
       commodity: "Rice",
       color: "#10B981",
-      trend: "up",
+      trend: 'up',
       data: [
         { date: "2024-01-01", price: 2700 },
         { date: "2024-01-08", price: 2750 },
@@ -20,7 +24,7 @@ export default function ChartDemo() {
     {
       commodity: "Wheat",
       color: "#EF4444",
-      trend: "down",
+      trend: 'down',
       data: [
         { date: "2024-01-01", price: 2300 },
         { date: "2024-01-08", price: 2280 },
@@ -34,7 +38,7 @@ export default function ChartDemo() {
     {
       commodity: "Corn",
       color: "#F59E0B",
-      trend: "stable",
+      trend: 'stable',
       data: [
         { date: "2024-01-01", price: 1900 },
         { date: "2024-01-08", price: 1920 },
@@ -48,7 +52,7 @@ export default function ChartDemo() {
     {
       commodity: "Potato",
       color: "#8B5CF6",
-      trend: "up",
+      trend: 'up',
       data: [
         { date: "2024-01-01", price: 1100 },
         { date: "2024-01-08", price: 1120 },

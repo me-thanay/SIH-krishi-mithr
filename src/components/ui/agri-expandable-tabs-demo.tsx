@@ -13,9 +13,10 @@ import {
   Shield
 } from "lucide-react";
 import { ExpandableTabs } from "@/components/ui/expandable-tabs";
+import type { TabItem } from "@/components/ui/expandable-tabs";
 
 export function AgriExpandableTabsDemo() {
-  const defaultTabs = [
+  const defaultTabs: TabItem[] = [
     { title: "Dashboard", icon: Home },
     { title: "Weather", icon: CloudRain },
     { title: "Pest Detection", icon: Bug },
@@ -25,7 +26,7 @@ export function AgriExpandableTabsDemo() {
     { title: "Dealers", icon: Users },
   ];
 
-  const customColorTabs = [
+  const customColorTabs: TabItem[] = [
     { title: "Tools", icon: Wrench },
     { title: "Chat", icon: MessageCircle },
     { type: "separator" },

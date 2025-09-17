@@ -193,19 +193,6 @@ const SmartAgriTechComponent = () => {
               </div>
             </motion.div>
 
-            {/* WhatsApp Message Bar */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1.1 }}
-              className="mt-8 flex justify-end"
-            >
-              <WhatsAppMessageBar 
-                showResponseArea={true}
-                className="max-w-lg"
-              />
-            </motion.div>
-
             {/* Quick Weather Info */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -279,6 +266,24 @@ const SmartAgriTechComponent = () => {
                 <Brain className="w-4 h-4" />
               </div>
             </FloatingElement>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* WhatsApp Message Bar - Below Hero Section */}
+      <section className="py-12 px-4 bg-gradient-to-r from-green-50 to-blue-50">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="flex justify-center"
+          >
+            <WhatsAppMessageBar 
+              showResponseArea={true}
+              className="max-w-2xl w-full"
+            />
           </motion.div>
         </div>
       </section>

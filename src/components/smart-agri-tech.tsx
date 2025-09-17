@@ -393,7 +393,7 @@ const SmartAgriTechComponent = () => {
 
       {/* Live Weather Section */}
       <ScrollAnimationContainer>
-        <section className="py-20 px-4 bg-gradient-to-br from-blue-50 to-green-50">
+        <section id="weather" className="py-20 px-4 bg-gradient-to-br from-blue-50 to-green-50">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -436,7 +436,7 @@ const SmartAgriTechComponent = () => {
 
       {/* Soil Analysis Section */}
       <ScrollAnimationContainer>
-        <section className="py-20 px-4 bg-gradient-to-br from-green-50 to-blue-50">
+        <section id="soil" className="py-20 px-4 bg-gradient-to-br from-green-50 to-blue-50">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -469,7 +469,7 @@ const SmartAgriTechComponent = () => {
 
       {/* Market Intelligence Section */}
       <ScrollAnimationContainer>
-        <section className="py-20 px-4 bg-gradient-to-br from-yellow-50 to-orange-50">
+        <section id="market" className="py-20 px-4 bg-gradient-to-br from-yellow-50 to-orange-50">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -506,7 +506,7 @@ const SmartAgriTechComponent = () => {
 
       {/* Voice Assistant Section */}
       <ScrollAnimationContainer>
-        <section className="py-20 px-4 bg-gradient-to-br from-green-50 to-blue-50">
+        <section id="voice" className="py-20 px-4 bg-gradient-to-br from-green-50 to-blue-50">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -538,7 +538,9 @@ const SmartAgriTechComponent = () => {
 
       {/* WhatsApp Integration Section */}
       <ScrollAnimationContainer>
-        <WhatsAppChat showFloatingButton={false} />
+        <section id="whatsapp" className="py-20 px-4">
+          <WhatsAppChat showFloatingButton={false} />
+        </section>
       </ScrollAnimationContainer>
 
       {/* Call to Action */}

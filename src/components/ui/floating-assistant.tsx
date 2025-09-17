@@ -52,7 +52,7 @@ export const FloatingAssistant = () => {
   const [inputText, setInputText] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const recognitionRef = useRef<any | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)

@@ -2,6 +2,7 @@ import SmartAgriTechComponent from "@/components/smart-agri-tech"
 import { TubelightNavBarDemo } from "@/components/ui/tubelight-navbar-demo"
 import { SmartAgriTechNavbar } from "@/components/ui/smart-agritech-navbar"
 import { SimpleTestNavbar } from "@/components/ui/simple-test-navbar"
+import { Footer } from "@/components/ui/footer"
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
       <SmartAgriTechNavbar />
       <TubelightNavBarDemo />
       <SmartAgriTechComponent />
+      <Footer />
     </>
   )
 }

@@ -33,7 +33,7 @@ interface CommodityTrend {
   commodity: string
   data: PriceData[]
   color: string
-  trend: string
+  trend: 'up' | 'down' | 'stable'
 }
 
 interface MarketPricesProps {

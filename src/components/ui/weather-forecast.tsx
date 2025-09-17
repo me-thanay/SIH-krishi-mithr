@@ -45,7 +45,13 @@ export const WeatherForecast = ({
       setLoading(true)
       setError(null)
       
-      const response = await fetch(`http://localhost:8000/api/weather/forecast?city=${city}&days=${days}`)
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_URL ||
+        (typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+          ? 'http://localhost:8000'
+          : '')
+      const response = await fetch(`${apiBase}/api/weather/forecast?city=${city}&days=${days}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch forecast data')

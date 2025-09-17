@@ -146,7 +146,10 @@ export const LocationDetector = ({
     if ('permissions' in navigator) {
       try {
         const permission = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
-        setPermissionStatus(permission.state)
+        const mapped: 'unknown' | 'granted' | 'denied' =
+          permission.state === 'granted' ? 'granted' :
+          permission.state === 'denied' ? 'denied' : 'unknown'
+        setPermissionStatus(mapped)
       } catch (err) {
         console.error('Permission check error:', err)
       }

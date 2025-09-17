@@ -34,13 +34,13 @@ export const VoiceDebug = () => {
           setStatus("🎤 Listening... Speak now!")
         }
         
-        recognition.onresult = (event) => {
+        recognition.onresult = (event: any) => {
           const text = event.results[0][0].transcript
           setTranscript(text)
           setStatus(`✅ Recognized: "${text}"`)
         }
         
-        recognition.onerror = (event) => {
+        recognition.onerror = (event: any) => {
           setStatus(`❌ Error: ${event.error}`)
         }
         

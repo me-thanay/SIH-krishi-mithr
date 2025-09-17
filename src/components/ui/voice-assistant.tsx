@@ -20,7 +20,7 @@ export const VoiceAssistant = ({ onVoiceResult, className }: VoiceAssistantProps
   const [duration, setDuration] = useState(0)
   const [audioLevel, setAudioLevel] = useState(0)
   
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const recognitionRef = useRef<any | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
@@ -43,7 +43,7 @@ export const VoiceAssistant = ({ onVoiceResult, className }: VoiceAssistantProps
         startAudioVisualization()
       }
 
-      recognitionRef.current.onresult = (event) => {
+      recognitionRef.current.onresult = (event: any) => {
         let finalTranscript = ""
         let interimTranscript = ""
 
@@ -67,7 +67,7 @@ export const VoiceAssistant = ({ onVoiceResult, className }: VoiceAssistantProps
         }
       }
 
-      recognitionRef.current.onerror = (event) => {
+      recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error)
         setIsListening(false)
         stopAudioVisualization()

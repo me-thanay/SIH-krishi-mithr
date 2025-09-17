@@ -53,8 +53,8 @@ export function ObviousNavbar() {
                   backgroundColor: 'rgba(255,255,255,0.1)',
                   transition: 'background-color 0.2s'
                 }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.2)'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+                onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.2)'}
+                onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.1)'}
               >
                 <Icon size={20} />
                 <span style={{ fontSize: '14px', fontWeight: '600' }}>{item.name}</span>

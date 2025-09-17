@@ -206,7 +206,6 @@ export const WhatsAppMessageBar = ({
           </div>
         </Card>
       </motion.div>
-
       {/* Response Area */}
       <AnimatePresence>
         {showResponseArea && isExpanded && (

@@ -1,128 +1,173 @@
+"use client"
+
+import React from "react"
 import { 
   Home, 
   CloudRain, 
-  Bug, 
   Leaf, 
-  DollarSign, 
-  Users, 
-  Wrench, 
+  TrendingUp, 
+  Mic, 
   MessageCircle,
-  BarChart3,
   Camera,
+  Bug,
+  Users,
+  Wrench,
+  Sprout,
   Thermometer,
-  Shield
-} from "lucide-react";
-import { ExpandableTabs } from "@/components/ui/expandable-tabs";
-import type { TabItem } from "@/components/ui/expandable-tabs";
+  DollarSign,
+  Volume2,
+  RefreshCw,
+  Heart,
+  Smartphone,
+  Brain,
+  Shield,
+  Settings,
+  HelpCircle,
+  FileText,
+  Lock
+} from "lucide-react"
+import { ExpandableTabs, TabItem } from "./expandable-tabs"
 
-export function AgriExpandableTabsDemo() {
-  const defaultTabs: TabItem[] = [
-    { title: "Dashboard", icon: Home },
+// Main Smart AgriTech Navigation Tabs
+export function AgriMainTabsDemo() {
+  const tabs: TabItem[] = [
+    { title: "Home", icon: Home },
     { title: "Weather", icon: CloudRain },
-    { title: "Pest Detection", icon: Bug },
-    { type: "separator" },
     { title: "Soil Analysis", icon: Leaf },
-    { title: "Market Prices", icon: DollarSign },
-    { title: "Dealers", icon: Users },
-  ];
-
-  const customColorTabs: TabItem[] = [
-    { title: "Tools", icon: Wrench },
-    { title: "Chat", icon: MessageCircle },
     { type: "separator" },
-    { title: "Analytics", icon: BarChart3 },
-    { title: "Camera", icon: Camera },
-    { title: "Monitoring", icon: Thermometer },
-    { title: "Security", icon: Shield },
-  ];
-
-  const handleTabChange = (index: number | null) => {
-    if (index !== null) {
-      console.log(`Selected tab at index: ${index}`);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-8 p-8">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Smart AgriTech Navigation</h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          Interactive expandable tabs for seamless navigation through agricultural features
-        </p>
-      </div>
-
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Default Style</h3>
-          <div className="flex justify-center">
-            <ExpandableTabs 
-              tabs={defaultTabs} 
-              onChange={handleTabChange}
-            />
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Custom Green Theme</h3>
-          <div className="flex justify-center">
-            <ExpandableTabs 
-              tabs={customColorTabs} 
-              activeColor="text-green-600"
-              className="border-green-200 dark:border-green-800"
-              onChange={handleTabChange}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-gray-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-3">Features:</h3>
-        <ul className="space-y-2 text-gray-600">
-          <li>• <strong>Click to expand:</strong> Tabs show icons initially, expand to show text when selected</li>
-          <li>• <strong>Click outside to collapse:</strong> Click anywhere outside to collapse the expanded tab</li>
-          <li>• <strong>Smooth animations:</strong> Framer Motion powered transitions</li>
-          <li>• <strong>Separators:</strong> Visual dividers between tab groups</li>
-          <li>• <strong>Customizable colors:</strong> Support for custom active colors and styling</li>
-          <li>• <strong>Responsive design:</strong> Adapts to different screen sizes</li>
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-export function DefaultDemo() {
-  const tabs: TabItem[] = [
-    { title: "Dashboard", icon: Home },
-    { title: "Notifications", icon: CloudRain },
-    { type: "separator" },
-    { title: "Settings", icon: Wrench },
-    { title: "Support", icon: MessageCircle },
-    { title: "Security", icon: Shield },
-  ];
+    { title: "Market Prices", icon: TrendingUp },
+    { title: "Voice Assistant", icon: Mic },
+    { title: "WhatsApp Bot", icon: MessageCircle },
+  ]
 
   return (
     <div className="flex flex-col gap-4">
-      <ExpandableTabs tabs={tabs} />
-    </div>
-  );
-}
-
-export function CustomColorDemo() {
-  const tabs: TabItem[] = [
-    { title: "Profile", icon: Users },
-    { title: "Messages", icon: MessageCircle },
-    { type: "separator" },
-    { title: "Documents", icon: Leaf },
-    { title: "Privacy", icon: Shield },
-  ];
-
-  return (
-    <div className="flex flex-col gap-4">
+      <h3 className="text-lg font-semibold text-gray-800">Smart AgriTech Main Navigation</h3>
       <ExpandableTabs 
         tabs={tabs} 
-        activeColor="text-blue-500"
-        className="border-blue-200 dark:border-blue-800" 
+        activeColor="text-green-600"
+        className="border-green-200 bg-green-50/50" 
       />
     </div>
-  );
+  )
+}
+
+// Tools & Services Tabs
+export function AgriToolsTabsDemo() {
+  const tabs: TabItem[] = [
+    { title: "Pest Detection", icon: Bug },
+    { title: "Soil Scanner", icon: Camera },
+    { title: "Weather Forecast", icon: Thermometer },
+    { type: "separator" },
+    { title: "Market Trends", icon: DollarSign },
+    { title: "Voice Support", icon: Volume2 },
+    { title: "Dealer Network", icon: Users },
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h3 className="text-lg font-semibold text-gray-800">Farming Tools & Services</h3>
+      <ExpandableTabs 
+        tabs={tabs} 
+        activeColor="text-blue-600"
+        className="border-blue-200 bg-blue-50/50" 
+      />
+    </div>
+  )
+}
+
+// Advanced Features Tabs
+export function AgriAdvancedTabsDemo() {
+  const tabs: TabItem[] = [
+    { title: "AI Advisory", icon: Brain },
+    { title: "Crop Monitoring", icon: Sprout },
+    { title: "Health Check", icon: Heart },
+    { type: "separator" },
+    { title: "Mobile App", icon: Smartphone },
+    { title: "Real-time Updates", icon: RefreshCw },
+    { title: "Security", icon: Shield },
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h3 className="text-lg font-semibold text-gray-800">Advanced Features</h3>
+      <ExpandableTabs 
+        tabs={tabs} 
+        activeColor="text-purple-600"
+        className="border-purple-200 bg-purple-50/50" 
+      />
+    </div>
+  )
+}
+
+// Settings & Support Tabs
+export function AgriSettingsTabsDemo() {
+  const tabs: TabItem[] = [
+    { title: "Profile", icon: Users },
+    { title: "Settings", icon: Settings },
+    { title: "Help Center", icon: HelpCircle },
+    { type: "separator" },
+    { title: "Documents", icon: FileText },
+    { title: "Privacy", icon: Lock },
+    { title: "Support", icon: MessageCircle },
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h3 className="text-lg font-semibold text-gray-800">Account & Support</h3>
+      <ExpandableTabs 
+        tabs={tabs} 
+        activeColor="text-orange-600"
+        className="border-orange-200 bg-orange-50/50" 
+      />
+    </div>
+  )
+}
+
+// Comprehensive Demo with all tabs
+export function AgriComprehensiveTabsDemo() {
+  const handleTabChange = (index: number | null) => {
+    if (index !== null) {
+      console.log(`Selected tab index: ${index}`)
+    }
+  }
+
+  return (
+    <div className="space-y-8 p-6 bg-gray-50 min-h-screen">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Smart AgriTech Expandable Tabs</h1>
+        <p className="text-gray-600">Interactive navigation components for your farming platform</p>
+      </div>
+
+      <div className="max-w-4xl mx-auto space-y-8">
+        <AgriMainTabsDemo />
+        <AgriToolsTabsDemo />
+        <AgriAdvancedTabsDemo />
+        <AgriSettingsTabsDemo />
+      </div>
+
+      <div className="max-w-4xl mx-auto mt-12">
+        <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Interactive Demo with Callback</h3>
+          <ExpandableTabs 
+            tabs={[
+              { title: "Dashboard", icon: Home },
+              { title: "Weather", icon: CloudRain },
+              { title: "Soil", icon: Leaf },
+              { type: "separator" },
+              { title: "Market", icon: TrendingUp },
+              { title: "Voice", icon: Mic },
+              { title: "Support", icon: MessageCircle },
+            ]}
+            onChange={handleTabChange}
+            activeColor="text-green-600"
+            className="border-green-200 bg-green-50/50"
+          />
+          <p className="text-sm text-gray-500 mt-2">
+            Check console for tab selection events
+          </p>
+        </div>
+      </div>
+    </div>
+  )
 }

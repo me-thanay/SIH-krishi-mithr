@@ -1,10 +1,10 @@
 import SmartAgriTechComponent from "@/components/smart-agri-tech"
-import { SmartAgriTechNavbar } from "@/components/ui/smart-agritech-navbar"
+import { TubelightNavBarDemo } from "@/components/ui/tubelight-navbar-demo"
 
 export default function Home() {
   return (
     <>
-      <SmartAgriTechNavbar />
+      <TubelightNavBarDemo />
       <SmartAgriTechComponent />
     </>
   )

@@ -31,6 +31,18 @@ export function NavBar({ items, className }: NavBarProps) {
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
+  // Handle smooth scrolling to sections
+  const handleNavClick = (item: NavItem) => {
+    setActiveTab(item.name)
+    
+    if (item.url.startsWith('#')) {
+      const element = document.querySelector(item.url)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' })
+      }
+    }
+  }
+
   return (
     <div
       className={cn(
@@ -47,7 +59,10 @@ export function NavBar({ items, className }: NavBarProps) {
             <Link
               key={item.name}
               href={item.url}
-              onClick={() => setActiveTab(item.name)}
+              onClick={(e) => {
+                e.preventDefault()
+                handleNavClick(item)
+              }}
               className={cn(
                 "relative cursor-pointer text-sm font-semibold px-6 py-2 rounded-full transition-colors",
                 "text-gray-700 hover:text-green-600",

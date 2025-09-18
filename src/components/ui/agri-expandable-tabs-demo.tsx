@@ -28,7 +28,7 @@ import {
 } from "lucide-react"
 import { ExpandableTabs, TabItem } from "./expandable-tabs"
 
-// Main Smart AgriTech Navigation Tabs
+// Main Krishi Mithr Navigation Tabs
 export function AgriMainTabsDemo() {
   const tabs: TabItem[] = [
     { title: "Home", icon: Home },
@@ -42,7 +42,7 @@ export function AgriMainTabsDemo() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h3 className="text-lg font-semibold text-gray-800">Smart AgriTech Main Navigation</h3>
+      <h3 className="text-lg font-semibold text-gray-800">Krishi Mithr Main Navigation</h3>
       <ExpandableTabs 
         tabs={tabs} 
         activeColor="text-green-600"
@@ -135,7 +135,7 @@ export function AgriComprehensiveTabsDemo() {
   return (
     <div className="space-y-8 p-6 bg-gray-50 min-h-screen">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Smart AgriTech Expandable Tabs</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Krishi Mithr Expandable Tabs</h1>
         <p className="text-gray-600">Interactive navigation components for your farming platform</p>
       </div>
 

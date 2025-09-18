@@ -113,7 +113,7 @@ export function SmartAgriTechNavbar() {
               <Sprout className="w-6 h-6 text-white" />
             </motion.div>
             <div className="hidden sm:block">
-              <h1 className="text-xl font-bold text-gray-900">Smart AgriTech</h1>
+              <h1 className="text-xl font-bold text-gray-900">Krishi Mithr</h1>
               <p className="text-xs text-gray-600">AI-Powered Agriculture</p>
             </div>
           </Link>

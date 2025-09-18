@@ -17,7 +17,6 @@ export const SimpleVoiceAssistant = () => {
   const recognitionRef = useRef<any>(null)
 
   useEffect(() => {
-    // Initialize speech recognition
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition
       if (SpeechRecognition) {

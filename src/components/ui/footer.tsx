@@ -24,15 +24,15 @@ export function Footer() {
               🌱
             </motion.div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Smart AgriTech</h3>
-              <p className="text-sm text-gray-600">Empowering Farmers with AI</p>
+              <h3 className="text-lg font-bold text-gray-900">Krishi Mithr</h3>
+              <p className="text-sm text-gray-600">AI-Powered Agriculture Platform</p>
             </div>
           </div>
 
           {/* Center - Copyright */}
           <div className="text-center">
             <p className="text-sm text-gray-600">
-              © 2024 Smart AgriTech Platform. All rights reserved.
+              © 2024 Krishi Mithr Platform. All rights reserved.
             </p>
             <p className="text-xs text-gray-500 mt-1">
               Built with ❤️ for the farming community

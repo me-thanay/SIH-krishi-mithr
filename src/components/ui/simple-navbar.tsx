@@ -37,7 +37,7 @@ export function SimpleNavbar() {
             })}
           </div>
           <div className="text-sm text-gray-500">
-            Smart AgriTech
+            Krishi Mithr
           </div>
         </div>
       </div>

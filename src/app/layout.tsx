@@ -7,7 +7,7 @@ import { DebugNavbar } from '@/components/ui/debug-navbar'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Smart AgriTech - AI-Powered Agriculture Platform',
+  title: 'Krishi Mithr - AI-Powered Agriculture Platform',
   description: 'Revolutionizing agriculture with AI-powered insights, real-time monitoring, and intelligent recommendations for modern farmers.',
 }
 

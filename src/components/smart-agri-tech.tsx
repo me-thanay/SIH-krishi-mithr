@@ -136,7 +136,7 @@ const SmartAgriTechComponent = () => {
               transition={{ duration: 0.8, delay: 0.3 }}
               className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight"
             >
-              🌱 Krishi Mithr 
+               Krishi Mithr 
               <span className="text-green-600"> with AI</span>
             </motion.h1>
 

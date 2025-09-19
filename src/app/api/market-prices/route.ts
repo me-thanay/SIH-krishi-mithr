@@ -19,25 +19,6 @@ export async function GET(request: NextRequest) {
     // Return mock data for immediate testing
     return getMockPriceData(crop, state, mandi, source)
 
-    let data: any = {}
-
-    if (source === 'agmarknet') {
-      data = await fetchAgmarknetData(crop, state, mandi)
-    } else if (source === 'fao') {
-      data = await fetchFAOData(crop)
-    } else if (source === 'worldbank') {
-      data = await fetchWorldBankData(crop)
-    }
-
-    return NextResponse.json({
-      success: true,
-      source,
-      crop,
-      location: { state, mandi },
-      data,
-      timestamp: new Date().toISOString()
-    })
-
   } catch (error) {
     console.error('Market prices API error:', error)
     return NextResponse.json(

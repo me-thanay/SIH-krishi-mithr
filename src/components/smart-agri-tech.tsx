@@ -525,8 +525,11 @@ const SmartAgriTechComponent = () => {
 
             <div className="flex justify-center">
               <VoiceAssistant 
-                onVoiceResult={(text) => {
+                onTranscript={(text) => {
                   console.log('Voice input received:', text)
+                }}
+                onResponse={(response) => {
+                  console.log('Voice response:', response)
                 }}
                 className="max-w-md"
               />

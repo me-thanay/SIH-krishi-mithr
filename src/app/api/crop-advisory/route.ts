@@ -122,3 +122,4 @@ function generateCropRecommendations(data: any, type: string): string[] {
       'Maintain proper spacing between plants'
     ]
   }
+}

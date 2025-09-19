@@ -81,10 +81,10 @@ async function fetchOpenLandMapData(lat: string, lon: string) {
       VERSION: '2.0.1',
       REQUEST: 'GetCoverage',
       COVERAGEID: 'ocd',
-      SUBSET: `Lat(${lat})`,
-      SUBSET: `Lon(${lon})`,
       FORMAT: 'application/json'
     })
+    ocParams.append('SUBSET', `Lat(${lat})`)
+    ocParams.append('SUBSET', `Lon(${lon})`)
 
     // Get soil pH
     const phParams = new URLSearchParams({
@@ -93,10 +93,10 @@ async function fetchOpenLandMapData(lat: string, lon: string) {
       VERSION: '2.0.1',
       REQUEST: 'GetCoverage',
       COVERAGEID: 'phh2o',
-      SUBSET: `Lat(${lat})`,
-      SUBSET: `Lon(${lon})`,
       FORMAT: 'application/json'
     })
+    phParams.append('SUBSET', `Lat(${lat})`)
+    phParams.append('SUBSET', `Lon(${lon})`)
 
     // Get soil texture
     const textureParams = new URLSearchParams({
@@ -105,10 +105,10 @@ async function fetchOpenLandMapData(lat: string, lon: string) {
       VERSION: '2.0.1',
       REQUEST: 'GetCoverage',
       COVERAGEID: 'sand',
-      SUBSET: `Lat(${lat})`,
-      SUBSET: `Lon(${lon})`,
       FORMAT: 'application/json'
     })
+    textureParams.append('SUBSET', `Lat(${lat})`)
+    textureParams.append('SUBSET', `Lon(${lon})`)
 
     try {
       const [ocResponse, phResponse, textureResponse] = await Promise.all([

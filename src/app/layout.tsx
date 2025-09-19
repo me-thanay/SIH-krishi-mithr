@@ -40,6 +40,8 @@ export default function RootLayout({
             <a href="#soil" style={{ margin: '0 20px', color: 'green', textDecoration: 'none' }}>SOIL</a>
             <a href="#market" style={{ margin: '0 20px', color: 'green', textDecoration: 'none' }}>MARKET</a>
             <a href="#voice" style={{ margin: '0 20px', color: 'green', textDecoration: 'none' }}>VOICE</a>
+            <a href="/auth/login" style={{ margin: '0 20px', color: 'green', textDecoration: 'none' }}>LOGIN</a>
+            <a href="/auth/signup" style={{ margin: '0 20px', color: 'darkgreen', textDecoration: 'none', fontWeight: 'bold' }}>SIGNUP</a>
             <button 
               onClick={() => window.open('https://wa.me/7670997498?text=Hello! I need agricultural support.', '_blank')}
               style={{

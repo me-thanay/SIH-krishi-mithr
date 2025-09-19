@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Navbar Styles */
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: #333;
+  padding: 1rem 0;
+}
+
+nav ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+}
+
+nav ul li {
+  margin: 0 1rem;
+}
+
+nav ul li a {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+nav ul li a:hover {
+  background-color: #555;
+  border-radius: 5px;
+}
+
+/* Ensure content doesn't overlap with fixed navbar */
+body {
+  padding-top: 60px; /* Adjust based on navbar height */
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

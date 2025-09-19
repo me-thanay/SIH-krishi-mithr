@@ -23,11 +23,14 @@ export default function RootLayout({
           top: 0,
           left: 0,
           right: 0,
-          zIndex: 1000,
+          zIndex: 9999,
           backgroundColor: '#ffffff',
-          borderBottom: '2px solid #16a34a',
+          borderBottom: '3px solid #16a34a',
           padding: '1rem 0',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+          minHeight: '60px',
+          display: 'block !important',
+          visibility: 'visible !important'
         }}>
           <div style={{
             maxWidth: '1200px',
@@ -40,45 +43,48 @@ export default function RootLayout({
             {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <div style={{
-                width: '32px',
-                height: '32px',
+                width: '40px',
+                height: '40px',
                 backgroundColor: '#16a34a',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                fontSize: '18px'
+                fontSize: '24px',
+                fontWeight: 'bold'
               }}>
                 🌱
               </div>
               <div>
-                <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: '#1f2937' }}>
+                <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
                   Krishi Mithr
                 </h1>
-                <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>
+                <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>
                   AI-Powered Agriculture
                 </p>
               </div>
             </div>
 
             {/* Navigation Items */}
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <a href="/" style={{ color: '#374151', textDecoration: 'none', fontWeight: '500' }}>Home</a>
-              <a href="#weather" style={{ color: '#374151', textDecoration: 'none', fontWeight: '500' }}>Weather</a>
-              <a href="#soil" style={{ color: '#374151', textDecoration: 'none', fontWeight: '500' }}>Soil</a>
-              <a href="#market" style={{ color: '#374151', textDecoration: 'none', fontWeight: '500' }}>Market</a>
-              <a href="#voice" style={{ color: '#374151', textDecoration: 'none', fontWeight: '500' }}>Voice</a>
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+              <a href="/" style={{ color: '#374151', textDecoration: 'none', fontWeight: '600', fontSize: '16px' }}>Home</a>
+              <a href="#weather" style={{ color: '#374151', textDecoration: 'none', fontWeight: '600', fontSize: '16px' }}>Weather</a>
+              <a href="#soil" style={{ color: '#374151', textDecoration: 'none', fontWeight: '600', fontSize: '16px' }}>Soil</a>
+              <a href="#market" style={{ color: '#374151', textDecoration: 'none', fontWeight: '600', fontSize: '16px' }}>Market</a>
+              <a href="#voice" style={{ color: '#374151', textDecoration: 'none', fontWeight: '600', fontSize: '16px' }}>Voice</a>
               <button 
                 onClick={() => window.open('https://wa.me/7670997498?text=Hello! I need agricultural support.', '_blank')}
                 style={{
                   backgroundColor: '#16a34a',
                   color: 'white',
                   border: 'none',
-                  padding: '8px 16px',
+                  padding: '10px 20px',
                   borderRadius: '8px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
+                  fontWeight: '600',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}
               >
                 WhatsApp

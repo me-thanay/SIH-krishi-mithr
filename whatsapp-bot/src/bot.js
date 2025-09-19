@@ -74,13 +74,45 @@ Type any of these keywords to get started!`)
     }
     
     else if (/weather|मौसम|వాతావరణం/i.test(message)) {
-      await msg.reply(`🌤️ *Weather Service*
+      // Extract location from message
+      const locationMatch = message.match(/weather\s+(.+)|forecast\s+(.+)/i)
+      const location = locationMatch ? (locationMatch[1] || locationMatch[2]) : null
+      
+      if (location) {
+        try {
+          // Call weather API
+          const response = await axios.get(`${BACKEND_URL}/api/weather?city=${encodeURIComponent(location)}&type=current`)
+          const weatherData = response.data
+          
+          if (weatherData.success) {
+            const current = weatherData.data.current
+            await msg.reply(`🌤️ *Weather for ${location}*
+
+🌡️ Temperature: ${current.temperature.current}°C (feels like ${current.temperature.feels_like}°C)
+💧 Humidity: ${current.humidity}%
+🌬️ Wind: ${current.wind.speed} m/s
+☁️ Conditions: ${current.weather.description}
+🌅 Sunrise: ${current.sunrise.toLocaleTimeString()}
+🌇 Sunset: ${current.sunset.toLocaleTimeString()}
+
+*Farming Conditions:*
+${current.farming_conditions.irrigation_needed ? '🚰 Irrigation needed' : '✅ Soil moisture adequate'}
+${current.farming_conditions.good_growing ? '🌱 Excellent growing conditions' : '⚠️ Monitor crop stress'}`)
+          } else {
+            await msg.reply(`❌ Sorry, couldn't fetch weather data for ${location}. Please try again or share your location.`)
+          }
+        } catch (error) {
+          await msg.reply(`❌ Weather service temporarily unavailable. Please try again later.`)
+        }
+      } else {
+        await msg.reply(`🌤️ *Weather Service*
 
 To get weather updates, please share your location or type:
 • "weather [your city]"
 • "forecast [your city]"
 
-I'll provide current conditions and 7-day forecasts!`)
+I'll provide current conditions and farming recommendations!`)
+      }
     }
     
     else if (/soil|मिट्टी|నేల|ground/i.test(message)) {
@@ -95,14 +127,44 @@ I'll provide AI-powered soil recommendations!`)
     }
     
     else if (/price|market|rate|भाव|రేటు/i.test(message)) {
-      await msg.reply(`📈 *Market Prices Service*
+      // Extract crop from message
+      const cropMatch = message.match(/price\s+(.+)|market\s+(.+)|rate\s+(.+)/i)
+      const crop = cropMatch ? (cropMatch[1] || cropMatch[2] || cropMatch[3]) : null
+      
+      if (crop) {
+        try {
+          // Call market prices API
+          const response = await axios.get(`${BACKEND_URL}/api/market-prices?crop=${encodeURIComponent(crop)}`)
+          const priceData = response.data
+          
+          if (priceData.success) {
+            const prices = priceData.data.prices[0]
+            await msg.reply(`📈 *Market Prices for ${crop}*
+
+💰 Min Price: ₹${prices.min_price}/${prices.unit}
+💰 Max Price: ₹${prices.max_price}/${prices.unit}
+💰 Modal Price: ₹${prices.modal_price}/${prices.unit}
+📍 Market: ${prices.market}
+📅 Date: ${prices.date}
+
+*Trend:* ${priceData.data.trend}
+*Recommendation:* ${priceData.data.recommendation}`)
+          } else {
+            await msg.reply(`❌ Sorry, couldn't fetch price data for ${crop}. Please try a different crop name.`)
+          }
+        } catch (error) {
+          await msg.reply(`❌ Market price service temporarily unavailable. Please try again later.`)
+        }
+      } else {
+        await msg.reply(`📈 *Market Prices Service*
 
 Get real-time commodity prices by typing:
 • "price [crop name]" (e.g., "price rice")
-• "market [location]"
-• "rates today"
+• "market [crop name]"
+• "rate [crop name]"
 
 I'll fetch the latest market data!`)
+      }
     }
     
     else if (/pest|disease|कीट|రోగం|bug/i.test(message)) {

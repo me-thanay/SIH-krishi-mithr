@@ -334,7 +334,7 @@ const SmartAgriTechComponent = () => {
               className="space-y-8"
             >
               <h2 className="text-4xl font-bold mb-4">
-                🤝 Human Touch Still Matters
+                 Human Touch Still Matters
               </h2>
               <p className="text-xl opacity-90 max-w-4xl mx-auto leading-relaxed">
                 While AI powers most of our platform with IoT sensors, cloud computing, 
@@ -402,7 +402,7 @@ const SmartAgriTechComponent = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                🌤️ Live Weather Updates
+                Live Weather Updates
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Get real-time weather data and agricultural recommendations to make 
@@ -445,7 +445,7 @@ const SmartAgriTechComponent = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                🌱 AI-Powered Soil Analysis
+                 AI-Powered Soil Analysis
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Upload a soil image to get comprehensive analysis including soil type, pH levels, 
@@ -478,7 +478,7 @@ const SmartAgriTechComponent = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                📊 Market Intelligence
+                 Market Intelligence
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Stay updated with real-time market prices and trends. Make informed selling 
@@ -515,7 +515,7 @@ const SmartAgriTechComponent = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                🎤 Voice Assistant Integration
+                 Voice Assistant Integration
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Speak naturally in your preferred language and get instant responses 

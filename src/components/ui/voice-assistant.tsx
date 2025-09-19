@@ -146,22 +146,21 @@ export const VoiceAssistant = ({ onVoiceResult, className }: VoiceAssistantProps
     try {
       console.log('Processing voice input:', text)
       
-      // Show processing message
-      setResponse("Converting voice to text and redirecting to WhatsApp...")
-      
-      // Directly redirect to WhatsApp with the voice text + kissan prefix
+      const lower = text.toLowerCase()
       const phoneNumber = "7670997498"
-      const message = `kissan ${text}`
-      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
-      
-      console.log('Opening WhatsApp with message:', message)
-      console.log('WhatsApp URL:', whatsappUrl)
-      
-      // Open WhatsApp immediately
-      window.open(whatsappUrl, '_blank')
-      
-      // Update response
-      setResponse(`✅ Voice converted to text: "${text}"\n📱 Redirected to WhatsApp chatbot (+91 76709 97498)\n💬 Message sent: "kissan ${text}"`)
+
+      if (lower.includes("kissan")) {
+        // Hotword detected → redirect to WhatsApp with keyword 'kissan'
+        setResponse("Opening WhatsApp… keyword 'kissan' detected")
+        const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent("kissan")}`
+        window.open(whatsappUrl, '_blank')
+      } else {
+        // Do not auto-redirect; instruct user
+        setResponse(
+          `✅ Heard: "${text}"
+💡 Say the word "kissan" to open WhatsApp support, or use the button below.`
+        )
+      }
       
     } catch (error) {
       console.error('Error processing voice input:', error)
@@ -341,7 +340,7 @@ export const VoiceAssistant = ({ onVoiceResult, className }: VoiceAssistantProps
                 <Button
                   onClick={() => {
                     const phoneNumber = "7670997498"
-                    const message = `kissan ${transcript || "Hello, I need help with my crops"}`
+                    const message = `kissan`
                     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
                     window.open(whatsappUrl, '_blank')
                   }}

@@ -80,24 +80,27 @@ Type any of these keywords to get started!`)
       
       if (location) {
         try {
-          // Call weather API
+          // Call NASA POWER weather API (no key needed)
           const response = await axios.get(`${BACKEND_URL}/api/weather?city=${encodeURIComponent(location)}&type=current`)
           const weatherData = response.data
           
           if (weatherData.success) {
             const current = weatherData.data.current
-            await msg.reply(`🌤️ *Weather for ${location}*
+            const source = weatherData.source || 'Weather Service'
+            await msg.reply(`🌤️ *Weather for ${location}* (${source})
 
 🌡️ Temperature: ${current.temperature.current}°C (feels like ${current.temperature.feels_like}°C)
 💧 Humidity: ${current.humidity}%
 🌬️ Wind: ${current.wind.speed} m/s
 ☁️ Conditions: ${current.weather.description}
-🌅 Sunrise: ${current.sunrise.toLocaleTimeString()}
-🌇 Sunset: ${current.sunset.toLocaleTimeString()}
+${current.solar_radiation ? `☀️ Solar Radiation: ${current.solar_radiation} MJ/m²` : ''}
+${current.rainfall ? `🌧️ Rainfall: ${current.rainfall} mm` : ''}
+${current.evapotranspiration ? `💨 Evapotranspiration: ${current.evapotranspiration} mm` : ''}
 
 *Farming Conditions:*
 ${current.farming_conditions.irrigation_needed ? '🚰 Irrigation needed' : '✅ Soil moisture adequate'}
-${current.farming_conditions.good_growing ? '🌱 Excellent growing conditions' : '⚠️ Monitor crop stress'}`)
+${current.farming_conditions.good_growing ? '🌱 Excellent growing conditions' : '⚠️ Monitor crop stress'}
+${current.farming_conditions.planting_suitable ? '🌱 Good for planting' : '⏸️ Wait for better conditions'}`)
           } else {
             await msg.reply(`❌ Sorry, couldn't fetch weather data for ${location}. Please try again or share your location.`)
           }
@@ -133,13 +136,14 @@ I'll provide AI-powered soil recommendations!`)
       
       if (crop) {
         try {
-          // Call market prices API
-          const response = await axios.get(`${BACKEND_URL}/api/market-prices?crop=${encodeURIComponent(crop)}`)
+          // Call Agmarknet prices API (no key needed)
+          const response = await axios.get(`${BACKEND_URL}/api/agmarknet-prices?crop=${encodeURIComponent(crop)}`)
           const priceData = response.data
           
           if (priceData.success) {
             const prices = priceData.data.prices[0]
-            await msg.reply(`📈 *Market Prices for ${crop}*
+            const source = priceData.source || 'Market Service'
+            await msg.reply(`📈 *Market Prices for ${crop}* (${source})
 
 💰 Min Price: ₹${prices.min_price}/${prices.unit}
 💰 Max Price: ₹${prices.max_price}/${prices.unit}
@@ -148,7 +152,8 @@ I'll provide AI-powered soil recommendations!`)
 📅 Date: ${prices.date}
 
 *Trend:* ${priceData.data.trend}
-*Recommendation:* ${priceData.data.recommendation}`)
+*Recommendation:* ${priceData.data.recommendation}
+*Market Analysis:* ${priceData.data.market_analysis}`)
           } else {
             await msg.reply(`❌ Sorry, couldn't fetch price data for ${crop}. Please try a different crop name.`)
           }
@@ -190,13 +195,43 @@ I can recommend:
 What type of farming equipment do you need?`)
     }
     
+    else if (/fao|statistics|production|global/i.test(message)) {
+      // Extract crop from message
+      const cropMatch = message.match(/fao\s+(.+)|statistics\s+(.+)|production\s+(.+)/i)
+      const crop = cropMatch ? (cropMatch[1] || cropMatch[2] || cropMatch[3]) : 'rice'
+      
+      try {
+        // Call FAO statistics API (no key needed)
+        const response = await axios.get(`${BACKEND_URL}/api/fao-statistics?crop=${encodeURIComponent(crop)}&country=India`)
+        const faoData = response.data
+        
+        if (faoData.success) {
+          await msg.reply(`📊 *FAO Statistics for ${crop}* (${faoData.source})
+
+🌾 Production: ${faoData.data.production}
+📈 Global Rank: ${faoData.data.global_rank}
+📊 Trends: ${faoData.data.trends}
+
+*Recommendations:*
+${faoData.data.recommendations.map(rec => `• ${rec}`).join('\n')}
+
+*Source:* FAO (Food & Agriculture Organization)`)
+        } else {
+          await msg.reply(`❌ Sorry, couldn't fetch FAO statistics for ${crop}. Please try a different crop name.`)
+        }
+      } catch (error) {
+        await msg.reply(`❌ FAO statistics service temporarily unavailable. Please try again later.`)
+      }
+    }
+    
     else if (/help|सहायता|సహాయం/i.test(message)) {
       await msg.reply(`🆘 *Help & Support*
 
 Available services:
-🌤️ Weather - Weather updates
-🌱 Soil - Soil analysis  
-📈 Market - Price information
+🌤️ Weather - NASA POWER weather data
+🌱 Soil - OpenLandMap soil analysis  
+📈 Market - Agmarknet price information
+📊 FAO - Global crop statistics
 🐛 Pest - Disease identification
 🔧 Tools - Equipment recommendations
 💬 Voice - Voice assistant

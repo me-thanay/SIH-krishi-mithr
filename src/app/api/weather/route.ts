@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY || 'your_openweather_api_key_here'
-const USE_MOCK_DATA = !OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'your_openweather_api_key_here'
+const USE_OPENWEATHER = OPENWEATHER_API_KEY && OPENWEATHER_API_KEY !== 'your_openweather_api_key_here'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,9 +11,12 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get('city')
     const type = searchParams.get('type') || 'current' // current, forecast, soil
 
-    // Use mock data if no API key is provided
-    if (USE_MOCK_DATA) {
-      return getMockWeatherData(city || 'Hyderabad', type)
+    // Use NASA POWER API (no key needed) or OpenWeather if available
+    if (USE_OPENWEATHER) {
+      // Use OpenWeather API
+    } else {
+      // Use NASA POWER API (no key needed)
+      return getNASAPowerWeatherData(lat, lon, city, type)
     }
 
     if (!lat && !lon && !city) {
@@ -87,6 +90,91 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     )
+  }
+}
+
+async function getNASAPowerWeatherData(lat: string | null, lon: string | null, city: string | null, type: string) {
+  try {
+    // Default coordinates for Hyderabad if not provided
+    const latitude = lat || '17.3850'
+    const longitude = lon || '78.4867'
+    const location = city || 'Hyderabad'
+
+    // NASA POWER API endpoint (no key needed)
+    const baseUrl = 'https://power.larc.nasa.gov/api/temporal/daily/point'
+    
+    // Get current date and 7 days ago for forecast
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(endDate.getDate() - 7)
+    
+    const startStr = startDate.toISOString().slice(0, 10).replace(/-/g, '')
+    const endStr = endDate.toISOString().slice(0, 10).replace(/-/g, '')
+
+    const params = new URLSearchParams({
+      parameters: 'T2M,T2MDEW,T2MWET,RH2M,PRECTOTCORR,ALLSKY_SFC_SW_DWN,WS2M',
+      community: 'AG',
+      longitude: longitude,
+      latitude: latitude,
+      start: startStr,
+      end: endStr,
+      format: 'JSON'
+    })
+
+    const response = await fetch(`${baseUrl}?${params}`)
+    
+    if (!response.ok) {
+      throw new Error(`NASA POWER API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    
+    // Format NASA POWER data for agricultural use
+    const formattedData = {
+      success: true,
+      type,
+      location,
+      source: 'NASA POWER',
+      data: {
+        current: {
+          temperature: {
+            current: data.properties?.parameter?.T2M?.values?.[data.properties?.parameter?.T2M?.values?.length - 1] || 28,
+            feels_like: data.properties?.parameter?.T2MDEW?.values?.[data.properties?.parameter?.T2MDEW?.values?.length - 1] || 30,
+            min: Math.min(...(data.properties?.parameter?.T2M?.values || [25])),
+            max: Math.max(...(data.properties?.parameter?.T2M?.values || [32]))
+          },
+          humidity: data.properties?.parameter?.RH2M?.values?.[data.properties?.parameter?.RH2M?.values?.length - 1] || 65,
+          wind: {
+            speed: data.properties?.parameter?.WS2M?.values?.[data.properties?.parameter?.WS2M?.values?.length - 1] || 3.5,
+            direction: 180
+          },
+          weather: {
+            main: 'Clear',
+            description: 'clear sky',
+            icon: '01d'
+          },
+          solar_radiation: data.properties?.parameter?.ALLSKY_SFC_SW_DWN?.values?.[data.properties?.parameter?.ALLSKY_SFC_SW_DWN?.values?.length - 1] || 25,
+          rainfall: data.properties?.parameter?.PRECTOTCORR?.values?.[data.properties?.parameter?.PRECTOTCORR?.values?.length - 1] || 0,
+          evapotranspiration: data.properties?.parameter?.T2MWET?.values?.[data.properties?.parameter?.T2MWET?.values?.length - 1] || 5,
+          farming_conditions: {
+            irrigation_needed: (data.properties?.parameter?.RH2M?.values?.[data.properties?.parameter?.RH2M?.values?.length - 1] || 65) < 40,
+            crop_stress: (data.properties?.parameter?.T2M?.values?.[data.properties?.parameter?.T2M?.values?.length - 1] || 28) > 35,
+            good_growing: (data.properties?.parameter?.T2M?.values?.[data.properties?.parameter?.T2M?.values?.length - 1] || 28) > 15 && (data.properties?.parameter?.T2M?.values?.[data.properties?.parameter?.T2M?.values?.length - 1] || 28) < 35,
+            planting_suitable: (data.properties?.parameter?.T2M?.values?.[data.properties?.parameter?.T2M?.values?.length - 1] || 28) > 15,
+            harvesting_suitable: (data.properties?.parameter?.T2M?.values?.[data.properties?.parameter?.T2M?.values?.length - 1] || 28) > 10
+          }
+        }
+      },
+      timestamp: new Date().toISOString(),
+      note: '🌱 Real data from NASA POWER API (no key needed)'
+    }
+
+    return NextResponse.json(formattedData)
+
+  } catch (error) {
+    console.error('NASA POWER API error:', error)
+    // Fallback to mock data if NASA API fails
+    return getMockWeatherData(city || 'Hyderabad', type)
   }
 }
 

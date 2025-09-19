@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { SmartAgriTechNavbar } from '@/components/ui/smart-agritech-navbar'
+import { SimpleAgriNavbar } from '@/components/ui/simple-agri-navbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -18,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SmartAgriTechNavbar />
+        <SimpleAgriNavbar />
         <div className="pt-20">
           {children}
         </div>

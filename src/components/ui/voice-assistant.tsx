@@ -149,11 +149,45 @@ export const VoiceAssistant = ({ onVoiceResult, className }: VoiceAssistantProps
       const lower = text.toLowerCase()
       const phoneNumber = "7670997498"
 
+      // Helper: try opening WhatsApp with best-effort deep links + fallback
+      const openWhatsApp = (msg: string) => {
+        const encoded = encodeURIComponent(msg)
+        const ua = navigator.userAgent || ''
+
+        // iOS and generic scheme
+        const iosScheme = `whatsapp://send?phone=${phoneNumber}&text=${encoded}`
+        // Android intent
+        const androidIntent = `intent://send?phone=${phoneNumber}&text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`
+        // Web fallback
+        const webUrl = `https://wa.me/${phoneNumber}?text=${encoded}`
+
+        // Prefer native app when possible
+        if (/Android/i.test(ua)) {
+          // Try intent first
+          window.location.href = androidIntent
+          // Fallback to scheme then web
+          setTimeout(() => {
+            window.location.href = iosScheme
+            setTimeout(() => {
+              window.open(webUrl, '_blank')
+            }, 400)
+          }, 200)
+        } else if (/iPhone|iPad|iPod/i.test(ua)) {
+          // iOS scheme first, then web
+          window.location.href = iosScheme
+          setTimeout(() => {
+            window.open(webUrl, '_blank')
+          }, 400)
+        } else {
+          // Desktop → WhatsApp Web
+          window.open(webUrl, '_blank')
+        }
+      }
+
       if (lower.includes("kissan")) {
         // Hotword detected → redirect to WhatsApp with keyword 'kissan'
         setResponse("Opening WhatsApp… keyword 'kissan' detected")
-        const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent("kissan")}`
-        window.open(whatsappUrl, '_blank')
+        openWhatsApp('kissan')
       } else {
         // Do not auto-redirect; instruct user
         setResponse(

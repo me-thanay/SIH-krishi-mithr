@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils"
 
 interface SoilAnalysisResult {
   analysis_id: string
-  timestamp: string
+  timestamp: string 
   location: string
   crop_type: string
   soil_type: string

@@ -14,6 +14,7 @@ const client = new Client({
   authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
   puppeteer: {
     headless: true,
+    executablePath: process.env.CHROME_PATH, // set to local Chrome to skip Chromium download
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -21,7 +22,6 @@ const client = new Client({
       '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--no-zygote',
-      '--single-process',
       '--disable-gpu'
     ]
   }
@@ -39,8 +39,6 @@ client.on('ready', () => {
 client.on('message', async (msg) => {
   try {
     console.log(`[INCOMING] ${msg.from}: ${msg.body}`)
-
-    // Forward to backend webhook if configured
     if (BACKEND_URL) {
       try {
         await axios.post(`${BACKEND_URL}/api/webhook/whatsapp`, {

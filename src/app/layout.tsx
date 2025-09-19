@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { FloatingAssistant } from '@/components/ui/floating-assistant'
-import { DebugNavbar } from '@/components/ui/debug-navbar'
+import { SmartAgriTechNavbar } from '@/components/ui/smart-agritech-navbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <DebugNavbar />
+        <SmartAgriTechNavbar />
         <div className="pt-16">
           {children}
         </div>

@@ -39,22 +39,123 @@ client.on('ready', () => {
 client.on('message', async (msg) => {
   try {
     console.log(`[INCOMING] ${msg.from}: ${msg.body}`)
+    
+    // Forward to backend webhook
     if (BACKEND_URL) {
       try {
         await axios.post(`${BACKEND_URL}/api/webhook/whatsapp`, {
           from: msg.from,
           body: msg.body,
-          timestamp: msg.timestamp
+          timestamp: msg.timestamp,
+          type: msg.type,
+          isGroup: msg.from.includes('@g.us')
         })
       } catch (err) {
         console.error('Failed to forward to backend:', err?.response?.status, err?.response?.data || err.message)
       }
     }
 
-    // Simple auto-reply for testing
-    if (/^kissan/i.test(msg.body)) {
-      await msg.reply('👋 Kissan keyword detected. How can I help you?')
+    // Agricultural keyword responses
+    const message = msg.body.toLowerCase()
+    
+    if (/^kissan|^krishi|^hello|^hi/i.test(message)) {
+      await msg.reply(`🌱 Welcome to Krishi Mithr! 
+
+I'm your AI-powered agriculture assistant. Here's what I can help you with:
+
+🌤️ *Weather Updates* - Get current weather and forecasts
+🌱 *Soil Analysis* - AI-powered soil health analysis  
+📈 *Market Prices* - Real-time commodity prices
+🐛 *Pest Detection* - Identify pests and diseases
+🔧 *Farming Tools* - Equipment recommendations
+💬 *Voice Assistant* - Voice-enabled farming support
+
+Type any of these keywords to get started!`)
     }
+    
+    else if (/weather|मौसम|వాతావరణం/i.test(message)) {
+      await msg.reply(`🌤️ *Weather Service*
+
+To get weather updates, please share your location or type:
+• "weather [your city]"
+• "forecast [your city]"
+
+I'll provide current conditions and 7-day forecasts!`)
+    }
+    
+    else if (/soil|मिट्टी|నేల|ground/i.test(message)) {
+      await msg.reply(`🌱 *Soil Analysis Service*
+
+For soil health analysis, please:
+• Share a photo of your soil
+• Describe your soil type
+• Mention your crop
+
+I'll provide AI-powered soil recommendations!`)
+    }
+    
+    else if (/price|market|rate|भाव|రేటు/i.test(message)) {
+      await msg.reply(`📈 *Market Prices Service*
+
+Get real-time commodity prices by typing:
+• "price [crop name]" (e.g., "price rice")
+• "market [location]"
+• "rates today"
+
+I'll fetch the latest market data!`)
+    }
+    
+    else if (/pest|disease|कीट|రోగం|bug/i.test(message)) {
+      await msg.reply(`🐛 *Pest Detection Service*
+
+For pest identification:
+• Share a photo of the affected plant
+• Describe the symptoms
+• Mention your crop type
+
+I'll help identify the pest/disease and suggest treatments!`)
+    }
+    
+    else if (/tool|equipment|उपकरण|పరికరం/i.test(message)) {
+      await msg.reply(`🔧 *Farming Tools Service*
+
+I can recommend:
+• Equipment for your farm size
+• Best tools for your crops
+• Dealer network in your area
+• Equipment rental options
+
+What type of farming equipment do you need?`)
+    }
+    
+    else if (/help|सहायता|సహాయం/i.test(message)) {
+      await msg.reply(`🆘 *Help & Support*
+
+Available services:
+🌤️ Weather - Weather updates
+🌱 Soil - Soil analysis  
+📈 Market - Price information
+🐛 Pest - Disease identification
+🔧 Tools - Equipment recommendations
+💬 Voice - Voice assistant
+
+Type any keyword to get started!`)
+    }
+    
+    else if (message.length > 0 && !msg.from.includes('@g.us')) {
+      // Default response for unrecognized messages
+      await msg.reply(`🤖 I'm still learning! 
+
+For now, I can help with:
+• Weather updates
+• Soil analysis
+• Market prices  
+• Pest detection
+• Farming tools
+
+Type "help" for more options!`)
+    }
+    
   } catch (e) {
     console.error('Error handling message:', e)
   }

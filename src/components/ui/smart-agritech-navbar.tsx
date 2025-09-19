@@ -24,6 +24,7 @@ import {
   Volume2
 } from "lucide-react"
 import { Button } from "./button"
+import { WhatsAppStatus } from "./whatsapp-status"
 
 interface NavItem {
   name: string
@@ -86,7 +87,7 @@ export function SmartAgriTechNavbar() {
   // Handle WhatsApp click
   const handleWhatsAppClick = () => {
     const phoneNumber = "7670997498"
-    const message = "kissan"
+    const message = "🌱 Hello! I'm interested in Krishi Mithr's agricultural services. Can you help me get started?"
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, '_blank')
   }
@@ -190,6 +191,7 @@ export function SmartAgriTechNavbar() {
 
           {/* WhatsApp Button */}
           <div className="hidden lg:flex items-center space-x-4">
+            <WhatsAppStatus />
             <Button
               onClick={handleWhatsAppClick}
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"

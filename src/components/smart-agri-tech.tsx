@@ -26,8 +26,6 @@ import { FeatureCard } from "./ui/feature-card"
 import { FloatingElement } from "./ui/floating-element"
 import { ScrollAnimationContainer } from "./ui/scroll-animation-container"
 import { VoiceAssistant } from "./ui/voice-assistant"
-import { WhatsAppChat } from "./ui/whatsapp-chat"
-import { WhatsAppMessageBar } from "./ui/whatsapp-message-bar"
 import { WeatherWidget } from "./ui/weather-widget"
 import { WeatherForecast } from "./ui/weather-forecast"
 import { MarketPrices } from "./ui/market-prices"
@@ -269,7 +267,7 @@ const SmartAgriTechComponent = () => {
         </div>
       </section>
 
-      {/* WhatsApp Message Bar - Below Hero Section */}
+      {/* WhatsApp Support Section */}
       <section className="py-12 px-4 bg-gradient-to-r from-green-50 to-blue-50">
         <div className="max-w-7xl mx-auto">
           <motion.div
@@ -279,10 +277,21 @@ const SmartAgriTechComponent = () => {
             viewport={{ once: true }}
             className="flex justify-center"
           >
-            <WhatsAppMessageBar 
-              showResponseArea={true}
-              className="max-w-2xl w-full"
-            />
+            <div className="max-w-2xl w-full text-center">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                Direct WhatsApp Support
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Get instant agricultural support through WhatsApp. Our AI assistant is available 24/7 to help with your farming queries.
+              </p>
+              <Button 
+                onClick={() => window.open('https://wa.me/7670997498?text=Hello! I need agricultural support.', '_blank')}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 mx-auto"
+              >
+                <MessageCircle size={20} />
+                <span>Start WhatsApp Chat</span>
+              </Button>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -538,7 +547,36 @@ const SmartAgriTechComponent = () => {
       {/* WhatsApp Integration Section */}
       <ScrollAnimationContainer>
         <section id="whatsapp" className="py-20 px-4">
-          <WhatsAppChat showFloatingButton={false} />
+          <div className="max-w-7xl mx-auto text-center">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">
+              WhatsApp Agricultural Support
+            </h2>
+            <p className="text-lg text-gray-600 mb-8 max-w-3xl mx-auto">
+              Get instant agricultural support through WhatsApp. Our AI assistant provides weather updates, 
+              market prices, soil analysis, and crop advice in multiple Indian languages.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="font-semibold text-green-600 mb-2">🌤️ Weather Updates</h3>
+                <p className="text-sm text-gray-600">Get real-time weather data from NASA satellites</p>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="font-semibold text-blue-600 mb-2">💰 Market Prices</h3>
+                <p className="text-sm text-gray-600">Access live Indian market prices from Agmarknet</p>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="font-semibold text-purple-600 mb-2">🌱 Crop Advice</h3>
+                <p className="text-sm text-gray-600">Get AI-powered farming recommendations</p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => window.open('https://wa.me/7670997498?text=Hello! I need agricultural support.', '_blank')}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg text-lg"
+            >
+              <MessageCircle size={24} className="mr-2" />
+              Start WhatsApp Chat
+            </Button>
+          </div>
         </section>
       </ScrollAnimationContainer>
 

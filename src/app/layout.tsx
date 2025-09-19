@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { FloatingAssistant } from '@/components/ui/floating-assistant'
 import { SmartAgriTechNavbar } from '@/components/ui/smart-agritech-navbar'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -23,7 +22,6 @@ export default function RootLayout({
         <div className="pt-20">
           {children}
         </div>
-        <FloatingAssistant />
       </body>
     </html>
   )

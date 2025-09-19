@@ -8,12 +8,16 @@ export async function GET(request: NextRequest) {
     const mandi = searchParams.get('mandi') || 'All'
     const source = searchParams.get('source') || 'agmarknet' // agmarknet, fao, worldbank
 
+    // Use mock data for testing
     if (!crop) {
       return NextResponse.json(
         { error: 'Please provide crop name' },
         { status: 400 }
       )
     }
+
+    // Return mock data for immediate testing
+    return getMockPriceData(crop, state, mandi, source)
 
     let data: any = {}
 
@@ -125,6 +129,36 @@ async function fetchWorldBankData(crop: string) {
   } catch (error) {
     throw new Error(`World Bank API error: ${error}`)
   }
+}
+
+function getMockPriceData(crop: string, state: string, mandi: string, source: string) {
+  const mockData = {
+    success: true,
+    source,
+    crop,
+    location: { state, mandi },
+    data: {
+      commodity: crop,
+      state: state,
+      mandi: mandi,
+      prices: [
+        {
+          date: new Date().toISOString().split('T')[0],
+          min_price: Math.floor(Math.random() * 1000) + 1500,
+          max_price: Math.floor(Math.random() * 1000) + 2500,
+          modal_price: Math.floor(Math.random() * 1000) + 2000,
+          unit: 'Quintal',
+          market: mandi || 'Local Market'
+        }
+      ],
+      trend: 'stable',
+      recommendation: getPriceRecommendation(crop)
+    },
+    timestamp: new Date().toISOString(),
+    note: '🌱 Mock data for testing. Get real data by integrating with Agmarknet API.'
+  }
+
+  return NextResponse.json(mockData)
 }
 
 function getPriceRecommendation(crop: string): string {

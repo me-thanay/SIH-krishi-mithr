@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY || 'your_openweather_api_key_here'
+const USE_MOCK_DATA = !OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'your_openweather_api_key_here'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +10,11 @@ export async function GET(request: NextRequest) {
     const lon = searchParams.get('lon')
     const city = searchParams.get('city')
     const type = searchParams.get('type') || 'current' // current, forecast, soil
+
+    // Use mock data if no API key is provided
+    if (USE_MOCK_DATA) {
+      return getMockWeatherData(city || 'Hyderabad', type)
+    }
 
     if (!lat && !lon && !city) {
       return NextResponse.json(
@@ -82,6 +88,50 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+function getMockWeatherData(city: string, type: string) {
+  const mockData = {
+    success: true,
+    type,
+    location: city,
+    data: {
+      current: {
+        temperature: {
+          current: 28,
+          feels_like: 30,
+          min: 25,
+          max: 32
+        },
+        humidity: 65,
+        pressure: 1013,
+        wind: {
+          speed: 3.5,
+          direction: 180
+        },
+        weather: {
+          main: 'Partly Cloudy',
+          description: 'partly cloudy',
+          icon: '02d'
+        },
+        visibility: 10000,
+        clouds: 40,
+        sunrise: new Date('2024-01-15T06:30:00'),
+        sunset: new Date('2024-01-15T18:30:00'),
+        farming_conditions: {
+          irrigation_needed: false,
+          crop_stress: false,
+          good_growing: true,
+          planting_suitable: true,
+          harvesting_suitable: true
+        }
+      }
+    },
+    timestamp: new Date().toISOString(),
+    note: '🌱 Mock data for testing. Get real data by adding OPENWEATHER_API_KEY to environment variables.'
+  }
+
+  return NextResponse.json(mockData)
 }
 
 function formatWeatherData(data: any, type: string) {

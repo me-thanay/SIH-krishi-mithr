@@ -151,17 +151,8 @@ const SmartAgriTechComponent = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.7 }}
-              className="flex flex-col sm:flex-row gap-4"
+              className="flex justify-center"
             >
-              <Button size="lg" className="group bg-green-600 hover:bg-green-700">
-                Get Started
-                <motion.div
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                >
-                  →
-                </motion.div>
-              </Button>
               <Button 
                 variant="outline" 
                 size="lg" 

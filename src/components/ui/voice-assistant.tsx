@@ -1,428 +1,337 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Mic, MicOff, Volume2, MessageCircle } from "lucide-react"
-import { Card } from "./card"
+import { Mic, MicOff, Volume2, VolumeX, Loader2 } from "lucide-react"
 import { Button } from "./button"
-import { cn } from "@/lib/utils"
 
 interface VoiceAssistantProps {
-  onVoiceResult?: (text: string) => void
+  onTranscript?: (text: string) => void
+  onResponse?: (response: string) => void
   className?: string
 }
 
-export const VoiceAssistant = ({ onVoiceResult, className }: VoiceAssistantProps) => {
+export function VoiceAssistant({ onTranscript, onResponse, className }: VoiceAssistantProps) {
   const [isListening, setIsListening] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [transcript, setTranscript] = useState("")
   const [response, setResponse] = useState("")
-  const [duration, setDuration] = useState(0)
-  const [audioLevel, setAudioLevel] = useState(0)
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [language, setLanguage] = useState("en") // en, hi, te, ta, etc.
   
-  const recognitionRef = useRef<any | null>(null)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const analyserRef = useRef<AnalyserNode | null>(null)
-  const microphoneRef = useRef<MediaStreamAudioSourceNode | null>(null)
+  const recognitionRef = useRef<any>(null)
+  const speechSynthesisRef = useRef<any>(null)
 
   useEffect(() => {
     // Initialize speech recognition
     if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition
-      recognitionRef.current = new SpeechRecognition()
-      
+      recognitionRef.current = new (window as any).webkitSpeechRecognition()
       recognitionRef.current.continuous = false
       recognitionRef.current.interimResults = true
-      recognitionRef.current.lang = 'en-US'
-
-      recognitionRef.current.onstart = () => {
-        setIsListening(true)
-        setTranscript("")
-        setResponse("")
-        startAudioVisualization()
-      }
+      recognitionRef.current.lang = getLanguageCode(language)
 
       recognitionRef.current.onresult = (event: any) => {
         let finalTranscript = ""
-        let interimTranscript = ""
-
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript
           if (event.results[i].isFinal) {
-            finalTranscript += transcript
-          } else {
-            interimTranscript += transcript
+            finalTranscript += event.results[i][0].transcript
           }
         }
-
-        setTranscript(finalTranscript || interimTranscript)
+        if (finalTranscript) {
+          setTranscript(finalTranscript)
+          onTranscript?.(finalTranscript)
+          processVoiceCommand(finalTranscript)
+        }
       }
 
       recognitionRef.current.onend = () => {
         setIsListening(false)
-        stopAudioVisualization()
-        if (transcript.trim()) {
-          processVoiceInput(transcript)
-        }
       }
 
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error)
         setIsListening(false)
-        stopAudioVisualization()
       }
     }
+  }, [language])
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close()
-      }
+  const getLanguageCode = (lang: string) => {
+    const languageCodes: { [key: string]: string } = {
+      'en': 'en-US',
+      'hi': 'hi-IN',
+      'te': 'te-IN',
+      'ta': 'ta-IN',
+      'bn': 'bn-IN',
+      'gu': 'gu-IN',
+      'kn': 'kn-IN',
+      'ml': 'ml-IN',
+      'mr': 'mr-IN',
+      'pa': 'pa-IN',
+      'ur': 'ur-IN'
     }
-  }, [transcript])
-
-  const startAudioVisualization = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
-      analyserRef.current = audioContextRef.current.createAnalyser()
-      microphoneRef.current = audioContextRef.current.createMediaStreamSource(stream)
-      
-      microphoneRef.current.connect(analyserRef.current)
-      analyserRef.current.fftSize = 256
-      
-      const bufferLength = analyserRef.current.frequencyBinCount
-      const dataArray = new Uint8Array(bufferLength)
-      
-      const updateAudioLevel = () => {
-        if (analyserRef.current && isListening) {
-          analyserRef.current.getByteFrequencyData(dataArray)
-          const average = dataArray.reduce((a, b) => a + b) / bufferLength
-          setAudioLevel(average / 255)
-          requestAnimationFrame(updateAudioLevel)
-        }
-      }
-      
-      updateAudioLevel()
-    } catch (error) {
-      console.error('Error accessing microphone:', error)
-    }
-  }
-
-  const stopAudioVisualization = () => {
-    if (microphoneRef.current) {
-      microphoneRef.current.disconnect()
-    }
-    setAudioLevel(0)
+    return languageCodes[lang] || 'en-US'
   }
 
   const startListening = () => {
     if (recognitionRef.current) {
-      setDuration(0)
+      setIsListening(true)
+      setTranscript("")
+      setResponse("")
       recognitionRef.current.start()
-      
-      // Start duration timer
-      intervalRef.current = setInterval(() => {
-        setDuration(prev => prev + 1)
-      }, 1000)
     }
   }
 
   const stopListening = () => {
     if (recognitionRef.current) {
       recognitionRef.current.stop()
-    }
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
+      setIsListening(false)
     }
   }
 
-  const processVoiceInput = async (text: string) => {
+  const processVoiceCommand = async (command: string) => {
     setIsProcessing(true)
     
     try {
-      console.log('Processing voice input:', text)
+      // Process agricultural voice commands
+      const response = await processAgriculturalCommand(command.toLowerCase())
+      setResponse(response)
+      onResponse?.(response)
       
-      const lower = text.toLowerCase()
-      const phoneNumber = "7670997498"
-
-      // Helper: try opening WhatsApp with best-effort deep links + fallback
-      const openWhatsApp = (msg: string) => {
-        const encoded = encodeURIComponent(msg)
-        const ua = navigator.userAgent || ''
-
-        // iOS and generic scheme
-        const iosScheme = `whatsapp://send?phone=${phoneNumber}&text=${encoded}`
-        // Android intent
-        const androidIntent = `intent://send?phone=${phoneNumber}&text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`
-        // Web fallback
-        const webUrl = `https://wa.me/${phoneNumber}?text=${encoded}`
-
-        // Prefer native app when possible
-        if (/Android/i.test(ua)) {
-          // Try intent first
-          window.location.href = androidIntent
-          // Fallback to scheme then web
-          setTimeout(() => {
-            window.location.href = iosScheme
-            setTimeout(() => {
-              window.open(webUrl, '_blank')
-            }, 400)
-          }, 200)
-        } else if (/iPhone|iPad|iPod/i.test(ua)) {
-          // iOS scheme first, then web
-          window.location.href = iosScheme
-          setTimeout(() => {
-            window.open(webUrl, '_blank')
-          }, 400)
-        } else {
-          // Desktop → WhatsApp Web
-          window.open(webUrl, '_blank')
-        }
-      }
-
-      if (lower.includes("kissan")) {
-        // Hotword detected → redirect to WhatsApp with keyword 'kissan'
-        setResponse("Opening WhatsApp… keyword 'kissan' detected")
-        openWhatsApp('kissan')
-      } else {
-        // Do not auto-redirect; instruct user
-        setResponse(
-          `✅ Heard: "${text}"
-💡 Say the word "kissan" to open WhatsApp support, or use the button below.`
-        )
-      }
-      
+      // Speak the response
+      speakResponse(response)
     } catch (error) {
-      console.error('Error processing voice input:', error)
-      setResponse("❌ Error: " + error)
+      console.error('Error processing voice command:', error)
+      const errorResponse = "Sorry, I couldn't process your request. Please try again."
+      setResponse(errorResponse)
+      speakResponse(errorResponse)
     } finally {
       setIsProcessing(false)
     }
+  }
 
-    // Call the callback if provided
-    if (onVoiceResult) {
-      onVoiceResult(text)
+  const processAgriculturalCommand = async (command: string) => {
+    // Weather queries
+    if (command.includes('weather') || command.includes('मौसम') || command.includes('వాతావరణం')) {
+      const location = extractLocation(command)
+      const weatherData = await fetchWeatherData(location)
+      return formatWeatherResponse(weatherData, location)
     }
-  }
-
-  const speakResponse = () => {
-    if (response && 'speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(response)
-      utterance.lang = 'en-US'
-      utterance.rate = 0.8
-      speechSynthesis.speak(utterance)
-    }
-  }
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const generateWaveform = () => {
-    const bars = []
-    const barCount = 20
-    const baseHeight = 4
     
-    for (let i = 0; i < barCount; i++) {
-      const height = isListening 
-        ? baseHeight + (Math.random() * 20 * audioLevel) 
-        : baseHeight + Math.sin(Date.now() * 0.01 + i * 0.5) * 3
+    // Market price queries
+    if (command.includes('price') || command.includes('rate') || command.includes('भाव') || command.includes('రేటు')) {
+      const crop = extractCrop(command)
+      const priceData = await fetchPriceData(crop)
+      return formatPriceResponse(priceData, crop)
+    }
+    
+    // Soil analysis queries
+    if (command.includes('soil') || command.includes('मिट्टी') || command.includes('నేల')) {
+      const soilData = await fetchSoilData()
+      return formatSoilResponse(soilData)
+    }
+    
+    // Crop advice queries
+    if (command.includes('advice') || command.includes('सलाह') || command.includes('సలహా')) {
+      return getCropAdvice(command)
+    }
+    
+    // General help
+    if (command.includes('help') || command.includes('सहायता') || command.includes('సహాయం')) {
+      return getHelpResponse()
+    }
+    
+    // Default response
+    return "I can help you with weather, market prices, soil analysis, and crop advice. Please ask me about farming."
+  }
+
+  const extractLocation = (command: string): string => {
+    // Extract location from voice command
+    const locations = ['hyderabad', 'delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'pune', 'ahmedabad']
+    for (const location of locations) {
+      if (command.includes(location)) {
+        return location
+      }
+    }
+    return 'hyderabad' // default
+  }
+
+  const extractCrop = (command: string): string => {
+    // Extract crop from voice command
+    const crops = ['rice', 'wheat', 'maize', 'cotton', 'sugarcane', 'soybean', 'groundnut', 'mustard', 'potato', 'onion']
+    for (const crop of crops) {
+      if (command.includes(crop)) {
+        return crop
+      }
+    }
+    return 'rice' // default
+  }
+
+  const fetchWeatherData = async (location: string) => {
+    const response = await fetch(`/api/weather?city=${location}&type=current`)
+    return response.json()
+  }
+
+  const fetchPriceData = async (crop: string) => {
+    const response = await fetch(`/api/agmarknet-prices?crop=${crop}`)
+    return response.json()
+  }
+
+  const fetchSoilData = async () => {
+    const response = await fetch('/api/soil-analysis?lat=17.3850&lon=78.4867&source=openlandmap')
+    return response.json()
+  }
+
+  const formatWeatherResponse = (data: any, location: string): string => {
+    if (data.success) {
+      const current = data.data.current
+      return `Weather in ${location}: Temperature ${current.temperature.current} degrees Celsius, Humidity ${current.humidity} percent. ${current.farming_conditions.good_growing ? 'Good conditions for farming.' : 'Monitor crop stress.'}`
+    }
+    return `Weather data for ${location} is not available right now.`
+  }
+
+  const formatPriceResponse = (data: any, crop: string): string => {
+    if (data.success) {
+      const prices = data.data.prices[0]
+      return `${crop} prices: Minimum ${prices.min_price} rupees per quintal, Maximum ${prices.max_price} rupees per quintal. ${data.data.recommendation}`
+    }
+    return `${crop} price data is not available right now.`
+  }
+
+  const formatSoilResponse = (data: any): string => {
+    if (data.success) {
+      const soil = data.data
+      return `Soil analysis: pH level ${soil.ph_level}, Organic carbon ${soil.organic_carbon} percent. ${soil.recommendations[0]}`
+    }
+    return 'Soil analysis data is not available right now.'
+  }
+
+  const getCropAdvice = (command: string): string => {
+    const advice = [
+      "Use quality seeds and maintain proper spacing between plants.",
+      "Monitor soil moisture and irrigate when needed.",
+      "Apply fertilizers based on soil test results.",
+      "Control weeds and pests regularly.",
+      "Practice crop rotation for better soil health."
+    ]
+    return advice[Math.floor(Math.random() * advice.length)]
+  }
+
+  const getHelpResponse = (): string => {
+    return "I can help you with weather updates, market prices, soil analysis, and crop advice. Just ask me about farming!"
+  }
+
+  const speakResponse = (text: string) => {
+    if ('speechSynthesis' in window) {
+      speechSynthesisRef.current = new SpeechSynthesisUtterance(text)
+      speechSynthesisRef.current.lang = getLanguageCode(language)
+      speechSynthesisRef.current.rate = 0.8
+      speechSynthesisRef.current.pitch = 1
       
-      bars.push(
-        <motion.div
-          key={i}
-          className="bg-green-500 rounded-full"
-          style={{ width: '3px' }}
-          animate={{
-            height: `${height}px`,
-            opacity: isListening ? 0.8 : 0.4
-          }}
-          transition={{ duration: 0.1 }}
-        />
-      )
+      speechSynthesisRef.current.onstart = () => setIsSpeaking(true)
+      speechSynthesisRef.current.onend = () => setIsSpeaking(false)
+      
+      speechSynthesis.cancel()
+      speechSynthesis.speak(speechSynthesisRef.current)
     }
-    
-    return bars
+  }
+
+  const stopSpeaking = () => {
+    if (speechSynthesisRef.current) {
+      speechSynthesis.cancel()
+      setIsSpeaking(false)
+    }
   }
 
   return (
-    <Card className={cn("p-8 bg-gradient-to-br from-white to-green-50 border-green-200", className)}>
-      <div className="text-center space-y-6">
-        {/* Title */}
-        <div className="space-y-2">
-          <h3 className="text-2xl font-bold text-gray-800">Try Our Voice Assistant</h3>
-          <p className="text-gray-600">Ask questions about your crops in your preferred language</p>
+    <div className={`voice-assistant ${className}`}>
+      <div className="flex flex-col items-center space-y-4 p-6 bg-white rounded-lg shadow-lg">
+        {/* Language Selector */}
+        <div className="flex space-x-2">
+          <Button
+            variant={language === 'en' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setLanguage('en')}
+          >
+            English
+          </Button>
+          <Button
+            variant={language === 'hi' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setLanguage('hi')}
+          >
+            हिंदी
+          </Button>
+          <Button
+            variant={language === 'te' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setLanguage('te')}
+          >
+            తెలుగు
+          </Button>
         </div>
 
-        {/* Voice Button */}
-        <div className="flex justify-center">
-          <motion.button
+        {/* Voice Controls */}
+        <div className="flex space-x-4">
+          <Button
             onClick={isListening ? stopListening : startListening}
-            className={cn(
-              "w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300",
-              isListening 
-                ? "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200" 
-                : "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-200"
-            )}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            animate={isListening ? { rotate: [0, 5, -5, 0] } : {}}
-            transition={{ duration: 0.5, repeat: isListening ? Infinity : 0 }}
+            disabled={isProcessing}
+            className={`w-16 h-16 rounded-full ${
+              isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+            }`}
           >
             {isListening ? (
               <MicOff className="w-8 h-8 text-white" />
             ) : (
               <Mic className="w-8 h-8 text-white" />
             )}
-          </motion.button>
+          </Button>
+
+          {isSpeaking && (
+            <Button
+              onClick={stopSpeaking}
+              className="w-16 h-16 rounded-full bg-blue-500 hover:bg-blue-600"
+            >
+              <VolumeX className="w-8 h-8 text-white" />
+            </Button>
+          )}
         </div>
-
-        {/* Timer */}
-        <AnimatePresence>
-          {isListening && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="text-2xl font-mono text-gray-700"
-            >
-              {formatDuration(duration)}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Audio Waveform */}
-        <AnimatePresence>
-          {isListening && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="flex items-center justify-center gap-1 h-8"
-            >
-              {generateWaveform()}
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Status */}
-        <AnimatePresence>
+        <div className="text-center">
           {isListening && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-green-600 font-medium"
-            >
-              Listening...
-            </motion.div>
+            <p className="text-green-600 font-medium">🎤 Listening... Speak now</p>
           )}
-        </AnimatePresence>
+          {isProcessing && (
+            <p className="text-blue-600 font-medium">🔄 Processing your request...</p>
+          )}
+          {isSpeaking && (
+            <p className="text-purple-600 font-medium">🔊 Speaking response...</p>
+          )}
+        </div>
 
         {/* Transcript */}
-        <AnimatePresence>
-          {transcript && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-3"
-            >
-              <div className="text-left">
-                <h4 className="text-sm font-medium text-gray-600 mb-2">You said:</h4>
-                <p className="text-gray-800 bg-gray-50 p-3 rounded-lg">{transcript}</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Will be sent to WhatsApp as: "kissan {transcript}"</span>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {transcript && (
+          <div className="w-full max-w-md">
+            <h4 className="font-medium text-gray-700 mb-2">You said:</h4>
+            <p className="p-3 bg-gray-100 rounded-lg text-sm">{transcript}</p>
+          </div>
+        )}
 
         {/* Response */}
-        <AnimatePresence>
-          {response && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-3"
-            >
-              <div className="text-left">
-                <h4 className="text-sm font-medium text-gray-600 mb-2">Response:</h4>
-                <p className="text-gray-800 bg-green-50 p-3 rounded-lg">{response}</p>
-              </div>
-              
-              <div className="flex gap-2 justify-center">
-                <Button
-                  onClick={speakResponse}
-                  variant="outline"
-                  size="sm"
-                  className="border-green-600 text-green-600 hover:bg-green-50"
-                >
-                  <Volume2 className="w-4 h-4 mr-2" />
-                  Speak Response
-                </Button>
-                
-                <Button
-                  onClick={() => {
-                    const phoneNumber = "7670997498"
-                    const message = `kissan`
-                    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
-                    window.open(whatsappUrl, '_blank')
-                  }}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Send to WhatsApp
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Processing Indicator */}
-        <AnimatePresence>
-          {isProcessing && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center justify-center gap-2 text-green-600"
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full"
-              />
-              Processing your request...
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {response && (
+          <div className="w-full max-w-md">
+            <h4 className="font-medium text-gray-700 mb-2">Response:</h4>
+            <p className="p-3 bg-green-100 rounded-lg text-sm">{response}</p>
+          </div>
+        )}
 
         {/* Instructions */}
-        <div className="text-sm text-gray-500 space-y-1">
-          <p>• Click the microphone to start listening</p>
-          <p>• Ask about weather, pests, soil, or market prices</p>
-          <p>• Your question will be processed by our AI assistant</p>
+        <div className="text-center text-sm text-gray-600">
+          <p>Try saying:</p>
+          <p>"What's the weather in Hyderabad?"</p>
+          <p>"What's the price of rice?"</p>
+          <p>"Give me soil advice"</p>
         </div>
       </div>
-    </Card>
+    </div>
   )
-}
-
-// Extend Window interface for TypeScript
-declare global {
-  interface Window {
-    webkitSpeechRecognition: any
-    SpeechRecognition: any
-  }
 }

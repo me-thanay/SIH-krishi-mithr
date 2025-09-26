@@ -54,7 +54,7 @@ export default function ProfilePage() {
         const data = await response.json()
         if (data.success && data.user) {
           setUser(data.user)
-          setEditedProfile(data.user.agriculturalProfile)
+          setEditedProfile(data.user.agriculturalProfile ?? null)
         }
       } else {
         localStorage.removeItem('auth_token')
@@ -104,7 +104,7 @@ export default function ProfilePage() {
   }
 
   const handleCancel = () => {
-    setEditedProfile(user?.agriculturalProfile)
+    setEditedProfile(user?.agriculturalProfile ?? null)
     setIsEditing(false)
   }
 

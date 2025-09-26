@@ -161,7 +161,7 @@ export default function DashboardPage() {
 
       // Try to fetch market prices (optional)
       try {
-        const marketPromises = profile.crops.map(crop =>
+        const marketPromises = (profile.crops as string[]).map((crop: string) =>
           fetch(`/api/market-prices?crop=${encodeURIComponent(crop)}`)
             .then(res => res.ok ? res.json() : null)
             .then(data => data?.success ? data.data : null)
@@ -175,7 +175,7 @@ export default function DashboardPage() {
           setMarketData(validResults)
         } else {
           // Set mock market data
-          const mockMarketData = profile.crops.map(crop => ({
+          const mockMarketData = (profile.crops as string[]).map((crop: string) => ({
             crop,
             min_price: 1500 + Math.floor(Math.random() * 1000),
             max_price: 2500 + Math.floor(Math.random() * 1000),
@@ -187,7 +187,7 @@ export default function DashboardPage() {
       } catch (marketError) {
         console.log('Market API not available, using mock data')
         // Set mock market data
-        const mockMarketData = profile.crops.map(crop => ({
+        const mockMarketData = (profile.crops as string[]).map((crop: string) => ({
           crop,
           min_price: 1500 + Math.floor(Math.random() * 1000),
           max_price: 2500 + Math.floor(Math.random() * 1000),

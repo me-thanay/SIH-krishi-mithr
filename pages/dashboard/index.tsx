@@ -229,7 +229,11 @@ export default function DashboardPage() {
         scheme: "Pradhan Mantri Fasal Bima Yojana",
         amount: "Up to ₹50,000",
         eligibility: true,
-        description: "Crop insurance for your crops: " + profile.crops.join(', ')
+        description: "Crop insurance for your crops: " + (
+          Array.isArray(profile.crops)
+            ? profile.crops.join(', ')
+            : String(profile.crops)
+        )
       })
     }
 

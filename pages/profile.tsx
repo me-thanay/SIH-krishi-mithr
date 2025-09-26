@@ -29,7 +29,8 @@ export default function ProfilePage() {
   const [user, setUser] = useState<UserData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
-  const [editedProfile, setEditedProfile] = useState<any>(null)
+  type AgriProfile = NonNullable<UserData['agriculturalProfile']>
+  const [editedProfile, setEditedProfile] = useState<AgriProfile | null>(null)
 
   useEffect(() => {
     fetchUserProfile()
@@ -246,7 +247,7 @@ export default function ProfilePage() {
                         <input
                           type="text"
                           value={editedProfile?.farmSize || ''}
-                          onChange={(e) => setEditedProfile(prev => ({ ...prev, farmSize: e.target.value }))}
+                          onChange={(e) => setEditedProfile((prev: AgriProfile | null) => (prev ? { ...prev, farmSize: e.target.value } : prev))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       ) : (
@@ -260,7 +261,7 @@ export default function ProfilePage() {
                         <input
                           type="text"
                           value={editedProfile?.location || ''}
-                          onChange={(e) => setEditedProfile(prev => ({ ...prev, location: e.target.value }))}
+                          onChange={(e) => setEditedProfile((prev: AgriProfile | null) => (prev ? { ...prev, location: e.target.value } : prev))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       ) : (
@@ -274,7 +275,7 @@ export default function ProfilePage() {
                         <input
                           type="text"
                           value={editedProfile?.state || ''}
-                          onChange={(e) => setEditedProfile(prev => ({ ...prev, state: e.target.value }))}
+                          onChange={(e) => setEditedProfile((prev: AgriProfile | null) => (prev ? { ...prev, state: e.target.value } : prev))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       ) : (
@@ -288,7 +289,7 @@ export default function ProfilePage() {
                         <input
                           type="text"
                           value={editedProfile?.soilType || ''}
-                          onChange={(e) => setEditedProfile(prev => ({ ...prev, soilType: e.target.value }))}
+                          onChange={(e) => setEditedProfile((prev: AgriProfile | null) => (prev ? { ...prev, soilType: e.target.value } : prev))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       ) : (
@@ -302,7 +303,7 @@ export default function ProfilePage() {
                         <input
                           type="text"
                           value={editedProfile?.irrigationType || ''}
-                          onChange={(e) => setEditedProfile(prev => ({ ...prev, irrigationType: e.target.value }))}
+                          onChange={(e) => setEditedProfile((prev: AgriProfile | null) => (prev ? { ...prev, irrigationType: e.target.value } : prev))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       ) : (
@@ -316,7 +317,7 @@ export default function ProfilePage() {
                         <input
                           type="text"
                           value={editedProfile?.farmingExperience || ''}
-                          onChange={(e) => setEditedProfile(prev => ({ ...prev, farmingExperience: e.target.value }))}
+                          onChange={(e) => setEditedProfile((prev: AgriProfile | null) => (prev ? { ...prev, farmingExperience: e.target.value } : prev))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       ) : (

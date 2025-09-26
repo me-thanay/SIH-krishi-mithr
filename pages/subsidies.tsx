@@ -21,10 +21,10 @@ interface Subsidy {
   amount: string
   category: string
   state?: string
-  district?: string
-  cropType?: string
+  district?: string | null
+  cropType?: string | null
   minFarmSize?: string
-  maxFarmSize?: string
+  maxFarmSize?: string | null
   validFrom?: string
   validTo?: string
   isActive: boolean

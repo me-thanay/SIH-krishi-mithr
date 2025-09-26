@@ -148,8 +148,8 @@ export function VoiceAssistant({ onTranscript, onResponse, className }: VoiceAss
       speakResponse(response, commandLanguage)
     } catch (error) {
       console.error('Error processing voice command:', error)
-      console.error('Error details:', error.message)
-      console.error('Stack trace:', error.stack)
+      console.error('Error details:', (error as Error)?.message || String(error))
+      console.error('Stack trace:', (error as Error)?.stack)
       const errorResponse = "Sorry, I couldn't process your request. Please try again or contact our WhatsApp support."
       setResponse(errorResponse)
       speakResponse(errorResponse)

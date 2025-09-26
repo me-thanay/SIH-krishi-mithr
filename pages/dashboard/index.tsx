@@ -276,9 +276,9 @@ export default function DashboardPage() {
     const recommendations = []
     
     // Parse crops for recommendations
-    const crops = Array.isArray(userData.agriculturalProfile.crops) 
-      ? userData.agriculturalProfile.crops 
-      : JSON.parse(userData.agriculturalProfile.crops || '[]')
+    const crops: string[] = Array.isArray(userData.agriculturalProfile.crops) 
+      ? (userData.agriculturalProfile.crops as string[])
+      : (JSON.parse(userData.agriculturalProfile.crops || '[]') as string[])
 
     // Weather-based recommendations
     if (weatherData) {
@@ -301,7 +301,7 @@ export default function DashboardPage() {
       }
 
       // Crop-specific recommendations
-      crops.forEach(crop => {
+      crops.forEach((crop: string) => {
         if (crop === "Rice" && weatherData.temperature > 30) {
           recommendations.push({
             type: "warning",

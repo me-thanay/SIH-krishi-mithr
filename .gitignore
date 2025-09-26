@@ -38,3 +38,5 @@ build/
 # Misc
 *.swp
 *.swo
+
+/generated/prisma

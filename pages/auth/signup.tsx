@@ -4,6 +4,7 @@ import React, { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { Sprout, MapPin, Calendar, Droplets } from "lucide-react"
+import { NewNavbar } from "../../src/components/ui/new-navbar"
 
 interface AgriculturalProfile {
   farmSize: string
@@ -71,20 +72,49 @@ export default function SignupPage() {
     setIsLoading(true)
     
     try {
-      // Simulate signup API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Store user data
-      const userData = {
-        ...formData,
-        agriculturalProfile,
-        createdAt: new Date().toISOString()
+      // Validate passwords match
+      if (formData.password !== formData.confirmPassword) {
+        throw new Error('Passwords do not match')
       }
-      localStorage.setItem('user', JSON.stringify(userData))
-      
-      router.push('/dashboard')
+
+      // Call our new database-backed signup API
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          phone: formData.phone,
+          agriculturalProfile: {
+            ...agriculturalProfile,
+            state: agriculturalProfile.location.split(',')[0]?.trim() || agriculturalProfile.location,
+            district: agriculturalProfile.location.split(',')[1]?.trim() || null
+          }
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Signup failed')
+      }
+
+      if (data.success && data.user) {
+        // Store user data (no token for signup, user needs to login)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        
+        // Redirect to login page with success message
+        alert('Account created successfully! Please login to continue.')
+        router.push('/auth/login')
+      } else {
+        throw new Error(data.error || 'Signup failed')
+      }
     } catch (error) {
       console.error('Signup error:', error)
+      alert(error instanceof Error ? error.message : 'Signup failed')
     } finally {
       setIsLoading(false)
     }
@@ -109,7 +139,9 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+      <NewNavbar />
+      <div className="flex items-center justify-center p-4">
       <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg p-8">
         {/* Progress Bar */}
         <div className="mb-8">
@@ -439,6 +471,7 @@ export default function SignupPage() {
             </Link>
           </p>
         </div>
+      </div>
       </div>
     </div>
   )

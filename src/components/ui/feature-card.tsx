@@ -3,17 +3,39 @@
 import React, { useState } from "react"
 import { motion } from "framer-motion"
 import { Card } from "./card"
+import { Button } from "./button"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface FeatureCardProps {
   icon: React.ReactNode
   title: string
   description: string
   delay?: number
+  actionText?: string
+  actionUrl?: string
+  requiresAuth?: boolean
 }
 
-export const FeatureCard = ({ icon, title, description, delay = 0 }: FeatureCardProps) => {
+export const FeatureCard = ({ 
+  icon, 
+  title, 
+  description, 
+  delay = 0, 
+  actionText = "Try Now",
+  actionUrl,
+  requiresAuth = false
+}: FeatureCardProps) => {
   const [isHovered, setIsHovered] = useState(false)
+  const { isAuthenticated, showAuthModal } = useAuth()
+
+  const handleAction = () => {
+    if (requiresAuth && !isAuthenticated) {
+      showAuthModal('login')
+    } else if (actionUrl) {
+      window.location.href = actionUrl
+    }
+  }
 
   return (
     <motion.div
@@ -24,7 +46,7 @@ export const FeatureCard = ({ icon, title, description, delay = 0 }: FeatureCard
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
     >
-      <Card className="p-6 h-full hover:shadow-xl transition-all duration-300 hover:border-green-300 group">
+      <Card className="p-6 h-full hover:shadow-xl transition-all duration-300 hover:border-green-300 group flex flex-col">
         <motion.div
           animate={{ 
             scale: isHovered ? 1.1 : 1,
@@ -36,7 +58,18 @@ export const FeatureCard = ({ icon, title, description, delay = 0 }: FeatureCard
           {icon}
         </motion.div>
         <h3 className="text-lg font-semibold text-gray-800 mb-2">{title}</h3>
-        <p className="text-gray-600 text-sm leading-relaxed">{description}</p>
+        <p className="text-gray-600 text-sm leading-relaxed mb-4 flex-grow">{description}</p>
+        
+        {(actionUrl || requiresAuth) && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full border-green-600 text-green-600 hover:bg-green-50"
+            onClick={handleAction}
+          >
+            {requiresAuth && !isAuthenticated ? 'Sign In to Access' : actionText}
+          </Button>
+        )}
       </Card>
     </motion.div>
   )

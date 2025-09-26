@@ -4,6 +4,7 @@ import React, { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { Sprout, Eye, EyeOff } from "lucide-react"
+import { NewNavbar } from "../../src/components/ui/new-navbar"
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -19,22 +20,46 @@ export default function LoginPage() {
     setIsLoading(true)
     
     try {
-      // Simulate login API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Store user session (in real app, use proper auth)
-      localStorage.setItem('user', JSON.stringify({ email: formData.email }))
-      
-      router.push('/dashboard')
+      // Call our new database-backed login API
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed')
+      }
+
+      if (data.success && data.token) {
+        // Store token and user data using our new auth system
+        localStorage.setItem('auth_token', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        
+        // Redirect to dashboard
+        router.push('/dashboard')
+      } else {
+        throw new Error(data.error || 'Login failed')
+      }
     } catch (error) {
       console.error('Login error:', error)
+      alert(error instanceof Error ? error.message : 'Login failed')
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+      <NewNavbar />
+      <div className="flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -113,6 +138,7 @@ export default function LoginPage() {
             Password: demo123
           </p>
         </div>
+      </div>
       </div>
     </div>
   )

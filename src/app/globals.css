@@ -38,9 +38,10 @@ nav ul li a:hover {
 }
 
 /* Ensure content doesn't overlap with fixed navbar */
-body {
-  padding-top: 80px; /* Adjust based on navbar height */
-}
+/* TEMPORARILY DISABLED FOR TESTING */
+/* body {
+  padding-top: 80px;
+} */
 
 @layer base {
   :root {

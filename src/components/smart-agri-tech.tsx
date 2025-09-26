@@ -18,6 +18,7 @@ import {
   Volume2,
   RefreshCw,
   Heart,
+  Award,
   Smartphone,
 } from "lucide-react"
 import { Button } from "./ui/button"
@@ -28,13 +29,18 @@ import { ScrollAnimationContainer } from "./ui/scroll-animation-container"
 import { VoiceAssistant } from "./ui/voice-assistant"
 import { WeatherWidget } from "./ui/weather-widget"
 import { WeatherForecast } from "./ui/weather-forecast"
+import { LocationWeatherWidget } from "./ui/location-weather-widget"
 import { MarketPrices } from "./ui/market-prices"
 import { SoilDetection } from "./ui/soil-detection"
 import { cn } from "@/lib/utils"
+import { TubelightNavBarDemo } from "./ui/tubelight-navbar-demo"
+import { useAuth } from '@/contexts/AuthContext'
+import { NewNavbar } from './ui/new-navbar'
 
 // Main Component
 const SmartAgriTechComponent = () => {
   const [currentFeature, setCurrentFeature] = useState(0)
+  const { user, isAuthenticated, showAuthModal } = useAuth()
   const heroRef = useRef<HTMLDivElement>(null)
 
   const features = [
@@ -90,8 +96,11 @@ const SmartAgriTechComponent = () => {
     window.open(whatsappUrl, '_blank')
   }
 
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 overflow-hidden">
+      <NewNavbar />
+
       {/* Animated Background Elements */}
       <div className="fixed inset-0 pointer-events-none">
         <FloatingElement delay={0} duration={4} className="absolute top-20 left-10">
@@ -109,14 +118,14 @@ const SmartAgriTechComponent = () => {
       </div>
 
       {/* Hero Section */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 py-20">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 py-20 pt-24">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-start lg:items-center">
           {/* Left Content */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
-            className="space-y-8"
+            className="space-y-6 lg:space-y-8"
           >
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -134,7 +143,7 @@ const SmartAgriTechComponent = () => {
               transition={{ duration: 0.8, delay: 0.3 }}
               className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight"
             >
-              🌱 Krishi Mithr
+              {user ? `🌱 Welcome back, ${user.name}!` : '🌱 Krishi Mithr'}
             </motion.h1>
 
             <motion.p
@@ -143,15 +152,17 @@ const SmartAgriTechComponent = () => {
               transition={{ duration: 0.6, delay: 0.5 }}
               className="text-xl text-gray-600 leading-relaxed"
             >
-              Revolutionizing agriculture with AI-powered insights, real-time monitoring, 
-              and intelligent recommendations for modern farmers.
+              {user 
+                ? `Ready to manage your ${user.agriculturalProfile?.farmSize || 'farm'}? Access your personalized dashboard, check available subsidies, and get AI-powered farming insights.`
+                : 'Revolutionizing agriculture with AI-powered insights, real-time monitoring, and intelligent recommendations for modern farmers.'
+              }
             </motion.p>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.7 }}
-              className="flex justify-center"
+              className="flex flex-col sm:flex-row gap-4 items-start sm:items-center"
             >
               <Button 
                 variant="outline" 
@@ -162,6 +173,58 @@ const SmartAgriTechComponent = () => {
                 <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 WhatsApp Support
               </Button>
+
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="group border-blue-600 text-blue-600 hover:bg-blue-50"
+                onClick={() => {
+                  // Scroll to voice section or trigger voice assistant
+                  const voiceSection = document.getElementById('voice')
+                  if (voiceSection) {
+                    voiceSection.scrollIntoView({ behavior: 'smooth' })
+                  }
+                }}
+              >
+                <Mic className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                Voice Assistant
+              </Button>
+              
+              {user ? (
+                <>
+                       <button
+                         className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium flex items-center"
+                         onClick={() => window.location.href = '/dashboard'}
+                       >
+                         <TrendingUp className="w-5 h-5 mr-2" />
+                         Go to Dashboard
+                       </button>
+
+                       <button
+                         className="border border-green-600 text-green-600 hover:bg-green-50 px-8 py-3 rounded-lg font-medium flex items-center"
+                         onClick={() => window.location.href = '/subsidies'}
+                       >
+                         <Award className="w-5 h-5 mr-2" />
+                         View Subsidies
+                       </button>
+                </>
+              ) : (
+                <>
+                       <button
+                         className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium"
+                         onClick={() => showAuthModal('login')}
+                       >
+                         Sign In
+                       </button>
+
+                       <button
+                         className="border border-green-600 text-green-600 hover:bg-green-50 px-8 py-3 rounded-lg font-medium"
+                         onClick={() => showAuthModal('signup')}
+                       >
+                         Sign Up
+                       </button>
+                </>
+              )}
             </motion.div>
 
             {/* Trust Indicators */}
@@ -169,7 +232,7 @@ const SmartAgriTechComponent = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.9 }}
-              className="flex items-center gap-6 pt-4"
+              className="flex flex-wrap items-center gap-4 sm:gap-6 pt-4"
             >
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Users className="w-4 h-4 text-green-600" />
@@ -179,6 +242,14 @@ const SmartAgriTechComponent = () => {
                 <Heart className="w-4 h-4 text-red-500" />
                 <span>Human-Centered Design</span>
               </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Mic className="w-4 h-4 text-blue-600" />
+                <span>Voice Enabled</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <MessageCircle className="w-4 h-4 text-green-600" />
+                <span>24/7 WhatsApp</span>
+              </div>
             </motion.div>
 
             {/* Quick Weather Info */}
@@ -186,13 +257,11 @@ const SmartAgriTechComponent = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 1.3 }}
-              className="mt-6"
+              className="mt-6 flex justify-start"
             >
-              <WeatherWidget 
-                city="Mumbai" 
-                showDetails={false} 
-                autoDetectLocation={true}
-                className="max-w-sm" 
+              <LocationWeatherWidget 
+                showForecast={false}
+                className="max-w-sm w-full" 
               />
             </motion.div>
           </motion.div>
@@ -202,9 +271,9 @@ const SmartAgriTechComponent = () => {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="relative"
+            className="relative flex justify-center lg:justify-end"
           >
-            <Card className="p-8 bg-gradient-to-br from-white to-green-50 border-green-200">
+            <Card className="p-6 lg:p-8 bg-gradient-to-br from-white to-green-50 border-green-200 max-w-md w-full">
               <motion.div
                 key={currentFeature}
                 initial={{ opacity: 0, y: 20 }}
@@ -315,6 +384,9 @@ const SmartAgriTechComponent = () => {
                   title={feature.title}
                   description={feature.description}
                   delay={index * 0.1}
+                  requiresAuth={index < 3} // First 3 features require auth
+                  actionText={index < 3 ? "Try Now" : undefined}
+                  actionUrl={index >= 3 ? (index === 3 ? '/weather' : index === 4 ? '/market-prices' : '/soil-analysis') : undefined}
                 />
               ))}
             </div>
@@ -410,23 +482,14 @@ const SmartAgriTechComponent = () => {
               </p>
             </motion.div>
 
-            <div className="grid lg:grid-cols-2 gap-8">
+            <div className="grid lg:grid-cols-1 gap-8">
               <motion.div
-                initial={{ opacity: 0, x: -50 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
                 viewport={{ once: true }}
               >
-                <WeatherWidget city="Mumbai" autoDetectLocation={true} />
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, x: 50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8 }}
-                viewport={{ once: true }}
-              >
-                <WeatherForecast city="Mumbai" />
+                <LocationWeatherWidget showForecast={true} />
               </motion.div>
             </div>
           </div>
@@ -595,6 +658,7 @@ const SmartAgriTechComponent = () => {
               <Button 
                 size="lg" 
                 className="bg-white text-green-600 hover:bg-gray-100 font-semibold"
+                onClick={() => showAuthModal('signup')}
               >
                 Start Free Trial
               </Button>

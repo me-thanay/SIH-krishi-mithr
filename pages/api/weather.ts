@@ -248,8 +248,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Try to get real weather data first
       weatherData = await getRealWeatherData(city)
       isRealData = true
-    } catch (error) {
-      console.log('Falling back to mock data:', error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.log('Falling back to mock data:', message)
       // Fall back to mock data if real API fails
       weatherData = getMockWeatherData(city)
     }
@@ -261,8 +262,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       isRealData
     })
 
-  } catch (error) {
-    console.error('Weather API error:', error)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Weather API error:', message)
     return res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

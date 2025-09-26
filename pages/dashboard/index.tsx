@@ -528,10 +528,12 @@ export default function DashboardPage() {
               <div className="mt-4">
                 <p className="text-sm font-medium text-gray-700 mb-2">Your Crops:</p>
                 <div className="flex flex-wrap gap-1">
-                  {(Array.isArray(userData.agriculturalProfile.crops) 
-                    ? userData.agriculturalProfile.crops 
-                    : JSON.parse(userData.agriculturalProfile.crops || '[]')
-                  ).map(crop => (
+                  {(
+                    (Array.isArray(userData.agriculturalProfile.crops) 
+                      ? (userData.agriculturalProfile.crops as string[])
+                      : (JSON.parse(userData.agriculturalProfile.crops || '[]') as string[])
+                    )
+                  ).map((crop: string) => (
                     <span key={crop} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                       {crop}
                     </span>

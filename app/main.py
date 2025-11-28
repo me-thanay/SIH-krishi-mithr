@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import uvicorn
@@ -17,31 +18,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
-# Allow all Vercel preview and production domains
-# Vercel uses patterns like: *.vercel.app for previews and custom domains for production
-allowed_origins = [
-    "https://krishi-mithr.vercel.app",
-    "https://sih-krishi-mithr.vercel.app",
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:8000",
-]
-
-# Add any additional origins from environment variable
-env_origins = os.getenv("ALLOWED_ORIGINS", "")
-if env_origins:
-    allowed_origins.extend([origin.strip() for origin in env_origins.split(",")])
-
-# For production, allow all origins to handle Vercel preview URLs
-# Vercel generates unique preview URLs that we can't predict
+# CORS middleware - MUST be added before routers
+# Allow all origins to handle Vercel preview URLs and production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins to handle Vercel preview URLs
-    allow_credentials=False,  # Must be False when using allow_origins=["*"]
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=False,  # Must be False when using ["*"]
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all headers
 )
 
 # Include routers

@@ -29,6 +29,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+  
+  // Check for required environment variables
+  if (!process.env.DATABASE_URL) {
+    console.error('DATABASE_URL is not set')
+    return res.status(500).json({ error: 'Server configuration error: DATABASE_URL missing' })
+  }
+  
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback-secret-key') {
+    console.error('JWT_SECRET is not set or using fallback')
+    return res.status(500).json({ error: 'Server configuration error: JWT_SECRET missing' })
+  }
+  
   try {
     const { email, password } = req.body
 

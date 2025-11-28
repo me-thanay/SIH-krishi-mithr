@@ -75,5 +75,10 @@ async def root():
 async def health_check():
     return {"status": "healthy", "message": "All services operational"}
 
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """Handle OPTIONS requests for CORS preflight"""
+    return {"message": "OK"}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

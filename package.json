@@ -1,0 +1,46 @@
+{
+  "name": "krishi-mithr",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && prisma migrate deploy && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "bcryptjs": "^3.0.2",
+    "chart.js": "^4.5.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "framer-motion": "^10.18.0",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.292.0",
+    "next": "^14.0.0",
+    "prisma": "^6.16.2",
+    "react": "^18.0.0",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^18.0.0",
+    "tailwind-merge": "^2.0.0",
+    "autoprefixer": "^10.0.0",
+    "postcss": "^8.0.0",
+    "tailwindcss": "^3.4.0",
+    "usehooks-ts": "^3.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.0.0"
+  }
+}

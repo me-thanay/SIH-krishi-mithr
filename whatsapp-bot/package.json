@@ -1,0 +1,21 @@
+{
+  "name": "krishi-mithr-whatsapp-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WhatsApp Web automation bot using whatsapp-web.js for Krishi Mithr",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "nodemon src/bot.js",
+    "install-deps": "npm install"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.25.0"
+  }
+}
+
+

@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  agriculturalProfile AgriculturalProfile?
+  weatherQueries     WeatherQuery[]
+  marketQueries      MarketQuery[]
+  soilAnalyses       SoilAnalysis[]
+  cropAdvisories     CropAdvisory[]
+  userCrops          UserCrop[]
+
+  @@map("users")
+}
+
+model AgriculturalProfile {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @unique @db.ObjectId
+  farmSize          String   // e.g., "5 acres", "10 hectares"
+  crops             String   // JSON array of crops
+  location          String   // Farm location
+  state             String   // State/Province
+  district          String?  // District
+  soilType          String   // Soil type
+  irrigationType    String   // Irrigation method
+  farmingExperience String   // Experience level
+  annualIncome      String   // Income range
+  governmentSchemes String   // JSON array of schemes
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("agricultural_profiles")
+}
+
+model WeatherQuery {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  location    String
+  queryType   String   // "current", "forecast", "historical"
+  response    String   // JSON response data
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("weather_queries")
+}
+
+model MarketQuery {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  crop        String
+  location    String?
+  response    String   // JSON response data
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("market_queries")
+}
+
+model SoilAnalysis {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  location    String
+  cropType    String?
+  imageUrl    String?
+  analysis    String   // JSON analysis data
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("soil_analyses")
+}
+
+model CropAdvisory {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  crop        String
+  issue       String?
+  advice      String   // JSON advice data
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("crop_advisories")
+}
+
+model Subsidy {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  description String
+  eligibility String   // JSON eligibility criteria
+  amount      String   // Subsidy amount
+  category    String   // e.g., "seed", "fertilizer", "equipment"
+  state       String?  // State-specific subsidies
+  district    String?  // District-specific subsidies
+  cropType    String?  // Crop-specific subsidies
+  minFarmSize String?  // Minimum farm size requirement
+  maxFarmSize String?  // Maximum farm size requirement
+  validFrom   DateTime? // Subsidy validity start date
+  validTo     DateTime? // Subsidy validity end date
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("subsidies")
+}
+
+model Crop {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String   @unique
+  scientificName  String?
+  category        String   // e.g., "cereal", "vegetable", "fruit", "pulse"
+  season          String   // e.g., "kharif", "rabi", "zaid"
+  duration        Int      // Duration in days
+  waterRequirement String  // Low, Medium, High
+  soilType        String   // Preferred soil types
+  climate         String   // Preferred climate conditions
+  yieldPerAcre    String?  // Expected yield per acre
+  marketPrice     Float?   // Current market price
+  description     String?
+  imageUrl        String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  userCrops UserCrop[]
+
+  @@map("crops")
+}
+
+model UserCrop {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  cropId      String   @db.ObjectId
+  plantedDate DateTime?
+  harvestDate DateTime?
+  quantity    Float?   // Quantity planted/harvested
+  status      String   // "planted", "growing", "harvested", "failed"
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  crop Crop @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cropId])
+  @@map("user_crops")
+}
+
+model VoiceQuery {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String?  @db.ObjectId
+  transcript  String
+  language    String
+  response    String?
+  createdAt   DateTime @default(now())
+
+  @@map("voice_queries")
+}

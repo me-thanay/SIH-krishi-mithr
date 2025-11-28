@@ -5,9 +5,13 @@ import jwt from 'jsonwebtoken'
 
 // Helper functions
 function generateToken(userId: string, email: string): string {
+  const secret = process.env.JWT_SECRET
+  if (!secret || secret === 'fallback-secret-key') {
+    throw new Error('JWT_SECRET is not configured')
+  }
   return jwt.sign(
     { userId, email },
-    process.env.JWT_SECRET || 'fallback-secret-key',
+    secret,
     { expiresIn: '7d' }
   )
 }
@@ -70,8 +74,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       'Login successful'
     ))
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error)
-    return res.status(500).json({ error: 'Internal server error' })
+    
+    // Provide more specific error messages
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Database constraint violation' })
+    }
+    
+    if (error.message?.includes('DATABASE_URL') || error.message?.includes('PrismaClient')) {
+      return res.status(500).json({ 
+        error: 'Database connection error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      })
+    }
+    
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
   }
 }

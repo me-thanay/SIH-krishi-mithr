@@ -33,7 +33,7 @@ app.add_middleware(
 app.include_router(weather.router, prefix="/api/weather", tags=["weather"])
 app.include_router(pest_detection.router, prefix="/api/pest", tags=["pest-detection"])
 app.include_router(soil_advisory.router, prefix="/api/soil", tags=["soil-advisory"])
-app.include_router(market_prices.router, tags=["market-prices"])
+app.include_router(market_prices.router, prefix="/api", tags=["market-prices"])
 app.include_router(dealer_network.router, prefix="/api/dealers", tags=["dealer-network"])
 app.include_router(farming_tools.router, prefix="/api/tools", tags=["farming-tools"])
 app.include_router(whatsapp_webhook.router, prefix="/api/webhook", tags=["whatsapp"])

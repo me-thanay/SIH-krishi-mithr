@@ -18,13 +18,40 @@ app = FastAPI(
 )
 
 # CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Get allowed origins from environment or use defaults
+allowed_origins = [
+    "https://krishi-mithr.vercel.app",
+    "https://sih-krishi-mithr.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:8000",
+]
+
+# Add any additional origins from environment variable
+env_origins = os.getenv("ALLOWED_ORIGINS", "")
+if env_origins:
+    allowed_origins.extend([origin.strip() for origin in env_origins.split(",")])
+
+# For development, allow all origins (without credentials)
+# For production, use specific origins
+if os.getenv("NODE_ENV") == "development" or not allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
 
 # Include routers
 app.include_router(weather.router, prefix="/api/weather", tags=["weather"])

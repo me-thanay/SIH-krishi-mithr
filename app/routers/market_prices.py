@@ -368,7 +368,7 @@ async def scrape_punjab_prices() -> List[dict]:
         logging.error(f"Error scraping Punjab prices: {e}")
         return MOCK_DATA["Punjab"]
 
-@router.get("/api/market-prices", response_model=MarketPricesResponse)
+@router.get("/market-prices", response_model=MarketPricesResponse)
 async def get_market_prices(
     location: str = Query(..., description="Location/State name"),
     use_real_data: bool = Query(False, description="Whether to use real scraped data")
@@ -400,7 +400,7 @@ async def get_market_prices(
         logging.error(f"Error fetching market prices for {location}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch market prices: {str(e)}")
 
-@router.get("/api/market-prices/trends", response_model=TrendResponse)
+@router.get("/market-prices/trends", response_model=TrendResponse)
 async def get_price_trends(
     location: str = Query(..., description="Location/State name"),
     days: int = Query(7, description="Number of days for trend data")
@@ -428,7 +428,7 @@ async def get_price_trends(
         logging.error(f"Error fetching price trends for {location}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch price trends: {str(e)}")
 
-@router.get("/api/market-prices/locations")
+@router.get("/market-prices/locations")
 async def get_available_locations():
     """
     Get list of available locations for market prices

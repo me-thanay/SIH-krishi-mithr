@@ -18,7 +18,8 @@ app = FastAPI(
 )
 
 # CORS middleware
-# Get allowed origins from environment or use defaults
+# Allow all Vercel preview and production domains
+# Vercel uses patterns like: *.vercel.app for previews and custom domains for production
 allowed_origins = [
     "https://krishi-mithr.vercel.app",
     "https://sih-krishi-mithr.vercel.app",
@@ -32,26 +33,16 @@ env_origins = os.getenv("ALLOWED_ORIGINS", "")
 if env_origins:
     allowed_origins.extend([origin.strip() for origin in env_origins.split(",")])
 
-# For development, allow all origins (without credentials)
-# For production, use specific origins
-if os.getenv("NODE_ENV") == "development" or not allowed_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allow_headers=["*"],
-        expose_headers=["*"],
-    )
-else:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=allowed_origins,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allow_headers=["*"],
-        expose_headers=["*"],
-    )
+# For production, allow all origins to handle Vercel preview URLs
+# Vercel generates unique preview URLs that we can't predict
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins to handle Vercel preview URLs
+    allow_credentials=False,  # Must be False when using allow_origins=["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 # Include routers
 app.include_router(weather.router, prefix="/api/weather", tags=["weather"])

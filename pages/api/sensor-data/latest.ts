@@ -14,9 +14,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const client = new MongoClient(process.env.DATABASE_URL)
     await client.connect()
     const db = client.db('krishi-mithr')
-    const collection = db.collection('sensor_data')
+    const collection = db.collection('sensor_readings_complete')
     
-    // Get latest sensor reading
+    // Get latest complete sensor reading
     const latest = await collection
       .find()
       .sort({ timestamp: -1 })
@@ -26,10 +26,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await client.close()
     
     if (latest.length === 0) {
-      return res.status(200).json({ data: null, message: 'No sensor data available' })
+      return res.status(200).json({ 
+        data: null, 
+        message: 'No sensor data available',
+        missing_fields: ['temperature', 'humidity', 'CO2_ppm', 'NH3_ppm', 'Benzene_ppm', 'Smoke_ppm']
+      })
     }
     
-    return res.status(200).json({ data: latest[0] })
+    const data = latest[0]
+    
+    // Check which fields are missing
+    const missingFields: string[] = []
+    const availableFields: string[] = []
+    
+    const fields = ['temperature', 'humidity', 'CO2_ppm', 'NH3_ppm', 'Benzene_ppm', 'Smoke_ppm']
+    fields.forEach(field => {
+      if (data[field] === null || data[field] === undefined) {
+        missingFields.push(field)
+      } else {
+        availableFields.push(field)
+      }
+    })
+    
+    return res.status(200).json({ 
+      data: data,
+      available_fields: availableFields,
+      missing_fields: missingFields
+    })
   } catch (error: any) {
     console.error('Error fetching sensor data:', error)
     return res.status(500).json({ error: 'Failed to fetch sensor data', details: error.message })

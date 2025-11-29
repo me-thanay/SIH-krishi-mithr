@@ -112,6 +112,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     }
     
+    // P2010: Raw query execution error (often MongoDB connection or schema mismatch)
+    if (error.code === 'P2010') {
+      return res.status(500).json({ 
+        error: 'Database query execution failed',
+        message: 'Prisma query execution error. This usually means: 1) DATABASE_URL is incorrect, 2) MongoDB connection failed, 3) Prisma client needs regeneration, or 4) Schema mismatch with database.'
+      })
+    }
+    
     if (error.message?.includes('DATABASE_URL') || error.message?.includes('PrismaClient') || error.message?.includes('Prisma')) {
       return res.status(500).json({ 
         error: 'Database configuration error',

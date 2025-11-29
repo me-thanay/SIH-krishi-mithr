@@ -88,22 +88,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   } catch (error: any) {
     console.error('Login error:', error)
+    console.error('Error stack:', error.stack)
+    console.error('Error code:', error.code)
+    console.error('Error name:', error.name)
     
     // Provide more specific error messages
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Database constraint violation' })
     }
     
-    if (error.message?.includes('DATABASE_URL') || error.message?.includes('PrismaClient')) {
+    // Prisma connection errors
+    if (error.code === 'P1001' || error.message?.includes('Can\'t reach database server')) {
       return res.status(500).json({ 
-        error: 'Database connection error',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: 'Database connection failed',
+        message: 'Unable to connect to database. Please check DATABASE_URL configuration.'
       })
     }
     
+    if (error.code === 'P1017' || error.message?.includes('Connection closed')) {
+      return res.status(500).json({ 
+        error: 'Database connection closed',
+        message: 'Database connection was closed unexpectedly.'
+      })
+    }
+    
+    if (error.message?.includes('DATABASE_URL') || error.message?.includes('PrismaClient') || error.message?.includes('Prisma')) {
+      return res.status(500).json({ 
+        error: 'Database configuration error',
+        message: 'Database connection is not properly configured. Please check environment variables.'
+      })
+    }
+    
+    // JWT errors
+    if (error.message?.includes('JWT_SECRET')) {
+      return res.status(500).json({ 
+        error: 'JWT configuration error',
+        message: 'JWT_SECRET is not properly configured.'
+      })
+    }
+    
+    // Return error with message for debugging
     return res.status(500).json({ 
       error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: error.message || 'An unexpected error occurred',
+      code: error.code || 'UNKNOWN'
     })
   }
 }

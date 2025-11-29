@@ -70,12 +70,14 @@ export const WeatherWidget = ({
       setError(null)
       
       const cityToUse = targetCity || currentCity
-      const apiBase =
+      let apiBase =
         process.env.NEXT_PUBLIC_API_URL ||
         (typeof window !== 'undefined' &&
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
           ? 'http://localhost:8000'
           : '')
+      // Remove trailing slash to avoid double slashes
+      apiBase = apiBase.replace(/\/+$/, '')
       const response = await fetch(`${apiBase}/api/weather/current?city=${cityToUse}`)
       
       if (!response.ok) {

@@ -1,8 +1,14 @@
 @echo off
 REM Windows batch script to run MQTT service locally
+
+REM Change to the script's directory
+cd /d "%~dp0"
+
 echo ========================================
 echo KRISHI MITHR - MQTT Service (Local)
 echo ========================================
+echo.
+echo Current directory: %CD%
 echo.
 
 REM Check if Python is installed
@@ -18,10 +24,13 @@ REM Check if .env file exists
 if not exist .env (
     echo WARNING: .env file not found
     echo Creating .env file with default DATABASE_URL...
-    (
-        echo DATABASE_URL=mongodb+srv://trythanay_db_user:o7ldNkPkv99gx8dH@cluster0.gkbyivi.mongodb.net/krishi-mithr?appName=Cluster0
-    ) > .env
-    echo .env file created. Please verify DATABASE_URL is correct.
+    echo DATABASE_URL=mongodb+srv://trythanay_db_user:o7ldNkPkv99gx8dH@cluster0.gkbyivi.mongodb.net/krishi-mithr?appName=Cluster0 > .env
+    if exist .env (
+        echo .env file created successfully.
+    ) else (
+        echo WARNING: Could not create .env file. You may need to create it manually.
+        echo Please create .env file with: DATABASE_URL=mongodb+srv://...
+    )
     echo.
 )
 

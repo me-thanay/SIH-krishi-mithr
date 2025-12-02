@@ -21,6 +21,21 @@ app = FastAPI(
 # Note: Using middleware function instead of CORSMiddleware with "*" for better compatibility
 # CORSMiddleware with "*" doesn't work well, so we use a custom middleware
 
+# Add OPTIONS handler BEFORE routers to catch all OPTIONS requests
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str, request: Request):
+    """Handle OPTIONS requests for CORS preflight - catch all"""
+    from fastapi.responses import Response
+    origin = request.headers.get("origin", "*")
+    
+    response = Response(status_code=200)
+    response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Max-Age"] = "3600"
+    return response
+
 # Include routers
 app.include_router(weather.router, prefix="/api/weather", tags=["weather"])
 app.include_router(pest_detection.router, prefix="/api/pest", tags=["pest-detection"])
@@ -55,39 +70,33 @@ async def health_check():
 @app.middleware("http")
 async def add_cors_headers(request: Request, call_next):
     """Add CORS headers to all responses"""
+    # Handle OPTIONS preflight requests
+    if request.method == "OPTIONS":
+        from fastapi.responses import Response
+        origin = request.headers.get("origin", "*")
+        
+        response = Response()
+        # Allow all origins for CORS
+        response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "false"
+        response.headers["Access-Control-Max-Age"] = "3600"
+        return response
+    
+    # For all other requests, add CORS headers to response
     response = await call_next(request)
     
     # Get origin from request
-    origin = request.headers.get("origin")
+    origin = request.headers.get("origin", "*")
     
-    # Allow all origins or specific Vercel domains
-    if origin and ("vercel.app" in origin or "localhost" in origin):
-        response.headers["Access-Control-Allow-Origin"] = origin
-    else:
-        response.headers["Access-Control-Allow-Origin"] = "*"
-    
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    # Add CORS headers
+    response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
     response.headers["Access-Control-Allow-Headers"] = "*"
     response.headers["Access-Control-Allow-Credentials"] = "false"
     response.headers["Access-Control-Max-Age"] = "3600"
     
-    return response
-
-@app.options("/{full_path:path}")
-async def options_handler(full_path: str, request: Request):
-    """Handle OPTIONS requests for CORS preflight"""
-    from fastapi.responses import Response
-    origin = request.headers.get("origin")
-    
-    response = Response()
-    if origin and ("vercel.app" in origin or "localhost" in origin):
-        response.headers["Access-Control-Allow-Origin"] = origin
-    else:
-        response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "false"
-    response.headers["Access-Control-Max-Age"] = "3600"
     return response
 
 if __name__ == "__main__":

@@ -1,31 +1,10 @@
 services:
-  # FastAPI Backend Web Service
-  - type: web
-    name: krishi-mithr-backend
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: WHATSAPP_ACCESS_TOKEN
-        sync: false
-      - key: WHATSAPP_PHONE_NUMBER_ID
-        sync: false
-      - key: WHATSAPP_VERIFY_TOKEN
-        sync: false
-      - key: OPENWEATHER_API_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: WEBHOOK_URL
-        sync: false
-
-  # MQTT to MongoDB Background Worker (Free Tier Optimized)
+  # MQTT to MongoDB Background Worker (Free Tier - Manual Setup Recommended)
+  # Note: Use Manual Setup in Render Dashboard to avoid payment requirement
+  # Blueprint requires payment info on file (even for free tier)
   - type: worker
     name: krishi-mithr-mqtt-worker
     env: python
-    plan: free  # Explicitly set to free tier
     buildCommand: pip install -r requirements_mqtt.txt
     startCommand: python mqtt_to_mongodb_krishimithr.py
     envVars:

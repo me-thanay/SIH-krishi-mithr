@@ -12,7 +12,17 @@ import {
   Droplets,
   Award,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Thermometer,
+  Wind,
+  Droplet,
+  Cloud,
+  Sun,
+  Moon,
+  Activity,
+  Zap,
+  Eye,
+  Gauge
 } from "lucide-react"
 
 interface UserData {
@@ -57,11 +67,35 @@ interface SubsidyData {
   description: string
 }
 
+interface SensorData {
+  temperature?: number | null
+  humidity?: number | null
+  soil_moisture?: number | null
+  rain_status?: string | null
+  CO2_ppm?: number | null
+  NH3_ppm?: number | null
+  Benzene_ppm?: number | null
+  Smoke_ppm?: number | null
+  TDS?: number | null
+  water_quality?: string | null
+  light?: number | null
+  light_status?: string | null
+  motion?: string | null
+  motion_detected?: boolean | null
+  motor_state?: string | null
+  motor_on?: boolean | null
+  air_quality_status?: string
+  timestamp?: string
+  device_id?: string
+  location?: string
+}
+
 export default function DashboardPage() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [subsidies, setSubsidies] = useState<SubsidyData[]>([])
+  const [sensorData, setSensorData] = useState<SensorData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -73,10 +107,35 @@ export default function DashboardPage() {
       
       // Fetch personalized data based on user profile
       fetchPersonalizedData(parsedUser)
+      // Fetch latest sensor readings from MongoDB (MQTT data)
+      fetchLatestSensorData()
     } else {
       // Redirect to login if no user data
       window.location.href = '/auth/login'
     }
+  }, [])
+
+  const fetchLatestSensorData = async () => {
+    try {
+      const response = await fetch('/api/sensor-data/latest')
+      if (!response.ok) return
+
+      const body = await response.json()
+      if (body?.data) {
+        setSensorData(body.data)
+      }
+    } catch (error) {
+      console.error('Error fetching latest sensor data:', error)
+    }
+  }
+
+  // Auto-refresh sensor data every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchLatestSensorData()
+    }, 10000) // Refresh every 10 seconds
+
+    return () => clearInterval(interval)
   }, [])
 
   const fetchPersonalizedData = async (user: UserData) => {
@@ -222,6 +281,177 @@ export default function DashboardPage() {
     return recommendations
   }
 
+  const getSensorRecommendations = (sensor: SensorData) => {
+    const recommendations = []
+
+    // Soil Moisture Recommendations
+    if (sensor.soil_moisture !== null && sensor.soil_moisture !== undefined) {
+      if (sensor.soil_moisture < 30) {
+        recommendations.push({
+          type: "warning",
+          icon: AlertTriangle,
+          title: "⚠️ Low Soil Moisture Detected",
+          message: `Your soil moisture is ${sensor.soil_moisture}%, which is below the ideal range (40-70%).`,
+          action: "Action: Start irrigation immediately to prevent crop stress."
+        })
+      } else if (sensor.soil_moisture > 70) {
+        recommendations.push({
+          type: "info",
+          icon: AlertTriangle,
+          title: "High Soil Moisture",
+          message: `Soil moisture is ${sensor.soil_moisture}%, which is above optimal.`,
+          action: "Action: Reduce irrigation and check drainage to prevent waterlogging."
+        })
+      } else {
+        recommendations.push({
+          type: "success",
+          icon: CheckCircle,
+          title: "✅ Optimal Soil Moisture",
+          message: `Soil moisture is ${sensor.soil_moisture}%, which is perfect for most crops.`,
+          action: "Maintain current irrigation schedule."
+        })
+      }
+    }
+
+    // Temperature Recommendations
+    if (sensor.temperature !== null && sensor.temperature !== undefined) {
+      if (sensor.temperature > 35) {
+        recommendations.push({
+          type: "warning",
+          icon: AlertTriangle,
+          title: "🌡️ High Temperature Alert",
+          message: `Temperature is ${sensor.temperature}°C, which is very high for most crops.`,
+          action: "Action: Increase irrigation frequency, provide shade if possible, and monitor for heat stress."
+        })
+      } else if (sensor.temperature < 15) {
+        recommendations.push({
+          type: "info",
+          icon: AlertTriangle,
+          title: "❄️ Low Temperature",
+          message: `Temperature is ${sensor.temperature}°C, which may slow crop growth.`,
+          action: "Action: Consider using protective covers or greenhouses for sensitive crops."
+        })
+      }
+    }
+
+    // Humidity Recommendations
+    if (sensor.humidity !== null && sensor.humidity !== undefined) {
+      if (sensor.humidity < 40) {
+        recommendations.push({
+          type: "warning",
+          icon: AlertTriangle,
+          title: "💨 Low Humidity",
+          message: `Humidity is ${sensor.humidity}%, which is quite dry.`,
+          action: "Action: Increase irrigation and consider mulching to retain soil moisture."
+        })
+      } else if (sensor.humidity > 80) {
+        recommendations.push({
+          type: "info",
+          icon: AlertTriangle,
+          title: "🌫️ High Humidity",
+          message: `Humidity is ${sensor.humidity}%, which increases disease risk.`,
+          action: "Action: Ensure good air circulation and monitor for fungal diseases."
+        })
+      }
+    }
+
+    // Air Quality Recommendations
+    if (sensor.air_quality_status === 'poor') {
+      recommendations.push({
+        type: "warning",
+        icon: AlertTriangle,
+        title: "⚠️ Poor Air Quality Detected",
+        message: "Air quality indicators show elevated levels of pollutants (CO₂, NH₃, Benzene, or Smoke).",
+        action: "Action: Check for nearby pollution sources, ensure proper ventilation, and consider air quality improvement measures."
+      })
+    } else if (sensor.air_quality_status === 'good') {
+      recommendations.push({
+        type: "success",
+        icon: CheckCircle,
+        title: "✅ Good Air Quality",
+        message: "All air quality parameters are within safe limits for farming operations.",
+        action: "Continue monitoring regularly."
+      })
+    }
+
+    // Water Quality Recommendations
+    if (sensor.water_quality) {
+      if (sensor.water_quality.includes('High TDS') || sensor.water_quality.includes('Fertilizer')) {
+        recommendations.push({
+          type: "info",
+          icon: AlertTriangle,
+          title: "💧 Water Quality Notice",
+          message: `Water quality: ${sensor.water_quality}. TDS: ${sensor.TDS} ppm.`,
+          action: "Action: This water may be suitable for irrigation but test before using for drinking."
+        })
+      } else if (sensor.water_quality.includes('Safe') || sensor.water_quality.includes('Tap')) {
+        recommendations.push({
+          type: "success",
+          icon: CheckCircle,
+          title: "✅ Good Water Quality",
+          message: `Water quality is ${sensor.water_quality}, suitable for irrigation.`,
+          action: "Continue using this water source."
+        })
+      }
+    }
+
+    // Rain Status Recommendations
+    if (sensor.rain_status === '1' || sensor.rain_status === 'true') {
+      recommendations.push({
+        type: "info",
+        icon: CloudRain,
+        title: "🌧️ Rain Detected",
+        message: "Rain is currently detected in your field.",
+        action: "Action: Reduce or pause irrigation to avoid overwatering. Monitor soil moisture levels."
+      })
+    }
+
+    // Light Status Recommendations
+    if (sensor.light_status) {
+      if (sensor.light_status.includes('Sun Rise')) {
+        recommendations.push({
+          type: "success",
+          icon: Sun,
+          title: "☀️ Sunrise Detected",
+          message: "Good morning! It's sunrise - perfect time for morning farming activities.",
+          action: "Ideal time for planting, weeding, and other field activities."
+        })
+      } else if (sensor.light_status.includes('Sun Set')) {
+        recommendations.push({
+          type: "info",
+          icon: Moon,
+          title: "🌙 Sunset Detected",
+          message: "Evening time - prepare for night irrigation or rest period.",
+          action: "Consider scheduling irrigation for optimal water absorption."
+        })
+      }
+    }
+
+    // Motion Detection
+    if (sensor.motion_detected) {
+      recommendations.push({
+        type: "info",
+        icon: Eye,
+        title: "👁️ Motion Detected in Field",
+        message: "Movement detected in your field area.",
+        action: "Check your field for animals, visitors, or any unusual activity."
+      })
+    }
+
+    // Motor Status
+    if (sensor.motor_on) {
+      recommendations.push({
+        type: "info",
+        icon: Zap,
+        title: "⚡ Irrigation Motor Running",
+        message: "Your irrigation motor is currently ON.",
+        action: "Monitor soil moisture levels and turn off when optimal moisture is reached."
+      })
+    }
+
+    return recommendations
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -307,6 +537,270 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+
+          {/* Comprehensive Sensor Data from MQTT/MongoDB */}
+          {sensorData && (
+            <>
+              {/* Main Sensor Overview */}
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Activity className="w-5 h-5 mr-2 text-green-600" />
+                    Real-Time Field Monitoring
+                  </h2>
+                  <div className="flex items-center space-x-2">
+                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-gray-500">
+                      {sensorData.timestamp
+                        ? `Updated: ${new Date(sensorData.timestamp).toLocaleTimeString()}`
+                        : 'Live'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Environmental Conditions */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Environmental Conditions</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <Thermometer className="w-4 h-4 text-blue-600" />
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          sensorData.temperature && sensorData.temperature > 35 
+                            ? 'bg-red-100 text-red-800' 
+                            : sensorData.temperature && sensorData.temperature < 15
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {sensorData.temperature && sensorData.temperature > 35 
+                            ? 'Hot' 
+                            : sensorData.temperature && sensorData.temperature < 15
+                            ? 'Cold'
+                            : 'Normal'}
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {sensorData.temperature ?? '--'}°C
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">Temperature</p>
+                    </div>
+
+                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <Droplets className="w-4 h-4 text-green-600" />
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          sensorData.humidity && sensorData.humidity < 40 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : sensorData.humidity && sensorData.humidity > 80
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {sensorData.humidity && sensorData.humidity < 40 
+                            ? 'Dry' 
+                            : sensorData.humidity && sensorData.humidity > 80
+                            ? 'Humid'
+                            : 'Ideal'}
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {sensorData.humidity ?? '--'}%
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">Humidity</p>
+                    </div>
+
+                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <Droplet className="w-4 h-4 text-orange-600" />
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          sensorData.soil_moisture && sensorData.soil_moisture < 30 
+                            ? 'bg-red-100 text-red-800' 
+                            : sensorData.soil_moisture && sensorData.soil_moisture > 70
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {sensorData.soil_moisture && sensorData.soil_moisture < 30 
+                            ? 'Dry' 
+                            : sensorData.soil_moisture && sensorData.soil_moisture > 70
+                            ? 'Wet'
+                            : 'Good'}
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {sensorData.soil_moisture ?? '--'}%
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">Soil Moisture</p>
+                    </div>
+
+                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <CloudRain className="w-4 h-4 text-purple-600" />
+                        <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-800">
+                          {sensorData.rain_status === '1' || sensorData.rain_status === 'true' ? 'Rain' : 'No Rain'}
+                        </span>
+                      </div>
+                      <p className="text-lg font-bold text-gray-900">
+                        {sensorData.rain_status === '1' || sensorData.rain_status === 'true' 
+                          ? '🌧️ Raining' 
+                          : sensorData.rain_status === '0' || sensorData.rain_status === 'false'
+                          ? '☀️ Clear'
+                          : '--'}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">Rain Status</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Air Quality Section */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Air Quality Analysis</h3>
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 border">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center">
+                        <Wind className="w-5 h-5 text-blue-600 mr-2" />
+                        <span className="font-semibold text-gray-900">Overall Air Quality</span>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        sensorData.air_quality_status === 'poor'
+                          ? 'bg-red-100 text-red-800 border border-red-300'
+                          : 'bg-green-100 text-green-800 border border-green-300'
+                      }`}>
+                        {sensorData.air_quality_status === 'poor' ? '⚠️ Poor' : '✅ Good'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                      <div>
+                        <p className="text-xs text-gray-600">CO₂</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {sensorData.CO2_ppm ?? '--'} ppm
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600">NH₃</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {sensorData.NH3_ppm ?? '--'} ppm
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600">Benzene</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {sensorData.Benzene_ppm ?? '--'} ppm
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600">Smoke</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {sensorData.Smoke_ppm ?? '--'} ppm
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Water Quality & Other Sensors */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-cyan-50 rounded-lg p-4 border border-cyan-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <Droplet className="w-4 h-4 text-cyan-600 mr-2" />
+                        <span className="text-sm font-semibold text-gray-900">Water Quality</span>
+                      </div>
+                    </div>
+                    <p className="text-lg font-bold text-gray-900 mb-1">
+                      {sensorData.water_quality ?? '--'}
+                    </p>
+                    <p className="text-xs text-gray-600">TDS: {sensorData.TDS ?? '--'} ppm</p>
+                  </div>
+
+                  <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        {sensorData.light === 0 ? (
+                          <Sun className="w-4 h-4 text-yellow-600 mr-2" />
+                        ) : (
+                          <Moon className="w-4 h-4 text-blue-600 mr-2" />
+                        )}
+                        <span className="text-sm font-semibold text-gray-900">Light Status</span>
+                      </div>
+                    </div>
+                    <p className="text-lg font-bold text-gray-900">
+                      {sensorData.light_status ?? '--'}
+                    </p>
+                    <p className="text-xs text-gray-600">Sensor: {sensorData.light ?? '--'}</p>
+                  </div>
+                </div>
+
+                {/* Motion & Motor Status */}
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Eye className="w-4 h-4 text-indigo-600 mr-2" />
+                        <span className="text-sm font-semibold text-gray-900">Motion Detection</span>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        sensorData.motion_detected
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {sensorData.motion_detected ? 'Detected' : 'None'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Zap className="w-4 h-4 text-red-600 mr-2" />
+                        <span className="text-sm font-semibold text-gray-900">Motor Status</span>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        sensorData.motor_on
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {sensorData.motor_on ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Farmer-Friendly Analysis & Recommendations */}
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                  <Leaf className="w-5 h-5 mr-2 text-green-600" />
+                  Smart Farming Recommendations
+                </h2>
+                <div className="space-y-3">
+                  {getSensorRecommendations(sensorData).map((rec, index) => {
+                    const Icon = rec.icon
+                    return (
+                      <div key={index} className={`flex items-start p-4 rounded-lg border ${
+                        rec.type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+                        rec.type === 'success' ? 'bg-green-50 border-green-200' :
+                        rec.type === 'info' ? 'bg-blue-50 border-blue-200' :
+                        'bg-gray-50 border-gray-200'
+                      }`}>
+                        <Icon className={`w-5 h-5 mt-0.5 mr-3 ${
+                          rec.type === 'warning' ? 'text-yellow-600' :
+                          rec.type === 'success' ? 'text-green-600' :
+                          rec.type === 'info' ? 'text-blue-600' :
+                          'text-gray-600'
+                        }`} />
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 mb-1">{rec.title}</h3>
+                          <p className="text-sm text-gray-700">{rec.message}</p>
+                          {rec.action && (
+                            <p className="text-xs text-gray-600 mt-2 font-medium">💡 {rec.action}</p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </>
+          )}
 
             {/* Market Prices */}
             {marketData.length > 0 && (

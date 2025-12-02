@@ -14,7 +14,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const client = new MongoClient(process.env.DATABASE_URL)
     await client.connect()
     const db = client.db('krishi-mithr')
-    const collection = db.collection('sensor_readings_complete')
+    // Try sensor_readings first (new format), fallback to sensor_readings_complete (old format)
+    const collection = db.collection('sensor_readings')
     
     // Get latest complete sensor reading
     const latest = await collection

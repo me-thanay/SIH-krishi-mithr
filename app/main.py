@@ -18,15 +18,8 @@ app = FastAPI(
 )
 
 # CORS middleware - MUST be added before routers
-# Allow all origins to handle Vercel preview URLs and production
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
-    allow_credentials=False,  # Must be False when using ["*"]
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
-    expose_headers=["*"],  # Expose all headers
-)
+# Note: Using middleware function instead of CORSMiddleware with "*" for better compatibility
+# CORSMiddleware with "*" doesn't work well, so we use a custom middleware
 
 # Include routers
 app.include_router(weather.router, prefix="/api/weather", tags=["weather"])
@@ -59,14 +52,42 @@ async def root():
 async def health_check():
     return {"status": "healthy", "message": "All services operational"}
 
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    """Add CORS headers to all responses"""
+    response = await call_next(request)
+    
+    # Get origin from request
+    origin = request.headers.get("origin")
+    
+    # Allow all origins or specific Vercel domains
+    if origin and ("vercel.app" in origin or "localhost" in origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Max-Age"] = "3600"
+    
+    return response
+
 @app.options("/{full_path:path}")
 async def options_handler(full_path: str, request: Request):
     """Handle OPTIONS requests for CORS preflight"""
     from fastapi.responses import Response
+    origin = request.headers.get("origin")
+    
     response = Response()
-    response.headers["Access-Control-Allow-Origin"] = "*"
+    if origin and ("vercel.app" in origin or "localhost" in origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
     response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Max-Age"] = "3600"
     return response
 
 if __name__ == "__main__":

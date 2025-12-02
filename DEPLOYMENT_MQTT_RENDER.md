@@ -177,16 +177,43 @@ When your ESP32 publishes data, you should see in logs:
 
 ---
 
-## 💰 Pricing
+## 💰 Free Tier Configuration
 
-### Render Free Tier
-- ✅ Background Workers: **Free** (with limitations)
-- ⚠️ Workers may spin down after 15 minutes of inactivity
-- 💡 For production, consider paid plan for 24/7 uptime
+### ✅ Optimized for Free Tier
+The service has been optimized to work on Render's free tier:
 
-### Render Paid Plans
-- **Starter**: $7/month - Always-on workers
-- **Standard**: $25/month - Better performance
+1. **Keep-Alive Mechanism**: 
+   - Periodic heartbeat every 5 minutes
+   - Prevents service from being marked as idle
+   - Maintains MQTT connection actively
+
+2. **MQTT Keepalive**: 
+   - Set to 60 seconds
+   - Maintains persistent connection to broker
+
+3. **Free Tier Limitations**:
+   - ⚠️ **750 free instance hours per month** (shared across all services)
+   - ⚠️ Services may spin down after 15 minutes of **complete** inactivity
+   - ✅ **With keep-alive, service stays active** as long as it's processing data
+   - ✅ MQTT connection keeps service active
+
+### 💡 Free Tier Tips
+
+**To maximize free tier usage:**
+- Keep-alive mechanism prevents idle spin-down
+- MQTT messages keep the service active
+- Monitor your usage in Render dashboard
+- If you exceed 750 hours, service pauses until next month
+
+### 🚀 When to Upgrade
+
+Consider paid plans ($7/month) if:
+- You need guaranteed 24/7 uptime
+- You exceed 750 hours/month
+- You need better performance
+- You need persistent disks
+
+**For most use cases, free tier works perfectly!** ✅
 
 ---
 

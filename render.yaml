@@ -21,10 +21,11 @@ services:
       - key: WEBHOOK_URL
         sync: false
 
-  # MQTT to MongoDB Background Worker
+  # MQTT to MongoDB Background Worker (Free Tier Optimized)
   - type: worker
     name: krishi-mithr-mqtt-worker
     env: python
+    plan: free  # Explicitly set to free tier
     buildCommand: pip install -r requirements_mqtt.txt
     startCommand: python mqtt_to_mongodb_krishimithr.py
     envVars:

@@ -12,6 +12,8 @@ import os
 from dotenv import load_dotenv
 import signal
 import sys
+import threading
+import time
 
 # Load environment variables
 load_dotenv()
@@ -305,18 +307,38 @@ def connect_mqtt():
     def on_disconnect(client, userdata, rc):
         if rc != 0:
             print("⚠️  Unexpected MQTT disconnection. Attempting to reconnect...")
+    
+    def on_log(client, userdata, level, buf):
+        # Keep connection alive with periodic logging
+        pass
 
     client = mqtt_client.Client(client_id)
     client.on_connect = on_connect
     client.on_message = on_message
     client.on_disconnect = on_disconnect
     
+    # Set keepalive to maintain connection (60 seconds)
+    client._keepalive = 60
+    
     try:
-        client.connect(broker, port)
+        client.connect(broker, port, keepalive=60)
         return client
     except Exception as e:
         print(f"❌ Error connecting to MQTT broker: {e}")
         return None
+
+# Keep-alive function to prevent Render free tier spin-down
+def keep_alive():
+    """Periodic heartbeat to keep service active on free tier"""
+    while True:
+        time.sleep(300)  # Every 5 minutes
+        if db:
+            try:
+                # Simple ping to MongoDB to show activity
+                mongo_client.admin.command('ping')
+                print("💓 Keep-alive: Service active")
+            except:
+                pass
 
 # Graceful shutdown handler
 def signal_handler(sig, frame):
@@ -353,13 +375,34 @@ if __name__ == "__main__":
     
     print("\n🔄 Starting MQTT client...")
     print("⏳ Waiting for sensor data...")
+    print("💓 Keep-alive enabled (prevents free tier spin-down)")
     print("Press Ctrl+C to stop\n")
     print("=" * 60)
+    
+    # Start keep-alive thread for free tier
+    keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
+    keep_alive_thread.start()
+    print("✅ Keep-alive thread started")
     
     try:
         client = connect_mqtt()
         if client:
-            client.loop_forever()
+            # Start MQTT loop in background
+            client.loop_start()
+            
+            # Keep main thread alive and monitor connection
+            try:
+                while True:
+                    time.sleep(10)  # Check every 10 seconds
+                    # Check if client is still connected
+                    if not client.is_connected():
+                        print("⚠️  MQTT disconnected, attempting reconnect...")
+                        try:
+                            client.reconnect()
+                        except:
+                            pass
+            except KeyboardInterrupt:
+                client.loop_stop()
         else:
             print("❌ Failed to connect to MQTT broker. Exiting...")
             sys.exit(1)

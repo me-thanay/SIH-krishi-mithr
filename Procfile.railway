@@ -1,0 +1,2 @@
+worker: python mqtt_to_mongodb_krishimithr.py
+

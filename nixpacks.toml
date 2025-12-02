@@ -1,0 +1,9 @@
+[phases.setup]
+nixPkgs = ["python39", "pip"]
+
+[phases.install]
+cmds = ["pip install -r requirements_mqtt.txt"]
+
+[start]
+cmd = "python mqtt_to_mongodb_krishimithr.py"
+

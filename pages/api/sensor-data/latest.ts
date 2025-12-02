@@ -14,10 +14,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const client = new MongoClient(process.env.DATABASE_URL)
     await client.connect()
     const db = client.db('krishi-mithr')
-    // Try sensor_readings first (new format), fallback to sensor_readings_complete (old format)
     const collection = db.collection('sensor_readings')
     
-    // Get latest complete sensor reading
+    // Get current sensor reading (data is updated in place, so latest = current)
+    // If multiple devices, get the most recent one
     const latest = await collection
       .find()
       .sort({ timestamp: -1 })

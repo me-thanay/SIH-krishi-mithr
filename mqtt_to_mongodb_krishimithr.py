@@ -162,10 +162,41 @@ def save_sensor_data(data):
         }
         
         # Save to main sensor readings collection
-        result = db["sensor_readings"].insert_one(sensor_doc)
-        print(f"✅ Saved sensor data to MongoDB (ID: {result.inserted_id})")
+        # Use upsert to update the latest reading (keep only current values)
+        # This ensures website always shows the most recent data
+        device_id = sensor_doc["device_id"]
+        location = sensor_doc["location"]
+        
+        result = db["sensor_readings"].update_one(
+            {"device_id": device_id, "location": location},
+            {"$set": sensor_doc},
+            upsert=True
+        )
+        
+        if result.upserted_id:
+            print(f"✅ Created new sensor reading (ID: {result.upserted_id})")
+        else:
+            print(f"✅ Updated latest sensor reading")
+        
+        # Keep only last 50 readings for history (optional - for charts/graphs)
+        # Delete older documents to keep database size manageable
+        try:
+            # Get count of documents
+            count = db["sensor_readings"].count_documents({"device_id": device_id, "location": location})
+            if count > 50:
+                # Delete oldest documents, keep only last 50
+                oldest = db["sensor_readings"].find(
+                    {"device_id": device_id, "location": location}
+                ).sort("timestamp", 1).limit(count - 50)
+                ids_to_delete = [doc["_id"] for doc in oldest]
+                if ids_to_delete:
+                    db["sensor_readings"].delete_many({"_id": {"$in": ids_to_delete}})
+                    print(f"🗑️  Cleaned up old data (kept last 50 readings)")
+        except Exception as e:
+            print(f"⚠️  Error cleaning old data: {e}")
         
         # Also save individual sensor data to separate collections for easier querying
+        # Update latest value instead of inserting (keep only current value per sensor)
         collections_to_save = {}
         
         # Temperature data
@@ -250,9 +281,28 @@ def save_sensor_data(data):
             }
         
         # Save to respective collections
+        # Update latest value instead of inserting (keeps only current value)
         for collection_name, doc in collections_to_save.items():
             collection = db[collection_name]
-            collection.insert_one(doc)
+            # Update the latest value for this device/location, or insert if doesn't exist
+            collection.update_one(
+                {"device_id": doc["device_id"], "location": doc["location"]},
+                {"$set": doc},
+                upsert=True
+            )
+            
+            # Optional: Keep last 100 readings per sensor type for history
+            try:
+                count = collection.count_documents({"device_id": doc["device_id"], "location": doc["location"]})
+                if count > 100:
+                    oldest = collection.find(
+                        {"device_id": doc["device_id"], "location": doc["location"]}
+                    ).sort("timestamp", 1).limit(count - 100)
+                    ids_to_delete = [d["_id"] for d in oldest]
+                    if ids_to_delete:
+                        collection.delete_many({"_id": {"$in": ids_to_delete}})
+            except:
+                pass  # Ignore cleanup errors for individual collections
         
         # Save motor log if motor state changed
         if motor_state:

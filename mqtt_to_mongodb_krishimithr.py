@@ -118,7 +118,12 @@ def save_sensor_data(data):
         
         # TDS and Water Quality
         tds_value = data.get("TDS")
-        water_quality = calculate_water_quality(tds_value) if tds_value else None
+        # Treat 0 and any numeric value as valid (only skip if missing/placeholder)
+        water_quality = (
+            calculate_water_quality(tds_value)
+            if tds_value not in (None, "", "--")
+            else None
+        )
         
         # LDR Light sensor
         light_value = data.get("light")

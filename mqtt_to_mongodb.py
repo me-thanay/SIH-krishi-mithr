@@ -4,7 +4,7 @@ Receives sensor data from MQTT and saves to MongoDB organized by data type
 """
 from paho.mqtt import client as mqtt_client
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 import os
@@ -48,7 +48,7 @@ else:
 def save_sensor_data(data):
     """Save sensor data to MongoDB, organized by data type"""
     try:
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
         
         # Filter and save each data type to its own collection
         collections_to_save = {}

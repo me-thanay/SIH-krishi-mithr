@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authAPI, tokenManager, authUtils, User, AgriculturalProfile, UserCrop } from '@/lib/auth-client'
+import { InfinityIcon } from 'lucide-react'
 
 interface AuthState {
   user: (User & {
@@ -36,7 +37,7 @@ export function useAuth(): AuthState & AuthActions {
 
   // Initialize auth state on mount
   useEffect(() => {
-    initializeAuth()
+    initializeAuth();
   }, [])
 
   const initializeAuth = async () => {

@@ -19,11 +19,11 @@ export default function Home() {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-semibold text-green-600 mb-2">🌤️ Weather Queries</h3>
+                <h3 className="font-semibold text-green-600 mb-2"> Weather Queries</h3>
                 <p className="text-sm text-gray-600">"What's the weather in Hyderabad?"</p>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-semibold text-blue-600 mb-2">💰 Market Prices</h3>
+                <h3 className="font-semibold text-blue-600 mb-2"> Market Prices</h3>
                 <p className="text-sm text-gray-600">"What's the price of rice?"</p>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-md">

@@ -127,3 +127,6 @@ If CORS continues to be an issue, you can proxy requests through Next.js API rou
 
 Let me know if you want me to set this up!
 
+
+
+

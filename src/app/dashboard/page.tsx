@@ -22,7 +22,11 @@ import {
   Activity,
   Zap,
   Eye,
-  Gauge
+  Gauge,
+  Power,
+  Settings,
+  ToggleLeft,
+  ToggleRight
 } from "lucide-react"
 
 interface UserData {
@@ -97,23 +101,75 @@ export default function DashboardPage() {
   const [subsidies, setSubsidies] = useState<SubsidyData[]>([])
   const [sensorData, setSensorData] = useState<SensorData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [relayLoading, setRelayLoading] = useState<string | null>(null)
 
   useEffect(() => {
-    // Get user data from localStorage
+    // Check for authentication - login is mandatory
+    const token = localStorage.getItem('auth_token')
     const user = localStorage.getItem('user')
-    if (user) {
+    
+    if (!token || !user) {
+      // Redirect to login if not authenticated
+      window.location.href = '/auth/login'
+      return
+    }
+
+    try {
       const parsedUser = JSON.parse(user)
       setUserData(parsedUser)
       
+      // Verify token and fetch fresh user data
+      fetchUserProfile()
+      
       // Fetch personalized data based on user profile
       fetchPersonalizedData(parsedUser)
-      // Fetch latest sensor readings from MongoDB (MQTT data)
-      fetchLatestSensorData()
-    } else {
-      // Redirect to login if no user data
+    } catch (e) {
+      console.error('Error parsing user data:', e)
+      // Clear invalid data and redirect to login
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('user')
       window.location.href = '/auth/login'
     }
+    
+    // Fetch sensor data
+    fetchLatestSensorData()
   }, [])
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        window.location.href = '/auth/login'
+        return
+      }
+
+      const response = await fetch('/api/auth/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.user) {
+          setUserData(data.user)
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(data.user))
+        }
+      } else {
+        // Token invalid, redirect to login
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('user')
+        window.location.href = '/auth/login'
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
+      // On error, redirect to login
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('user')
+      window.location.href = '/auth/login'
+    }
+  }
 
   const fetchLatestSensorData = async () => {
     try {
@@ -126,6 +182,37 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error fetching latest sensor data:', error)
+    }
+  }
+
+  const sendRelayCommand = async (command: string) => {
+    setRelayLoading(command)
+    try {
+      const response = await fetch('/api/mqtt/control', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ command }),
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        console.log(`✅ Command sent: ${command}`)
+        // Refresh sensor data after a short delay to get updated motor state
+        setTimeout(() => {
+          fetchLatestSensorData()
+        }, 1000)
+      } else {
+        console.error('Failed to send command:', data.error)
+        alert(`Failed to send command: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error sending relay command:', error)
+      alert('Failed to send command. Please check your connection.')
+    } finally {
+      setRelayLoading(null)
     }
   }
 
@@ -233,7 +320,7 @@ export default function DashboardPage() {
   }
 
   const getFarmingRecommendations = () => {
-    if (!userData || !weatherData) return []
+    if (!displayUserData || !weatherData) return []
 
     const recommendations = []
 
@@ -257,7 +344,7 @@ export default function DashboardPage() {
     }
 
     // Crop-specific recommendations
-    userData.agriculturalProfile.crops.forEach(crop => {
+    displayUserData.agriculturalProfile.crops.forEach(crop => {
       if (crop === "Rice" && weatherData.temperature > 30) {
         recommendations.push({
           type: "warning",
@@ -269,7 +356,7 @@ export default function DashboardPage() {
     })
 
     // Soil recommendations
-    if (userData.agriculturalProfile.soilType === "Clay") {
+    if (displayUserData.agriculturalProfile.soilType === "Clay") {
       recommendations.push({
         type: "info",
         icon: Leaf,
@@ -469,7 +556,7 @@ export default function DashboardPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
           <p className="text-gray-600 mb-4">Please log in to access your dashboard.</p>
-          <a href="/auth/login" className="bg-green-600 text-white px-6 py-2 rounded-lg">
+          <a href="/auth/login" className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
             Go to Login
           </a>
         </div>
@@ -477,7 +564,10 @@ export default function DashboardPage() {
     )
   }
 
-  const recommendations = getFarmingRecommendations()
+  // Use userData directly (login is mandatory)
+  const displayUserData = userData
+
+  const recommendations = displayUserData ? getFarmingRecommendations() : []
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -487,7 +577,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Welcome back, {userData.name}!
+                Welcome back, {displayUserData.name}!
               </h1>
               <p className="text-gray-600 mt-1">
                 Your personalized agricultural dashboard
@@ -496,11 +586,11 @@ export default function DashboardPage() {
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-sm text-gray-600">Farm Size</p>
-                <p className="font-semibold text-gray-900">{userData.agriculturalProfile.farmSize} acres</p>
+                <p className="font-semibold text-gray-900">{displayUserData.agriculturalProfile.farmSize} acres</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-600">Location</p>
-                <p className="font-semibold text-gray-900">{userData.agriculturalProfile.location}</p>
+                <p className="font-semibold text-gray-900">{displayUserData.agriculturalProfile.location}</p>
               </div>
             </div>
           </div>
@@ -517,7 +607,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                     <CloudRain className="w-5 h-5 mr-2 text-blue-600" />
-                    Weather for {userData.agriculturalProfile.location}
+                    Weather for {displayUserData.agriculturalProfile.location}
                   </h2>
                   <span className="text-sm text-gray-500">Real-time</span>
                 </div>
@@ -592,16 +682,16 @@ export default function DashboardPage() {
               </div>
 
               {/* Main Sensor Overview */}
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="bg-white rounded-lg shadow-sm border p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                     <Gauge className="w-5 h-5 mr-2 text-green-600" />
                     Detailed Sensor Readings
-                  </h2>
+                </h2>
                   <div className="flex items-center space-x-2">
                     <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-gray-500">
-                      {sensorData.timestamp
+                <span className="text-xs text-gray-500">
+                  {sensorData.timestamp
                         ? `Updated: ${new Date(sensorData.timestamp).toLocaleTimeString()}`
                         : 'Live'}
                     </span>
@@ -627,11 +717,11 @@ export default function DashboardPage() {
                             : sensorData.temperature && sensorData.temperature < 15
                             ? 'Cold'
                             : 'Normal'}
-                        </span>
-                      </div>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {sensorData.temperature ?? '--'}°C
-                      </p>
+                </span>
+              </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {sensorData.temperature ?? '--'}°C
+                  </p>
                       <p className="text-xs text-gray-600 mt-1">Temperature</p>
                     </div>
 
@@ -651,10 +741,10 @@ export default function DashboardPage() {
                             ? 'Humid'
                             : 'Ideal'}
                         </span>
-                      </div>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {sensorData.humidity ?? '--'}%
-                      </p>
+                </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {sensorData.humidity ?? '--'}%
+                  </p>
                       <p className="text-xs text-gray-600 mt-1">Humidity</p>
                     </div>
 
@@ -887,6 +977,162 @@ export default function DashboardPage() {
             </div>
           )}
 
+            {/* Relay Controls */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center mb-4">
+                <Power className="w-5 h-5 mr-2 text-blue-600" />
+                Device Controls
+              </h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Control your farm equipment remotely via MQTT
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Motor Control (Relay 1) */}
+                <div className="border rounded-lg p-4 bg-gradient-to-br from-green-50 to-green-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 flex items-center">
+                        <Zap className="w-4 h-4 mr-2 text-green-600" />
+                        Motor (Relay 1)
+                      </h3>
+                      <p className="text-xs text-gray-600 mt-1">Irrigation Pump Control</p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      sensorData?.motor_on 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-gray-300 text-gray-700'
+                    }`}>
+                      {sensorData?.motor_on ? 'ON' : 'OFF'}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => sendRelayCommand('motor:on')}
+                      disabled={relayLoading === 'motor:on' || sensorData?.motor_on === true}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                        sensorData?.motor_on === true
+                          ? 'bg-green-600 text-white cursor-not-allowed opacity-50'
+                          : relayLoading === 'motor:on'
+                          ? 'bg-green-500 text-white cursor-wait'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      {relayLoading === 'motor:on' ? 'Sending...' : 'Turn ON'}
+                    </button>
+                    <button
+                      onClick={() => sendRelayCommand('motor:off')}
+                      disabled={relayLoading === 'motor:off' || sensorData?.motor_on !== true}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                        sensorData?.motor_on !== true
+                          ? 'bg-gray-400 text-white cursor-not-allowed opacity-50'
+                          : relayLoading === 'motor:off'
+                          ? 'bg-red-500 text-white cursor-wait'
+                          : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                    >
+                      {relayLoading === 'motor:off' ? 'Sending...' : 'Turn OFF'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* HV Generator Control (Relay 2) */}
+                <div className="border rounded-lg p-4 bg-gradient-to-br from-blue-50 to-blue-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 flex items-center">
+                        <Zap className="w-4 h-4 mr-2 text-blue-600" />
+                        HV Generator (Relay 2)
+                      </h3>
+                      <p className="text-xs text-gray-600 mt-1">High Voltage Generator</p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      sensorData?.motor_state === 'true' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-gray-300 text-gray-700'
+                    }`}>
+                      {sensorData?.motor_state === 'true' ? 'ON' : 'OFF'}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => sendRelayCommand('hv:on')}
+                      disabled={relayLoading === 'hv:on'}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                        relayLoading === 'hv:on'
+                          ? 'bg-blue-500 text-white cursor-wait'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {relayLoading === 'hv:on' ? 'Sending...' : 'Turn ON'}
+                    </button>
+                    <button
+                      onClick={() => sendRelayCommand('hv:off')}
+                      disabled={relayLoading === 'hv:off'}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                        relayLoading === 'hv:off'
+                          ? 'bg-red-500 text-white cursor-wait'
+                          : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                    >
+                      {relayLoading === 'hv:off' ? 'Sending...' : 'Turn OFF'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* HV Auto Mode Control */}
+                <div className="border rounded-lg p-4 bg-gradient-to-br from-purple-50 to-purple-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 flex items-center">
+                        <Settings className="w-4 h-4 mr-2 text-purple-600" />
+                        HV Auto Mode
+                      </h3>
+                      <p className="text-xs text-gray-600 mt-1">Motion-Triggered Control</p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      sensorData?.motor_state === 'true' 
+                        ? 'bg-purple-500 text-white' 
+                        : 'bg-gray-300 text-gray-700'
+                    }`}>
+                      {sensorData?.motor_state === 'true' ? 'AUTO' : 'MANUAL'}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => sendRelayCommand('hv_auto:on')}
+                      disabled={relayLoading === 'hv_auto:on'}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                        relayLoading === 'hv_auto:on'
+                          ? 'bg-purple-500 text-white cursor-wait'
+                          : 'bg-purple-600 text-white hover:bg-purple-700'
+                      }`}
+                    >
+                      {relayLoading === 'hv_auto:on' ? 'Sending...' : 'Enable AUTO'}
+                    </button>
+                    <button
+                      onClick={() => sendRelayCommand('hv_auto:off')}
+                      disabled={relayLoading === 'hv_auto:off'}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                        relayLoading === 'hv_auto:off'
+                          ? 'bg-red-500 text-white cursor-wait'
+                          : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                    >
+                      {relayLoading === 'hv_auto:off' ? 'Sending...' : 'Disable AUTO'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-xs text-blue-800">
+                  <strong>Note:</strong> Commands are sent via MQTT to your ESP32 device. 
+                  Status updates may take a few seconds to reflect.
+                </p>
+              </div>
+            </div>
+
             {/* Market Prices */}
             {marketData.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -964,25 +1210,25 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 <div className="flex items-center">
                   <MapPin className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-sm text-gray-600">{userData.agriculturalProfile.location}</span>
+                  <span className="text-sm text-gray-600">{displayUserData.agriculturalProfile.location}</span>
                 </div>
                 <div className="flex items-center">
                   <Sprout className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-sm text-gray-600">{userData.agriculturalProfile.farmSize} acres</span>
+                  <span className="text-sm text-gray-600">{displayUserData.agriculturalProfile.farmSize} acres</span>
                 </div>
                 <div className="flex items-center">
                   <Leaf className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-sm text-gray-600">{userData.agriculturalProfile.soilType} soil</span>
+                  <span className="text-sm text-gray-600">{displayUserData.agriculturalProfile.soilType} soil</span>
                 </div>
                 <div className="flex items-center">
                   <Droplets className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-sm text-gray-600">{userData.agriculturalProfile.irrigationType}</span>
+                  <span className="text-sm text-gray-600">{displayUserData.agriculturalProfile.irrigationType}</span>
                 </div>
               </div>
               <div className="mt-4">
                 <p className="text-sm font-medium text-gray-700 mb-2">Your Crops:</p>
                 <div className="flex flex-wrap gap-1">
-                  {userData.agriculturalProfile.crops.map(crop => (
+                  {displayUserData.agriculturalProfile.crops.map(crop => (
                     <span key={crop} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                       {crop}
                     </span>

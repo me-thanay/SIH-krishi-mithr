@@ -189,3 +189,10 @@ const fetchHistory = async () => {
 - Check browser console for errors
 - Verify `DATABASE_URL` is set in Vercel environment variables
 
+
+
+
+
+
+
+

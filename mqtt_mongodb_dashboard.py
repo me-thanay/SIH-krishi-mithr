@@ -26,10 +26,10 @@ def connect_mongodb():
         client = MongoClient(MONGODB_URI)
         # Test connection
         client.admin.command('ping')
-        print("✅ Connected to MongoDB Atlas")
+        print("[OK] Connected to MongoDB Atlas")
         return client
     except ConnectionFailure as e:
-        print(f"❌ Failed to connect to MongoDB: {e}")
+        print(f"[ERROR] Failed to connect to MongoDB: {e}")
         return None
 
 # Initialize MongoDB connection
@@ -79,7 +79,7 @@ db_status_label.pack(pady=5)
 # Save sensor data to MongoDB
 def save_sensor_data(data):
     if sensor_collection is None:
-        print("⚠️ MongoDB not connected, skipping save")
+        print("[WARNING] MongoDB not connected, skipping save")
         return
     
     try:
@@ -106,10 +106,10 @@ def save_sensor_data(data):
         
         # Insert into MongoDB
         result = sensor_collection.insert_one(sensor_doc)
-        print(f"💾 Saved sensor data to MongoDB: {result.inserted_id}")
+        print(f"[SAVED] Saved sensor data to MongoDB: {result.inserted_id}")
         
     except Exception as e:
-        print(f"❌ Error saving to MongoDB: {e}")
+        print(f"[ERROR] Error saving to MongoDB: {e}")
 
 # Save motor control log to MongoDB
 def save_motor_log(action, status):
@@ -126,19 +126,19 @@ def save_motor_log(action, status):
         }
         
         result = motor_log_collection.insert_one(log_doc)
-        print(f"💾 Saved motor log to MongoDB: {result.inserted_id}")
+        print(f"[SAVED] Saved motor log to MongoDB: {result.inserted_id}")
         
     except Exception as e:
-        print(f"❌ Error saving motor log: {e}")
+        print(f"[ERROR] Error saving motor log: {e}")
 
 # MQTT connect
 def connect_mqtt():
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
-            print("✅ Connected to MQTT broker")
+            print("[OK] Connected to MQTT broker")
             client.subscribe(topic_sub)
         else:
-            print(f"❌ Failed to connect, return code {rc}")
+            print(f"[ERROR] Failed to connect, return code {rc}")
 
     def on_message(client, userdata, msg):
         try:
@@ -163,16 +163,16 @@ def connect_mqtt():
                 if float(co2) > 1000 or float(nh3) > 25 or float(benzene) > 5 or float(smoke) > 50:
                     aq_status_label.config(text="⚠ Poor Air Quality", fg="red")
                 else:
-                    aq_status_label.config(text="✅ Good Air Quality", fg="green")
+                    aq_status_label.config(text="[OK] Good Air Quality", fg="green")
             except:
                 aq_status_label.config(text="Air Quality: --", fg="blue")
 
             # Save to MongoDB
             save_sensor_data(data)
 
-            print(f"📥 Received: {data}")
+            print(f"[RECEIVED] Received: {data}")
         except Exception as e:
-            print(f"❌ Error parsing message: {e}")
+            print(f"[ERROR] Error parsing message: {e}")
 
     client = mqtt_client.Client(client_id)
     client.on_connect = on_connect
@@ -189,14 +189,14 @@ def toggle_led():
         client.publish(topic_pub, msg)
         status_label.config(text="Motor Status: OFF", fg="grey")
         save_motor_log("off", "OFF")
-        print("📤 Published motor OFF")
+        print("[PUBLISHED] Published motor OFF")
         is_on = False
     else:
         msg = "on"
         client.publish(topic_pub, msg)
         status_label.config(text="Motor Status: ON", fg="red")
         save_motor_log("on", "ON")
-        print("📤 Published motor ON")
+        print("[PUBLISHED] Published motor ON")
         is_on = True
 
 # Update DB status
@@ -229,5 +229,5 @@ client.loop_stop()
 # Close MongoDB connection
 if mongo_client:
     mongo_client.close()
-    print("🔌 MongoDB connection closed")
+    print("[CLOSED] MongoDB connection closed")
 

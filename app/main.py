@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import uvicorn
 import os
+import asyncio
 from dotenv import load_dotenv
 
 from app.routers import weather, pest_detection, soil_advisory, market_prices, dealer_network, farming_tools, whatsapp_webhook, voice_chat
@@ -20,6 +21,38 @@ app = FastAPI(
 # CORS middleware - MUST be added before routers
 # Note: Using middleware function instead of CORSMiddleware with "*" for better compatibility
 # CORSMiddleware with "*" doesn't work well, so we use a custom middleware
+
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    """Add CORS headers to all responses - MUST be defined before routers"""
+    # Handle OPTIONS preflight requests
+    if request.method == "OPTIONS":
+        from fastapi.responses import Response
+        origin = request.headers.get("origin", "*")
+        
+        response = Response(status_code=200)
+        # Allow all origins for CORS
+        response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "false"
+        response.headers["Access-Control-Max-Age"] = "3600"
+        return response
+    
+    # For all other requests, add CORS headers to response
+    response = await call_next(request)
+    
+    # Get origin from request - allow all origins
+    origin = request.headers.get("origin", "*")
+    
+    # Add CORS headers to all responses
+    response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Max-Age"] = "3600"
+    
+    return response
 
 # Add OPTIONS handler BEFORE routers to catch all OPTIONS requests
 @app.options("/{full_path:path}")
@@ -67,37 +100,14 @@ async def root():
 async def health_check():
     return {"status": "healthy", "message": "All services operational"}
 
-@app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
-    """Add CORS headers to all responses"""
-    # Handle OPTIONS preflight requests
-    if request.method == "OPTIONS":
-        from fastapi.responses import Response
-        origin = request.headers.get("origin", "*")
-        
-        response = Response()
-        # Allow all origins for CORS
-        response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        response.headers["Access-Control-Allow-Credentials"] = "false"
-        response.headers["Access-Control-Max-Age"] = "3600"
-        return response
-    
-    # For all other requests, add CORS headers to response
-    response = await call_next(request)
-    
-    # Get origin from request
-    origin = request.headers.get("origin", "*")
-    
-    # Add CORS headers
-    response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "false"
-    response.headers["Access-Control-Max-Age"] = "3600"
-    
-    return response
+@app.get("/api/test-cors")
+async def test_cors():
+    """Test endpoint to verify CORS is working"""
+    return {
+        "message": "CORS test successful",
+        "cors_enabled": True,
+        "timestamp": str(asyncio.get_event_loop().time())
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

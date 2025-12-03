@@ -539,14 +539,64 @@ export default function DashboardPage() {
             )}
 
           {/* Comprehensive Sensor Data from MQTT/MongoDB */}
-          {sensorData && (
+          {sensorData ? (
             <>
+              {/* Quick Summary Card */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-sm border border-green-200 p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Activity className="w-5 h-5 mr-2 text-green-600" />
+                    Field Status Summary
+                  </h2>
+                  <div className="flex items-center space-x-2">
+                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-gray-600 font-medium">
+                      {sensorData.timestamp
+                        ? `Last Update: ${new Date(sensorData.timestamp).toLocaleTimeString()}`
+                        : 'Live Monitoring'}
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-gray-900">
+                      {sensorData.soil_moisture !== null && sensorData.soil_moisture !== undefined
+                        ? sensorData.soil_moisture >= 30 && sensorData.soil_moisture <= 70
+                          ? '✅'
+                          : '⚠️'
+                        : '--'}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">Soil Health</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-gray-900">
+                      {sensorData.air_quality_status === 'good' ? '✅' : sensorData.air_quality_status === 'poor' ? '⚠️' : '--'}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">Air Quality</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-gray-900">
+                      {sensorData.water_quality && (sensorData.water_quality.includes('Safe') || sensorData.water_quality.includes('Tap'))
+                        ? '✅'
+                        : sensorData.water_quality ? '⚠️' : '--'}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">Water Quality</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-gray-900">
+                      {sensorData.motor_on ? '⚡' : '💤'}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">Irrigation</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Main Sensor Overview */}
               <div className="bg-white rounded-lg shadow-sm border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                    <Activity className="w-5 h-5 mr-2 text-green-600" />
-                    Real-Time Field Monitoring
+                    <Gauge className="w-5 h-5 mr-2 text-green-600" />
+                    Detailed Sensor Readings
                   </h2>
                   <div className="flex items-center space-x-2">
                     <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -800,6 +850,41 @@ export default function DashboardPage() {
                 </div>
               </div>
             </>
+          ) : (
+            /* No Sensor Data Available */
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="text-center py-8">
+                <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Waiting for Sensor Data
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  No sensor data available yet. Make sure:
+                </p>
+                <ul className="text-sm text-gray-600 text-left max-w-md mx-auto space-y-2">
+                  <li className="flex items-start">
+                    <span className="mr-2">•</span>
+                    <span>MQTT service is running and connected</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">•</span>
+                    <span>ESP32 is publishing data to MQTT broker</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">•</span>
+                    <span>Data is being saved to MongoDB Atlas</span>
+                  </li>
+                </ul>
+                <div className="mt-4">
+                  <button
+                    onClick={() => fetchLatestSensorData()}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                  >
+                    Refresh Data
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
             {/* Market Prices */}

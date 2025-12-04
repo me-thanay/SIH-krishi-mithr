@@ -111,6 +111,7 @@ export default function DashboardPage() {
   const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null)
   const [dataUpdated, setDataUpdated] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking')
+  const [isHistoricalDisplay, setIsHistoricalDisplay] = useState(false)
 
   useEffect(() => {
     // Check for authentication - login is mandatory
@@ -205,6 +206,7 @@ export default function DashboardPage() {
       
       if (body?.data) {
         setSensorData(body.data)
+        setIsHistoricalDisplay(false)
         setLastUpdateTime(body.timestamp || body.data.timestamp || new Date().toISOString())
         
         // Show visual indicator for update
@@ -235,8 +237,16 @@ export default function DashboardPage() {
       if (!response.ok) return
 
       const body = await response.json()
-      if (body?.data && Array.isArray(body.data)) {
+      if (body?.data && Array.isArray(body.data) && body.data.length > 0) {
         setHistoryData(body.data)
+
+        const shouldUseHistory = !sensorData || isHistoricalDisplay
+        if (shouldUseHistory) {
+          const latestHistory = body.data[0]
+          setSensorData(latestHistory)
+          setIsHistoricalDisplay(true)
+          setLastUpdateTime(latestHistory.timestamp || new Date().toISOString())
+        }
       }
     } catch (error) {
       console.error('Error fetching sensor history:', error)

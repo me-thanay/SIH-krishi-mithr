@@ -102,6 +102,9 @@ export default function DashboardPage() {
   const [sensorData, setSensorData] = useState<SensorData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [relayLoading, setRelayLoading] = useState<string | null>(null)
+  const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null)
+  const [dataUpdated, setDataUpdated] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking')
 
   useEffect(() => {
     // Check for authentication - login is mandatory
@@ -171,17 +174,45 @@ export default function DashboardPage() {
     }
   }
 
-  const fetchLatestSensorData = async () => {
+  const fetchLatestSensorData = async (isIncremental: boolean = false) => {
     try {
-      const response = await fetch('/api/sensor-data/latest')
-      if (!response.ok) return
+      // Use incremental update if we have a last update time
+      const url = isIncremental && lastUpdateTime 
+        ? `/api/sensor-data/latest?lastUpdate=${encodeURIComponent(lastUpdateTime)}`
+        : '/api/sensor-data/latest'
+      
+      const response = await fetch(url)
+      if (!response.ok) {
+        setConnectionStatus('disconnected')
+        return
+      }
 
       const body = await response.json()
+      
+      // If incremental update and no changes, skip
+      if (isIncremental && !body.updated) {
+        setConnectionStatus('connected')
+        return
+      }
+      
       if (body?.data) {
         setSensorData(body.data)
+        setLastUpdateTime(body.timestamp || body.data.timestamp || new Date().toISOString())
+        
+        // Show visual indicator for update
+        if (isIncremental) {
+          setDataUpdated(true)
+          setTimeout(() => setDataUpdated(false), 2000)
+        }
+        
+        setConnectionStatus('connected')
+      } else if (!isIncremental) {
+        // First load, no data available
+        setConnectionStatus('disconnected')
       }
     } catch (error) {
       console.error('Error fetching latest sensor data:', error)
+      setConnectionStatus('disconnected')
     }
   }
 
@@ -216,14 +247,20 @@ export default function DashboardPage() {
     }
   }
 
-  // Auto-refresh sensor data every 10 seconds
+  // Auto-refresh sensor data with incremental updates
   useEffect(() => {
+    // Initial fetch
+    fetchLatestSensorData(false)
+    
+    // Then use incremental updates every 3 seconds for real-time feel
     const interval = setInterval(() => {
-      fetchLatestSensorData()
-    }, 10000) // Refresh every 10 seconds
+      // Use current lastUpdateTime from state
+      fetchLatestSensorData(true)
+    }, 3000) // Check for updates every 3 seconds
 
     return () => clearInterval(interval)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount - fetchLatestSensorData will use current state values
 
   const fetchPersonalizedData = async (user: UserData) => {
     setIsLoading(true)
@@ -632,19 +669,32 @@ export default function DashboardPage() {
           {sensorData ? (
             <>
               {/* Quick Summary Card */}
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-sm border border-green-200 p-6 mb-6">
+              <div className={`bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-sm border p-6 mb-6 transition-all ${
+                dataUpdated ? 'border-green-400 shadow-md' : 'border-green-200'
+              }`}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                     <Activity className="w-5 h-5 mr-2 text-green-600" />
                     Field Status Summary
                   </h2>
-                  <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <div className="flex items-center space-x-3">
+                    <div className={`h-2 w-2 rounded-full ${
+                      connectionStatus === 'connected' 
+                        ? 'bg-green-500 animate-pulse' 
+                        : connectionStatus === 'disconnected'
+                        ? 'bg-red-500'
+                        : 'bg-yellow-500'
+                    }`}></div>
                     <span className="text-xs text-gray-600 font-medium">
                       {sensorData.timestamp
                         ? `Last Update: ${new Date(sensorData.timestamp).toLocaleTimeString()}`
                         : 'Live Monitoring'}
                     </span>
+                    {dataUpdated && (
+                      <span className="text-xs text-green-600 font-bold animate-pulse">
+                        ● UPDATED
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -682,19 +732,32 @@ export default function DashboardPage() {
               </div>
 
               {/* Main Sensor Overview */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className={`bg-white rounded-lg shadow-sm border p-6 transition-all ${
+              dataUpdated ? 'border-green-300 shadow-md' : ''
+            }`}>
                 <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                     <Gauge className="w-5 h-5 mr-2 text-green-600" />
                     Detailed Sensor Readings
                 </h2>
-                  <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <div className="flex items-center space-x-3">
+                    <div className={`h-2 w-2 rounded-full ${
+                      connectionStatus === 'connected' 
+                        ? 'bg-green-500 animate-pulse' 
+                        : connectionStatus === 'disconnected'
+                        ? 'bg-red-500'
+                        : 'bg-yellow-500'
+                    }`}></div>
                 <span className="text-xs text-gray-500">
                   {sensorData.timestamp
                         ? `Updated: ${new Date(sensorData.timestamp).toLocaleTimeString()}`
                         : 'Live'}
                     </span>
+                    {dataUpdated && (
+                      <span className="text-xs text-green-600 font-bold animate-pulse">
+                        ● NEW DATA
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -977,159 +1040,284 @@ export default function DashboardPage() {
             </div>
           )}
 
-            {/* Relay Controls */}
+            {/* Relay Controls - Enhanced UI */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center mb-4">
-                <Power className="w-5 h-5 mr-2 text-blue-600" />
-                Device Controls
-              </h2>
-              <p className="text-sm text-gray-600 mb-6">
-                Control your farm equipment remotely via MQTT
-              </p>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Power className="w-5 h-5 mr-2 text-blue-600" />
+                    Device Controls & Relays
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Control your farm equipment remotely via MQTT
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className={`h-2 w-2 rounded-full ${
+                    connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' : 
+                    connectionStatus === 'disconnected' ? 'bg-red-500' : 'bg-yellow-500'
+                  }`}></div>
+                  <span className="text-xs text-gray-600">
+                    {connectionStatus === 'connected' ? 'MQTT Connected' : 
+                     connectionStatus === 'disconnected' ? 'MQTT Disconnected' : 'Checking...'}
+                  </span>
+                </div>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Main Relay Controls Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 {/* Motor Control (Relay 1) */}
-                <div className="border rounded-lg p-4 bg-gradient-to-br from-green-50 to-green-100">
+                <div className={`border-2 rounded-xl p-5 transition-all ${
+                  sensorData?.motor_on 
+                    ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-300 shadow-md' 
+                    : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'
+                }`}>
                   <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 flex items-center">
-                        <Zap className="w-4 h-4 mr-2 text-green-600" />
-                        Motor (Relay 1)
-                      </h3>
-                      <p className="text-xs text-gray-600 mt-1">Irrigation Pump Control</p>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      sensorData?.motor_on 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-gray-300 text-gray-700'
-                    }`}>
-                      {sensorData?.motor_on ? 'ON' : 'OFF'}
+                    <div className="flex items-center">
+                      <div className={`p-2 rounded-lg ${
+                        sensorData?.motor_on ? 'bg-green-500' : 'bg-gray-400'
+                      }`}>
+                        <Zap className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="font-semibold text-gray-900">Irrigation Motor</h3>
+                        <p className="text-xs text-gray-600">Relay 1 - Pump Control</p>
+                      </div>
                     </div>
                   </div>
+                  
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-600">Current Status</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        sensorData?.motor_on 
+                          ? 'bg-green-500 text-white shadow-sm' 
+                          : 'bg-gray-300 text-gray-700'
+                      }`}>
+                        {sensorData?.motor_on ? '● ON' : '○ OFF'}
+                      </span>
+                    </div>
+                  </div>
+                  
                   <div className="flex gap-2">
                     <button
                       onClick={() => sendRelayCommand('motor:on')}
                       disabled={relayLoading === 'motor:on' || sensorData?.motor_on === true}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all transform ${
                         sensorData?.motor_on === true
-                          ? 'bg-green-600 text-white cursor-not-allowed opacity-50'
+                          ? 'bg-green-400 text-white cursor-not-allowed opacity-50'
                           : relayLoading === 'motor:on'
-                          ? 'bg-green-500 text-white cursor-wait'
-                          : 'bg-green-600 text-white hover:bg-green-700'
+                          ? 'bg-green-500 text-white cursor-wait scale-95'
+                          : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105 active:scale-95 shadow-md'
                       }`}
                     >
-                      {relayLoading === 'motor:on' ? 'Sending...' : 'Turn ON'}
+                      {relayLoading === 'motor:on' ? (
+                        <span className="flex items-center justify-center">
+                          <span className="animate-spin mr-2">⏳</span> Sending...
+                        </span>
+                      ) : (
+                        '▶ Turn ON'
+                      )}
                     </button>
                     <button
                       onClick={() => sendRelayCommand('motor:off')}
                       disabled={relayLoading === 'motor:off' || sensorData?.motor_on !== true}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all transform ${
                         sensorData?.motor_on !== true
-                          ? 'bg-gray-400 text-white cursor-not-allowed opacity-50'
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
                           : relayLoading === 'motor:off'
-                          ? 'bg-red-500 text-white cursor-wait'
-                          : 'bg-red-600 text-white hover:bg-red-700'
+                          ? 'bg-red-500 text-white cursor-wait scale-95'
+                          : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105 active:scale-95 shadow-md'
                       }`}
                     >
-                      {relayLoading === 'motor:off' ? 'Sending...' : 'Turn OFF'}
+                      {relayLoading === 'motor:off' ? (
+                        <span className="flex items-center justify-center">
+                          <span className="animate-spin mr-2">⏳</span> Sending...
+                        </span>
+                      ) : (
+                        '⏸ Turn OFF'
+                      )}
                     </button>
                   </div>
                 </div>
 
                 {/* HV Generator Control (Relay 2) */}
-                <div className="border rounded-lg p-4 bg-gradient-to-br from-blue-50 to-blue-100">
+                <div className={`border-2 rounded-xl p-5 transition-all ${
+                  sensorData?.motor_state === 'true' 
+                    ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 shadow-md' 
+                    : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'
+                }`}>
                   <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 flex items-center">
-                        <Zap className="w-4 h-4 mr-2 text-blue-600" />
-                        HV Generator (Relay 2)
-                      </h3>
-                      <p className="text-xs text-gray-600 mt-1">High Voltage Generator</p>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      sensorData?.motor_state === 'true' 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-gray-300 text-gray-700'
-                    }`}>
-                      {sensorData?.motor_state === 'true' ? 'ON' : 'OFF'}
+                    <div className="flex items-center">
+                      <div className={`p-2 rounded-lg ${
+                        sensorData?.motor_state === 'true' ? 'bg-blue-500' : 'bg-gray-400'
+                      }`}>
+                        <Zap className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="font-semibold text-gray-900">HV Generator</h3>
+                        <p className="text-xs text-gray-600">Relay 2 - High Voltage</p>
+                      </div>
                     </div>
                   </div>
+                  
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-600">Current Status</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        sensorData?.motor_state === 'true' 
+                          ? 'bg-blue-500 text-white shadow-sm' 
+                          : 'bg-gray-300 text-gray-700'
+                      }`}>
+                        {sensorData?.motor_state === 'true' ? '● ON' : '○ OFF'}
+                      </span>
+                    </div>
+                  </div>
+                  
                   <div className="flex gap-2">
                     <button
                       onClick={() => sendRelayCommand('hv:on')}
                       disabled={relayLoading === 'hv:on'}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all transform ${
                         relayLoading === 'hv:on'
-                          ? 'bg-blue-500 text-white cursor-wait'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                          ? 'bg-blue-500 text-white cursor-wait scale-95'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 active:scale-95 shadow-md'
                       }`}
                     >
-                      {relayLoading === 'hv:on' ? 'Sending...' : 'Turn ON'}
+                      {relayLoading === 'hv:on' ? (
+                        <span className="flex items-center justify-center">
+                          <span className="animate-spin mr-2">⏳</span> Sending...
+                        </span>
+                      ) : (
+                        '▶ Turn ON'
+                      )}
                     </button>
                     <button
                       onClick={() => sendRelayCommand('hv:off')}
                       disabled={relayLoading === 'hv:off'}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all transform ${
                         relayLoading === 'hv:off'
-                          ? 'bg-red-500 text-white cursor-wait'
-                          : 'bg-red-600 text-white hover:bg-red-700'
+                          ? 'bg-red-500 text-white cursor-wait scale-95'
+                          : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105 active:scale-95 shadow-md'
                       }`}
                     >
-                      {relayLoading === 'hv:off' ? 'Sending...' : 'Turn OFF'}
+                      {relayLoading === 'hv:off' ? (
+                        <span className="flex items-center justify-center">
+                          <span className="animate-spin mr-2">⏳</span> Sending...
+                        </span>
+                      ) : (
+                        '⏸ Turn OFF'
+                      )}
                     </button>
                   </div>
                 </div>
 
                 {/* HV Auto Mode Control */}
-                <div className="border rounded-lg p-4 bg-gradient-to-br from-purple-50 to-purple-100">
+                <div className={`border-2 rounded-xl p-5 transition-all ${
+                  sensorData?.motor_state === 'true' 
+                    ? 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-300 shadow-md' 
+                    : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'
+                }`}>
                   <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 flex items-center">
-                        <Settings className="w-4 h-4 mr-2 text-purple-600" />
-                        HV Auto Mode
-                      </h3>
-                      <p className="text-xs text-gray-600 mt-1">Motion-Triggered Control</p>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      sensorData?.motor_state === 'true' 
-                        ? 'bg-purple-500 text-white' 
-                        : 'bg-gray-300 text-gray-700'
-                    }`}>
-                      {sensorData?.motor_state === 'true' ? 'AUTO' : 'MANUAL'}
+                    <div className="flex items-center">
+                      <div className={`p-2 rounded-lg ${
+                        sensorData?.motor_state === 'true' ? 'bg-purple-500' : 'bg-gray-400'
+                      }`}>
+                        <Settings className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="font-semibold text-gray-900">Auto Mode</h3>
+                        <p className="text-xs text-gray-600">Motion-Triggered</p>
+                      </div>
                     </div>
                   </div>
+                  
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-600">Current Mode</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        sensorData?.motor_state === 'true' 
+                          ? 'bg-purple-500 text-white shadow-sm' 
+                          : 'bg-gray-300 text-gray-700'
+                      }`}>
+                        {sensorData?.motor_state === 'true' ? '🔄 AUTO' : '👤 MANUAL'}
+                      </span>
+                    </div>
+                  </div>
+                  
                   <div className="flex gap-2">
                     <button
                       onClick={() => sendRelayCommand('hv_auto:on')}
                       disabled={relayLoading === 'hv_auto:on'}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all transform ${
                         relayLoading === 'hv_auto:on'
-                          ? 'bg-purple-500 text-white cursor-wait'
-                          : 'bg-purple-600 text-white hover:bg-purple-700'
+                          ? 'bg-purple-500 text-white cursor-wait scale-95'
+                          : 'bg-purple-600 text-white hover:bg-purple-700 hover:scale-105 active:scale-95 shadow-md'
                       }`}
                     >
-                      {relayLoading === 'hv_auto:on' ? 'Sending...' : 'Enable AUTO'}
+                      {relayLoading === 'hv_auto:on' ? (
+                        <span className="flex items-center justify-center">
+                          <span className="animate-spin mr-2">⏳</span> Sending...
+                        </span>
+                      ) : (
+                        '🔄 Enable AUTO'
+                      )}
                     </button>
                     <button
                       onClick={() => sendRelayCommand('hv_auto:off')}
                       disabled={relayLoading === 'hv_auto:off'}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all transform ${
                         relayLoading === 'hv_auto:off'
-                          ? 'bg-red-500 text-white cursor-wait'
-                          : 'bg-red-600 text-white hover:bg-red-700'
+                          ? 'bg-red-500 text-white cursor-wait scale-95'
+                          : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105 active:scale-95 shadow-md'
                       }`}
                     >
-                      {relayLoading === 'hv_auto:off' ? 'Sending...' : 'Disable AUTO'}
+                      {relayLoading === 'hv_auto:off' ? (
+                        <span className="flex items-center justify-center">
+                          <span className="animate-spin mr-2">⏳</span> Sending...
+                        </span>
+                      ) : (
+                        '👤 Manual Mode'
+                      )}
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-xs text-blue-800">
-                  <strong>Note:</strong> Commands are sent via MQTT to your ESP32 device. 
-                  Status updates may take a few seconds to reflect.
-                </p>
+              {/* Status Information */}
+              <div className={`mt-4 p-4 rounded-lg border transition-all ${
+                dataUpdated 
+                  ? 'bg-green-50 border-green-300 animate-pulse' 
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    {dataUpdated ? (
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                    ) : (
+                      <Activity className="w-5 h-5 text-blue-600 mt-0.5" />
+                    )}
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <p className={`text-sm font-medium ${
+                      dataUpdated ? 'text-green-800' : 'text-blue-800'
+                    }`}>
+                      {dataUpdated ? (
+                        <>✅ <strong>Data Updated!</strong> Latest sensor readings received.</>
+                      ) : (
+                        <>
+                          <strong>Real-time Monitoring:</strong> Data is automatically updated every 3 seconds from MongoDB Atlas. 
+                          Commands are sent via MQTT to your ESP32 device. Status updates may take a few seconds to reflect.
+                        </>
+                      )}
+                    </p>
+                    {sensorData?.timestamp && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        Last update: {new Date(sensorData.timestamp).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 

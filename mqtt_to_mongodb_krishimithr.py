@@ -102,13 +102,15 @@ def save_sensor_data(data):
     try:
         timestamp = datetime.now(timezone.utc)
         
-        # Extract all sensor values
+        # Extract all sensor values from incoming MQTT JSON
         temperature = data.get("temperature")
         humidity = data.get("humidity")
         motion = data.get("motion")
         soil_moisture = data.get("soilMoisture")
         rain_status = data.get("raindata")
         motor_state = data.get("motor", "false")
+        hv_state = data.get("hv", "false")
+        hv_auto_state = data.get("hv_auto", "false")
         
         # MQ135 Air Quality sensors
         co2 = data.get("CO2_ppm")
@@ -161,9 +163,13 @@ def save_sensor_data(data):
             "light": int(light_value) if light_value is not None else None,
             "light_status": light_status,
             
-            # Motor status
+            # Motor / HV relay status
             "motor_state": str(motor_state),
-            "motor_on": (str(motor_state).lower() == 'true')
+            "motor_on": (str(motor_state).lower() == 'true'),
+            "hv_state": str(hv_state),
+            "hv_on": (str(hv_state).lower() == 'true'),
+            "hv_auto_state": str(hv_auto_state),
+            "hv_auto_on": (str(hv_auto_state).lower() == 'true')
         }
         
         # Save to main sensor readings collection
@@ -309,22 +315,32 @@ def save_sensor_data(data):
             except:
                 pass  # Ignore cleanup errors for individual collections
         
-        # Save motor log if motor state changed
-        if motor_state:
+        # Save motor / relay log if any relay state is present
+        if motor_state is not None or hv_state is not None or hv_auto_state is not None:
             motor_log = {
                 "motor_state": str(motor_state),
-                "motor_on": (str(motor_state).lower() == 'true'),
+                "motor_on": (str(motor_state).lower() == 'true') if motor_state is not None else None,
+                "hv_state": str(hv_state) if hv_state is not None else None,
+                "hv_on": (str(hv_state).lower() == 'true') if hv_state is not None else None,
+                "hv_auto_state": str(hv_auto_state) if hv_auto_state is not None else None,
+                "hv_auto_on": (str(hv_auto_state).lower() == 'true') if hv_auto_state is not None else None,
                 "timestamp": timestamp,
                 "device_id": sensor_doc["device_id"],
                 "location": sensor_doc["location"]
             }
             db["motor_logs"].insert_one(motor_log)
         
+        # Console-friendly summary (replaces old Tkinter dashboard)
         print(f"📊 Data Summary:")
         print(f"   Temperature: {temperature}°C | Humidity: {humidity}%")
         print(f"   Soil Moisture: {soil_moisture}% | Rain: {rain_status}")
         print(f"   Air Quality: {air_quality_status.upper()} | Water Quality: {water_quality}")
-        print(f"   Motor: {'ON' if str(motor_state).lower() == 'true' else 'OFF'}")
+        print(
+            "   Relays: "
+            f"Motor={'ON' if str(motor_state).lower() == 'true' else 'OFF'}, "
+            f"HV={'ON' if str(hv_state).lower() == 'true' else 'OFF'}, "
+            f"HV_AUTO={'ON' if str(hv_auto_state).lower() == 'true' else 'OFF'}"
+        )
         
     except Exception as e:
         print(f"❌ Error saving to MongoDB: {e}")

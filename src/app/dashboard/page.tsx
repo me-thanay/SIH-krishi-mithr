@@ -26,7 +26,8 @@ import {
   Power,
   Settings,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  History
 } from "lucide-react"
 
 interface UserData {
@@ -88,6 +89,10 @@ interface SensorData {
   motion_detected?: boolean | null
   motor_state?: string | null
   motor_on?: boolean | null
+  hv_state?: string | null
+  hv_on?: boolean | null
+  hv_auto_state?: string | null
+  hv_auto_on?: boolean | null
   air_quality_status?: string
   timestamp?: string
   device_id?: string
@@ -100,6 +105,7 @@ export default function DashboardPage() {
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [subsidies, setSubsidies] = useState<SubsidyData[]>([])
   const [sensorData, setSensorData] = useState<SensorData | null>(null)
+  const [historyData, setHistoryData] = useState<SensorData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [relayLoading, setRelayLoading] = useState<string | null>(null)
   const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null)
@@ -184,6 +190,8 @@ export default function DashboardPage() {
       const response = await fetch(url)
       if (!response.ok) {
         setConnectionStatus('disconnected')
+        // When offline, still try to show recent history from Mongo
+        fetchHistorySensorData()
         return
       }
 
@@ -206,13 +214,32 @@ export default function DashboardPage() {
         }
         
         setConnectionStatus('connected')
+        // Refresh history so last 5 readings stay up to date
+        fetchHistorySensorData()
       } else if (!isIncremental) {
         // First load, no data available
         setConnectionStatus('disconnected')
+        fetchHistorySensorData()
       }
     } catch (error) {
       console.error('Error fetching latest sensor data:', error)
       setConnectionStatus('disconnected')
+      // On error, still try to load last known readings from Mongo
+      fetchHistorySensorData()
+    }
+  }
+
+  const fetchHistorySensorData = async () => {
+    try {
+      const response = await fetch('/api/sensor-data/history?hours=48&limit=5')
+      if (!response.ok) return
+
+      const body = await response.json()
+      if (body?.data && Array.isArray(body.data)) {
+        setHistoryData(body.data)
+      }
+    } catch (error) {
+      console.error('Error fetching sensor history:', error)
     }
   }
 
@@ -1034,6 +1061,54 @@ export default function DashboardPage() {
                   })}
                 </div>
               </div>
+              {/* Recent History (last 5 readings from MongoDB) */}
+              {historyData.length > 0 && (
+                <div className="bg-white rounded-lg shadow-sm border p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <History className="w-4 h-4 mr-2 text-gray-600" />
+                    Recent Sensor Readings (Last {historyData.length})
+                  </h2>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-xs md:text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50">
+                          <th className="px-2 py-2 text-left text-gray-600 font-medium">Time</th>
+                          <th className="px-2 py-2 text-left text-gray-600 font-medium">Temp (°C)</th>
+                          <th className="px-2 py-2 text-left text-gray-600 font-medium">Humidity (%)</th>
+                          <th className="px-2 py-2 text-left text-gray-600 font-medium">Soil (%)</th>
+                          <th className="px-2 py-2 text-left text-gray-600 font-medium">Motor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {historyData.map((h, idx) => (
+                          <tr key={idx} className="border-b last:border-0">
+                            <td className="px-2 py-1 text-gray-700">
+                              {h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : '--'}
+                            </td>
+                            <td className="px-2 py-1 text-gray-700">
+                              {h.temperature ?? '--'}
+                            </td>
+                            <td className="px-2 py-1 text-gray-700">
+                              {h.humidity ?? '--'}
+                            </td>
+                            <td className="px-2 py-1 text-gray-700">
+                              {h.soil_moisture ?? '--'}
+                            </td>
+                            <td className="px-2 py-1 text-gray-700">
+                              {h.motor_on ? 'ON' : 'OFF'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {connectionStatus === 'disconnected' && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Device is offline. Showing the last {historyData.length} readings stored in MongoDB.
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             /* No Sensor Data Available */

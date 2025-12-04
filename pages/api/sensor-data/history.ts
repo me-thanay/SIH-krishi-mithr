@@ -16,7 +16,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const client = new MongoClient(process.env.DATABASE_URL)
     await client.connect()
     const db = client.db('krishi-mithr')
-    const collection = db.collection('sensor_data')
+    // Use the same collection as the live dashboard (`sensor_readings`)
+    const collection = db.collection('sensor_readings')
     
     // Calculate cutoff time
     const cutoffTime = new Date()
@@ -41,6 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Failed to fetch sensor history', details: error.message })
   }
 }
+
 
 
 

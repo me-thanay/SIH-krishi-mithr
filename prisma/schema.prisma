@@ -12,10 +12,16 @@ datasource db {
 
 model User {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  email     String   @unique
-  password  String
-  name      String
+  email     String?  @unique
+  password  String?
+  name      String?
   phone     String?
+  // Aadhar card details
+  aadharNumber  String
+  aadharName    String
+  aadharDob     DateTime
+  aadharAddress String
+  faceImage     String? // Base64 encoded face image
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -33,16 +39,17 @@ model User {
 model AgriculturalProfile {
   id                String   @id @default(auto()) @map("_id") @db.ObjectId
   userId            String   @unique @db.ObjectId
-  farmSize          String   // e.g., "5 acres", "10 hectares"
-  crops             String   // JSON array of crops
-  location          String   // Farm location
-  state             String   // State/Province
+  farmSize          String?  // e.g., "5 acres", "10 hectares" - now using landArea
+  landArea          String   // Land area in acres (simplified)
+  crops             String?  // JSON array of crops
+  location          String?  // Farm location
+  state             String?  // State/Province
   district          String?  // District
-  soilType          String   // Soil type
-  irrigationType    String   // Irrigation method
-  farmingExperience String   // Experience level
-  annualIncome      String   // Income range
-  governmentSchemes String   // JSON array of schemes
+  soilType          String?  // Soil type
+  irrigationType    String?  // Irrigation method
+  farmingExperience String?  // Experience level
+  annualIncome      String?  // Income range
+  governmentSchemes String?  // JSON array of schemes
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

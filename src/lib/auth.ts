@@ -23,19 +23,19 @@ export interface AuthResponse {
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key'
 
 // Generate JWT token
-export function generateToken(userId: string, email: string): string {
+export function generateToken(userId: string, identifier: string): string {
   return jwt.sign(
-    { userId, email },
+    { userId, identifier },
     JWT_SECRET,
     { expiresIn: '7d' }
   )
 }
 
 // Verify JWT token
-export function verifyToken(token: string): { userId: string; email: string } | null {
+export function verifyToken(token: string): { userId: string; identifier: string } | null {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any
-    return { userId: decoded.userId, email: decoded.email }
+    return { userId: decoded.userId, identifier: decoded.identifier || decoded.email }
   } catch (error) {
     return null
   }

@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Mail, Lock, User, MapPin, Calendar, Droplets, Eye, EyeOff, Sprout } from 'lucide-react'
+import { X, Mail, Lock, User, MapPin, Calendar, Droplets, Eye, EyeOff, Sprout, Camera, Phone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AuthModalProps {
@@ -31,10 +31,16 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
   const [error, setError] = useState('')
 
   // Login form state
+  const [loginMethod, setLoginMethod] = useState<'face' | 'phone'>('face')
   const [loginData, setLoginData] = useState({
-    email: '',
-    password: ''
+    phone: ''
   })
+  const [faceImage, setFaceImage] = useState<string | null>(null)
+  const [isCapturing, setIsCapturing] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   // Signup form state
   const [signupData, setSignupData] = useState({
@@ -56,11 +62,72 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
     governmentSchemes: []
   })
 
+  // Start camera for face detection
+  const startCamera = async () => {
+    try {
+      setCameraError(null)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: 640, height: 480 }
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+      setIsCapturing(true)
+    } catch (error) {
+      console.error('Camera error:', error)
+      setCameraError('Unable to access camera. Please ensure camera permissions are granted.')
+    }
+  }
+
+  // Stop camera
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    setIsCapturing(false)
+  }
+
+  // Capture face photo
+  const captureFace = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const context = canvas.getContext('2d')
+      
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      context?.drawImage(video, 0, 0, canvas.width, canvas.height)
+      
+      const imageData = canvas.toDataURL('image/jpeg', 0.8)
+      setFaceImage(imageData)
+      stopCamera()
+    }
+  }
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera()
+    }
+  }, [])
+
   const handleClose = () => {
     setError('')
     setCurrentStep(1)
     setMode(defaultMode)
+    setFaceImage(null)
+    stopCamera()
     onClose()
+  }
+
+  const validatePhone = (phone: string) => {
+    const phoneRegex = /^\d{10}$/
+    return phoneRegex.test(phone.replace(/\s/g, ''))
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -68,11 +135,37 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
     setIsLoading(true)
     setError('')
 
+    if (!loginData.phone) {
+      setError('Please enter your phone number')
+      setIsLoading(false)
+      return
+    }
+
+    if (!validatePhone(loginData.phone)) {
+      setError('Please enter a valid 10-digit phone number')
+      setIsLoading(false)
+      return
+    }
+
     try {
+      let requestBody: any = {
+        phone: loginData.phone,
+        loginMethod: loginMethod
+      }
+
+      if (loginMethod === 'face') {
+        if (!faceImage) {
+          setError('Please capture your face for verification')
+          setIsLoading(false)
+          return
+        }
+        requestBody.faceImage = faceImage
+      }
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loginData)
+        body: JSON.stringify(requestBody)
       })
 
       const data = await response.json()
@@ -233,47 +326,161 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
 
               {mode === 'login' ? (
                 <form onSubmit={handleLogin} className="space-y-4">
+                  {/* Login Method Toggle */}
+                  <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMethod('face')
+                        setFaceImage(null)
+                        stopCamera()
+                      }}
+                      className={cn(
+                        "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2",
+                        loginMethod === 'face'
+                          ? 'bg-green-600 text-white'
+                          : 'text-gray-700 hover:text-gray-900'
+                      )}
+                    >
+                      <Camera className="w-4 h-4" />
+                      Face Login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMethod('phone')
+                        setFaceImage(null)
+                        stopCamera()
+                      }}
+                      className={cn(
+                        "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2",
+                        loginMethod === 'phone'
+                          ? 'bg-green-600 text-white'
+                          : 'text-gray-700 hover:text-gray-900'
+                      )}
+                    >
+                      <Phone className="w-4 h-4" />
+                      Phone Only
+                    </button>
+                  </div>
+
+                  {/* Phone Number Input */}
                   <div>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                       <input
-                        type="email"
+                        type="tel"
                         required
-                        value={loginData.email}
-                        onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+                        value={loginData.phone}
+                        onChange={(e) => setLoginData({ phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="Enter your email"
+                        placeholder="Enter your 10-digit phone number"
+                        maxLength={10}
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={loginData.password}
-                        onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
-                        className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="Enter your password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
+                  {/* Face Capture Section */}
+                  {loginMethod === 'face' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Camera className="inline w-4 h-4 mr-2" />
+                        Face Verification
+                      </label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Position your face in front of the camera
+                      </p>
+
+                      {cameraError && (
+                        <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+                          {cameraError}
+                        </div>
+                      )}
+
+                      <div className="relative bg-gray-100 rounded-lg overflow-hidden mb-2" style={{ aspectRatio: '4/3', maxHeight: '200px' }}>
+                        {!isCapturing && !faceImage && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-center">
+                              <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                              <p className="text-xs text-gray-600">Camera not started</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {isCapturing && (
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+
+                        {faceImage && !isCapturing && (
+                          <img
+                            src={faceImage}
+                            alt="Captured face"
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+
+                        <canvas ref={canvasRef} className="hidden" />
+                      </div>
+
+                      <div className="flex gap-2">
+                        {!isCapturing && !faceImage && (
+                          <button
+                            type="button"
+                            onClick={startCamera}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                          >
+                            <Camera className="w-4 h-4" />
+                            Start Camera
+                          </button>
+                        )}
+
+                        {isCapturing && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={captureFace}
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Camera className="w-4 h-4" />
+                              Capture
+                            </button>
+                            <button
+                              type="button"
+                              onClick={stopCamera}
+                              className="bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        )}
+
+                        {faceImage && !isCapturing && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFaceImage(null)
+                              startCamera()
+                            }}
+                            className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+                          >
+                            Retake
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || (loginMethod === 'face' && !faceImage)}
                     className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    {isLoading ? 'Signing In...' : 'Sign In'}
+                    {isLoading ? 'Verifying...' : loginMethod === 'face' ? 'Login with Face' : 'Login with Phone'}
                   </button>
                 </form>
               ) : (

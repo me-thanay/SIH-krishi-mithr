@@ -1,12 +1,14 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import uvicorn
 import os
 import asyncio
 from dotenv import load_dotenv
+from starlette.requests import Request
 
 from app.routers import weather, pest_detection, soil_advisory, market_prices, dealer_network, farming_tools, whatsapp_webhook, voice_chat, mqtt_control
 
@@ -17,6 +19,24 @@ app = FastAPI(
     description="AI-Powered Agricultural Advisory Platform",
     version="1.0.0"
 )
+
+# Custom CORS middleware to ensure headers are always present
+class CustomCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Handle preflight requests
+        if request.method == "OPTIONS":
+            response = JSONResponse({})
+        else:
+            response = await call_next(request)
+        
+        # Add CORS headers to all responses
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Expose-Headers"] = "*"
+        response.headers["Access-Control-Max-Age"] = "3600"
+        
+        return response
 
 # CORS Configuration - Use FastAPI's CORSMiddleware with explicit origins
 # Allow all origins including Vercel and Render
@@ -42,6 +62,9 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=3600,
 )
+
+# Add custom CORS middleware as backup to ensure headers are always present
+app.add_middleware(CustomCORSMiddleware)
 
 # Include routers
 app.include_router(weather.router, prefix="/api/weather", tags=["weather"])

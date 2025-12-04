@@ -667,7 +667,39 @@ export default function DashboardPage() {
 
           {/* Comprehensive Sensor Data from MQTT/MongoDB */}
           {sensorData ? (
-            <>
+          <>
+              {/* Device / MQTT status banner */}
+              <div
+                className={`rounded-lg border px-4 py-3 text-sm flex items-center justify-between ${
+                  connectionStatus === 'connected'
+                    ? 'bg-green-50 border-green-200 text-green-800'
+                    : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                }`}
+              >
+                <div>
+                  <span className="font-semibold">
+                    {connectionStatus === 'connected'
+                      ? 'Device Online'
+                      : 'Device Offline – showing last known data'}
+                  </span>
+                  {sensorData.timestamp && (
+                    <span className="ml-2 text-xs text-gray-600">
+                      (Last update: {new Date(sensorData.timestamp).toLocaleString()})
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'
+                    }`}
+                  />
+                  <span className="text-xs text-gray-600">
+                    {connectionStatus === 'connected' ? 'Live MQTT' : 'MQTT not receiving data'}
+                  </span>
+                </div>
+              </div>
+
               {/* Quick Summary Card */}
               <div className={`bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-sm border p-6 mb-6 transition-all ${
                 dataUpdated ? 'border-green-400 shadow-md' : 'border-green-200'

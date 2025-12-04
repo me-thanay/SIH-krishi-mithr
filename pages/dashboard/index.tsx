@@ -13,7 +13,10 @@ import {
   Droplets,
   Award,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Activity,
+  Gauge,
+  Zap
 } from "lucide-react"
 
 interface UserData {
@@ -58,12 +61,40 @@ interface SubsidyData {
   description: string
 }
 
+interface SensorData {
+  temperature?: number | null
+  humidity?: number | null
+  soil_moisture?: number | null
+  rain_status?: string | null
+  CO2_ppm?: number | null
+  NH3_ppm?: number | null
+  Benzene_ppm?: number | null
+  Smoke_ppm?: number | null
+  light?: number | null
+  light_status?: string | null
+  motion?: string | null
+  motion_detected?: boolean | null
+  motor_state?: string | null
+  motor_on?: boolean | null
+  hv_state?: string | null
+  hv_on?: boolean | null
+  hv_auto_state?: string | null
+  hv_auto_on?: boolean | null
+  air_quality_status?: string | null
+  timestamp?: string
+  device_id?: string
+  location?: string
+}
+
 export default function DashboardPage() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [subsidies, setSubsidies] = useState<SubsidyData[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [sensorData, setSensorData] = useState<SensorData | null>(null)
+  const [historyData, setHistoryData] = useState<SensorData[]>([])
+  const [connectionStatus, setConnectionStatus] = useState<"connected" | "disconnected" | "checking">("checking")
 
   useEffect(() => {
     // Get user data from localStorage and verify with database
@@ -79,6 +110,10 @@ export default function DashboardPage() {
       
       // Fetch personalized data based on user profile
       fetchPersonalizedData(parsedUser)
+
+      // Fetch sensor data from MongoDB (latest + history)
+      fetchLatestSensorData()
+      fetchHistorySensorData()
     } else {
       // Redirect to login if no user data
       window.location.href = '/auth/login'
@@ -113,6 +148,45 @@ export default function DashboardPage() {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('user')
       window.location.href = '/auth/login'
+    }
+  }
+
+  const fetchLatestSensorData = async () => {
+    try {
+      const response = await fetch('/api/sensor-data/latest')
+      if (!response.ok) {
+        setConnectionStatus('disconnected')
+        return
+      }
+
+      const body = await response.json()
+      if (body?.data) {
+        setSensorData(body.data)
+        setConnectionStatus('connected')
+      } else {
+        setConnectionStatus('disconnected')
+      }
+    } catch (error) {
+      console.error('Error fetching latest sensor data:', error)
+      setConnectionStatus('disconnected')
+    }
+  }
+
+  const fetchHistorySensorData = async () => {
+    try {
+      const response = await fetch('/api/sensor-data/history?hours=48&limit=5')
+      if (!response.ok) return
+
+      const body = await response.json()
+      if (body?.data && Array.isArray(body.data) && body.data.length > 0) {
+        setHistoryData(body.data)
+        // If we don't have a live reading, use the newest history reading
+        if (!sensorData) {
+          setSensorData(body.data[0])
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching sensor history:', error)
     }
   }
 
@@ -430,6 +504,68 @@ export default function DashboardPage() {
                     <p className="text-sm text-gray-600">Condition</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Sensor Data from MQTT/MongoDB */}
+            {sensorData && (
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Activity className="w-5 h-5 mr-2 text-green-600" />
+                    Field Status (IoT Sensors)
+                  </h2>
+                  <span className="text-xs text-gray-500">
+                    {sensorData.timestamp
+                      ? `Last update: ${new Date(sensorData.timestamp).toLocaleString()}`
+                      : 'Last saved reading from MongoDB'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">Temperature</span>
+                      <Gauge className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <p className="text-xl font-bold text-gray-900">
+                      {sensorData.temperature ?? '--'}°C
+                    </p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">Humidity</span>
+                      <Droplets className="w-4 h-4 text-green-500" />
+                    </div>
+                    <p className="text-xl font-bold text-gray-900">
+                      {sensorData.humidity ?? '--'}%
+                    </p>
+                  </div>
+                  <div className="bg-orange-50 rounded-lg p-3 border border-orange-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">Soil Moisture</span>
+                      <Droplets className="w-4 h-4 text-orange-500" />
+                    </div>
+                    <p className="text-xl font-bold text-gray-900">
+                      {sensorData.soil_moisture ?? '--'}%
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">Motor</span>
+                      <Zap className="w-4 h-4 text-purple-500" />
+                    </div>
+                    <p className="text-xl font-bold text-gray-900">
+                      {sensorData.motor_on ? 'ON' : 'OFF'}
+                    </p>
+                  </div>
+                </div>
+
+                {connectionStatus === "disconnected" && (
+                  <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md px-3 py-2">
+                    Device is currently offline. Showing the last reading saved in MongoDB.
+                  </p>
+                )}
               </div>
             )}
 

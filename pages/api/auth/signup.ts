@@ -79,16 +79,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         phone,
         agriculturalProfile: {
           create: {
-            farmSize: agriculturalProfile.farmSize,
-            crops: JSON.stringify(agriculturalProfile.crops),
-            location: agriculturalProfile.location,
-            state: agriculturalProfile.state,
-            district: agriculturalProfile.district,
-            soilType: agriculturalProfile.soilType,
-            irrigationType: agriculturalProfile.irrigationType,
-            farmingExperience: agriculturalProfile.farmingExperience,
-            annualIncome: agriculturalProfile.annualIncome,
-            governmentSchemes: JSON.stringify(agriculturalProfile.governmentSchemes)
+            farmSize: agriculturalProfile.farmSize || agriculturalProfile.landArea,
+            landArea: agriculturalProfile.landArea || agriculturalProfile.farmSize || '',
+            crops: JSON.stringify(agriculturalProfile.crops || []),
+            location: agriculturalProfile.location || '',
+            state: agriculturalProfile.state || '',
+            district: agriculturalProfile.district || null,
+            soilType: agriculturalProfile.soilType || '',
+            irrigationType: agriculturalProfile.irrigationType || '',
+            farmingExperience: agriculturalProfile.farmingExperience || '',
+            annualIncome: agriculturalProfile.annualIncome || '',
+            governmentSchemes: JSON.stringify(agriculturalProfile.governmentSchemes || [])
           }
         }
       },

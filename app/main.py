@@ -22,19 +22,22 @@ app = FastAPI(
 # Allow all origins including Vercel and Render
 allowed_origins = [
     "https://sih-krishi-mithr-d6xc.vercel.app",
+    "https://sih-krishi-mithr-82sc.vercel.app",  # Current Vercel deployment
     "https://sih-krishi-mithr.onrender.com",
-    "https://*.vercel.app",
-    "https://*.onrender.com",
     "http://localhost:3000",
     "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
 ]
 
 # Add CORSMiddleware - MUST be before routers
+# Using allow_origins=["*"] for maximum compatibility
+# Note: When using ["*"], allow_credentials must be False
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins for maximum compatibility
-    allow_credentials=False,
-    allow_methods=["*"],  # Allow all HTTP methods
+    allow_credentials=False,  # Must be False when using ["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],  # Explicit methods
     allow_headers=["*"],  # Allow all headers
     expose_headers=["*"],
     max_age=3600,

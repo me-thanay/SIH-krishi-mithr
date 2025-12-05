@@ -70,24 +70,75 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
       return
     }
 
+    setCameraError(null)
+    setIsCapturing(true)
+
     const tryStart = async (constraints: MediaStreamConstraints) => {
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        try {
-          await videoRef.current.play()
-        } catch (err) {
-          console.warn('Video play error:', err)
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints)
+        streamRef.current = stream
+        
+        if (videoRef.current) {
+          // Set srcObject first
+          videoRef.current.srcObject = stream
+          
+          // Wait for video metadata to load
+          await new Promise<void>((resolve, reject) => {
+            if (!videoRef.current) {
+              reject(new Error('Video element not found'))
+              return
+            }
+            
+            const video = videoRef.current
+            
+            const handleLoadedMetadata = () => {
+              video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+              resolve()
+            }
+            
+            const handleError = (e: Event) => {
+              video.removeEventListener('error', handleError)
+              reject(new Error('Video load error'))
+            }
+            
+            video.addEventListener('loadedmetadata', handleLoadedMetadata)
+            video.addEventListener('error', handleError)
+            
+            // Force play
+            video.play()
+              .then(() => {
+                video.removeEventListener('error', handleError)
+                resolve()
+              })
+              .catch((err) => {
+                video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+                video.removeEventListener('error', handleError)
+                console.warn('Video play error:', err)
+                // Still resolve if metadata loaded, video might still work
+                if (video.readyState >= 2) {
+                  resolve()
+                } else {
+                  reject(err)
+                }
+              })
+          })
+          
+          setCameraError(null)
         }
+      } catch (err) {
+        throw err
       }
-      setIsCapturing(true)
-      setCameraError(null)
     }
 
     try {
       // First try front camera with ideal resolution
-      await tryStart({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } })
+      await tryStart({ 
+        video: { 
+          facingMode: 'user', 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 } 
+        } 
+      })
     } catch (err) {
       console.warn('Front camera failed, retrying with fallback constraints', err)
       try {
@@ -95,6 +146,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
         await tryStart({ video: true })
       } catch (err2) {
         console.error('Camera error:', err2)
+        setIsCapturing(false)
         setCameraError('Unable to access camera. Please allow camera permission and try again.')
       }
     }
@@ -142,6 +194,17 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
       startCamera()
     }
   }, [mode, currentStep, faceImage, isCapturing])
+
+  // Auto-start camera when face login method is selected
+  useEffect(() => {
+    if (mode === 'login' && loginMethod === 'face' && !faceImage && !isCapturing && !cameraError) {
+      // Small delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        startCamera()
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [mode, loginMethod, faceImage, isCapturing, cameraError])
 
   const handleClose = () => {
     setError('')
@@ -445,7 +508,9 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
                             ref={videoRef}
                             autoPlay
                             playsInline
+                            muted
                             className="w-full h-full object-cover"
+                            style={{ transform: 'scaleX(-1)' }}
                           />
                         )}
 
@@ -634,7 +699,9 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
                               ref={videoRef}
                               autoPlay
                               playsInline
+                              muted
                               className="w-full h-full object-cover"
+                              style={{ transform: 'scaleX(-1)' }}
                             />
                           )}
 

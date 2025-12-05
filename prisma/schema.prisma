@@ -16,11 +16,11 @@ model User {
   password  String?
   name      String?
   phone     String?
-  // Aadhar card details
-  aadharNumber  String
-  aadharName    String
-  aadharDob     DateTime
-  aadharAddress String
+  // Aadhar card details (optional for basic signup)
+  aadharNumber  String?
+  aadharName    String?
+  aadharDob     DateTime?
+  aadharAddress String?
   faceImage     String? // Base64 encoded face image
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

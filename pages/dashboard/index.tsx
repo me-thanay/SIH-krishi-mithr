@@ -74,6 +74,8 @@ interface SensorData {
   NH3_ppm?: number | null
   Benzene_ppm?: number | null
   Smoke_ppm?: number | null
+  TDS?: number | null
+  water_quality?: string | null
   light?: number | null
   light_status?: string | null
   motion?: string | null

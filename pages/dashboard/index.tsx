@@ -16,7 +16,11 @@ import {
   CheckCircle,
   Activity,
   Gauge,
-  Zap
+  Zap,
+  Wind,
+  Droplet,
+  Power,
+  Settings
 } from "lucide-react"
 
 interface UserData {
@@ -544,20 +548,129 @@ export default function DashboardPage() {
                   <div className="bg-orange-50 rounded-lg p-3 border border-orange-100">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-gray-500">Soil Moisture</span>
-                      <Droplets className="w-4 h-4 text-orange-500" />
+                      <Droplet className="w-4 h-4 text-orange-500" />
                     </div>
                     <p className="text-xl font-bold text-gray-900">
                       {sensorData.soil_moisture ?? '--'}%
                     </p>
                   </div>
-                  <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                  <div className="bg-cyan-50 rounded-lg p-3 border border-cyan-100">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-500">Motor</span>
-                      <Zap className="w-4 h-4 text-purple-500" />
+                      <span className="text-xs text-gray-500">Rain Status</span>
+                      <CloudRain className="w-4 h-4 text-cyan-500" />
                     </div>
-                    <p className="text-xl font-bold text-gray-900">
-                      {sensorData.motor_on ? 'ON' : 'OFF'}
+                    <p className="text-lg font-bold text-gray-900">
+                      {sensorData.rain_status === '1' || sensorData.rain_status === 'true' 
+                        ? '🌧️ Raining' 
+                        : sensorData.rain_status === '0' || sensorData.rain_status === 'false'
+                        ? '☀️ Clear'
+                        : '--'}
                     </p>
+                  </div>
+                </div>
+
+                {/* Air Quality & Water Quality Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-700">Air Quality</span>
+                      <Wind className="w-4 h-4 text-indigo-500" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-lg font-bold text-gray-900">
+                        {sensorData.air_quality_status === 'poor' ? '⚠️ Poor' : 
+                         sensorData.air_quality_status === 'good' ? '✅ Good' : '--'}
+                      </p>
+                      {sensorData.CO2_ppm !== null && sensorData.CO2_ppm !== undefined && (
+                        <span className="text-xs text-gray-600">
+                          CO₂: {sensorData.CO2_ppm.toFixed(3)} ppm
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-teal-50 rounded-lg p-4 border border-teal-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-700">Water Quality</span>
+                      <Droplet className="w-4 h-4 text-teal-500" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-lg font-bold text-gray-900">
+                        {sensorData.water_quality ?? (sensorData.TDS !== null && sensorData.TDS !== undefined ? `TDS: ${sensorData.TDS} ppm` : '--')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Relay Controls Status */}
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                    <Power className="w-4 h-4 mr-2 text-gray-600" />
+                    Relay Status
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className={`rounded-lg p-3 border-2 ${
+                      sensorData.motor_on 
+                        ? 'bg-green-50 border-green-300' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Zap className={`w-4 h-4 mr-2 ${
+                            sensorData.motor_on ? 'text-green-600' : 'text-gray-400'
+                          }`} />
+                          <span className="text-sm font-semibold text-gray-700">Motor</span>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          sensorData.motor_on 
+                            ? 'bg-green-500 text-white' 
+                            : 'bg-gray-300 text-gray-700'
+                        }`}>
+                          {sensorData.motor_on ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`rounded-lg p-3 border-2 ${
+                      sensorData.hv_on 
+                        ? 'bg-blue-50 border-blue-300' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Zap className={`w-4 h-4 mr-2 ${
+                            sensorData.hv_on ? 'text-blue-600' : 'text-gray-400'
+                          }`} />
+                          <span className="text-sm font-semibold text-gray-700">HV Generator</span>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          sensorData.hv_on 
+                            ? 'bg-blue-500 text-white' 
+                            : 'bg-gray-300 text-gray-700'
+                        }`}>
+                          {sensorData.hv_on ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`rounded-lg p-3 border-2 ${
+                      sensorData.hv_auto_on 
+                        ? 'bg-purple-50 border-purple-300' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Settings className={`w-4 h-4 mr-2 ${
+                            sensorData.hv_auto_on ? 'text-purple-600' : 'text-gray-400'
+                          }`} />
+                          <span className="text-sm font-semibold text-gray-700">HV Auto</span>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          sensorData.hv_auto_on 
+                            ? 'bg-purple-500 text-white' 
+                            : 'bg-gray-300 text-gray-700'
+                        }`}>
+                          {sensorData.hv_auto_on ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

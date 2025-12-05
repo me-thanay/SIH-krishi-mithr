@@ -81,12 +81,12 @@ export async function GET(request: NextRequest) {
         const eligibility = JSON.parse(subsidy.eligibility)
         
         // Check farm size eligibility
-        if (subsidy.minFarmSize && subsidy.maxFarmSize) {
+        if (subsidy.minFarmSize && subsidy.maxFarmSize && profile.farmSize) {
           const farmSize = parseFloat(profile.farmSize.split(' ')[0])
           const minSize = parseFloat(subsidy.minFarmSize.split(' ')[0])
           const maxSize = parseFloat(subsidy.maxFarmSize.split(' ')[0])
           
-          if (farmSize < minSize || farmSize > maxSize) {
+          if (isNaN(farmSize) || farmSize < minSize || farmSize > maxSize) {
             return false
           }
         }

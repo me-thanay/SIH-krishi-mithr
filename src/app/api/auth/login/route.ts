@@ -51,6 +51,23 @@ function compareFaceImages(image1: string, image2: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check for required environment variables
+    if (!process.env.DATABASE_URL) {
+      console.error('DATABASE_URL is not set')
+      return NextResponse.json(
+        { error: 'Server configuration error: DATABASE_URL missing' },
+        { status: 500 }
+      )
+    }
+    
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback-secret-key') {
+      console.error('JWT_SECRET is not set or using fallback')
+      return NextResponse.json(
+        { error: 'Server configuration error: JWT_SECRET missing' },
+        { status: 500 }
+      )
+    }
+
     const body = await request.json()
     const { email, password, phone, faceImage, loginMethod } = body
 
@@ -221,8 +238,78 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Login error:', error)
+    console.error('Error stack:', error.stack)
+    console.error('Error code:', error.code)
+    console.error('Error name:', error.name)
+    
+    // Provide more specific error messages
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Database constraint violation' },
+        { status: 400 }
+      )
+    }
+    
+    // Prisma connection errors
+    if (error.code === 'P1001' || error.message?.includes('Can\'t reach database server')) {
+      return NextResponse.json(
+        { 
+          error: 'Database connection failed',
+          message: 'Unable to connect to database. Please check DATABASE_URL configuration.'
+        },
+        { status: 500 }
+      )
+    }
+    
+    if (error.code === 'P1017' || error.message?.includes('Connection closed')) {
+      return NextResponse.json(
+        { 
+          error: 'Database connection closed',
+          message: 'Database connection was closed unexpectedly.'
+        },
+        { status: 500 }
+      )
+    }
+    
+    // P2010: Raw query execution error (often MongoDB connection or schema mismatch)
+    if (error.code === 'P2010') {
+      return NextResponse.json(
+        { 
+          error: 'Database query execution failed',
+          message: 'Prisma query execution error. This usually means: 1) DATABASE_URL is incorrect, 2) MongoDB connection failed, 3) Prisma client needs regeneration, or 4) Schema mismatch with database.'
+        },
+        { status: 500 }
+      )
+    }
+    
+    if (error.message?.includes('DATABASE_URL') || error.message?.includes('PrismaClient') || error.message?.includes('Prisma')) {
+      return NextResponse.json(
+        { 
+          error: 'Database configuration error',
+          message: 'Database connection is not properly configured. Please check environment variables.'
+        },
+        { status: 500 }
+      )
+    }
+    
+    // JWT errors
+    if (error.message?.includes('JWT_SECRET')) {
+      return NextResponse.json(
+        { 
+          error: 'JWT configuration error',
+          message: 'JWT_SECRET is not properly configured.'
+        },
+        { status: 500 }
+      )
+    }
+    
+    // Return error with message for debugging
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: error.message || 'An unexpected error occurred',
+        code: error.code || 'UNKNOWN'
+      },
       { status: 500 }
     )
   }

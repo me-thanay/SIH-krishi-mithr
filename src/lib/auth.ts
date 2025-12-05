@@ -4,11 +4,12 @@ import { prisma } from './prisma'
 
 export interface AuthUser {
   id: string
-  email: string
-  name: string
+  email: string | null
+  name: string | null
   phone?: string | null
   createdAt: Date
   updatedAt: Date
+  agriculturalProfile?: any | null
 }
 
 export interface AuthResponse {

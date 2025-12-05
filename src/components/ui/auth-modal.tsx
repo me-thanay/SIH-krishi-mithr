@@ -63,21 +63,40 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
     governmentSchemes: []
   })
 
-  // Start camera for face detection
+  // Start camera for face detection (with fallback constraints)
   const startCamera = async () => {
-    try {
-      setCameraError(null)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 640, height: 480 }
-      })
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Camera not supported in this browser/environment.')
+      return
+    }
+
+    const tryStart = async (constraints: MediaStreamConstraints) => {
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        try {
+          await videoRef.current.play()
+        } catch (err) {
+          console.warn('Video play error:', err)
+        }
       }
       setIsCapturing(true)
-    } catch (error) {
-      console.error('Camera error:', error)
-      setCameraError('Unable to access camera. Please ensure camera permissions are granted.')
+      setCameraError(null)
+    }
+
+    try {
+      // First try front camera with ideal resolution
+      await tryStart({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } })
+    } catch (err) {
+      console.warn('Front camera failed, retrying with fallback constraints', err)
+      try {
+        // Fallback: any camera
+        await tryStart({ video: true })
+      } catch (err2) {
+        console.error('Camera error:', err2)
+        setCameraError('Unable to access camera. Please allow camera permission and try again.')
+      }
     }
   }
 
@@ -116,6 +135,13 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
       stopCamera()
     }
   }, [])
+
+  // Auto-start camera when entering signup step 2 (face required)
+  useEffect(() => {
+    if (mode === 'signup' && currentStep === 2 && !faceImage && !isCapturing) {
+      startCamera()
+    }
+  }, [mode, currentStep, faceImage, isCapturing])
 
   const handleClose = () => {
     setError('')

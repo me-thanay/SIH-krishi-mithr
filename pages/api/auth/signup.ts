@@ -35,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' })
   }
   try {
-    const { email, password, name, phone, agriculturalProfile } = req.body
+    const { email, password, name, phone, faceImage, agriculturalProfile } = req.body
 
     // Validate required fields
     if (!email || !password || !name || !agriculturalProfile) {
@@ -77,6 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         password: hashedPassword,
         name,
         phone,
+        faceImage: faceImage || null,
         agriculturalProfile: {
           create: {
             farmSize: agriculturalProfile.farmSize || agriculturalProfile.landArea,

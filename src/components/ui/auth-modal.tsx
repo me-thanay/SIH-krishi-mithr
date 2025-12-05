@@ -50,6 +50,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
     confirmPassword: '',
     phone: ''
   })
+  const [signupFaceRequired] = useState(true) // require face capture on signup
 
   const [agriculturalProfile, setAgriculturalProfile] = useState<AgriculturalProfile>({
     farmSize: '',
@@ -193,6 +194,11 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
       return
     }
 
+    if (signupFaceRequired && !faceImage) {
+      setError('Please capture your face to complete signup')
+      return
+    }
+
     if (currentStep === 1) {
       setCurrentStep(2)
       return
@@ -212,6 +218,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...signupData,
+          faceImage: faceImage,
           agriculturalProfile: {
             ...agriculturalProfile,
             state,
@@ -483,7 +490,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
                     {isLoading ? 'Verifying...' : loginMethod === 'face' ? 'Login with Face' : 'Login with Phone'}
                   </button>
                 </form>
-              ) : (
+                  ) : (
                 <form onSubmit={handleSignup} className="space-y-4">
                   {currentStep === 1 ? (
                     <>
@@ -580,6 +587,93 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
                     </>
                   ) : (
                     <>
+                      <div className="bg-white border rounded-lg p-4 shadow-sm">
+                        <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                          <Camera className="w-4 h-4 text-green-600" />
+                          Face Capture (required for signup)
+                        </h3>
+
+                        <div className="relative bg-gray-100 rounded-lg overflow-hidden mb-2" style={{ aspectRatio: '4/3', maxHeight: '200px' }}>
+                          {!isCapturing && !faceImage && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="text-center">
+                                <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                                <p className="text-xs text-gray-600">Camera not started</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {isCapturing && (
+                            <video
+                              ref={videoRef}
+                              autoPlay
+                              playsInline
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+
+                          {faceImage && !isCapturing && (
+                            <img
+                              src={faceImage}
+                              alt="Captured face"
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+
+                          <canvas ref={canvasRef} className="hidden" />
+                        </div>
+
+                        <div className="flex gap-2">
+                          {!isCapturing && !faceImage && (
+                            <button
+                              type="button"
+                              onClick={startCamera}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Camera className="w-4 h-4" />
+                              Start Camera
+                            </button>
+                          )}
+
+                          {isCapturing && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={captureFace}
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                              >
+                                <Camera className="w-4 h-4" />
+                                Capture
+                              </button>
+                              <button
+                                type="button"
+                                onClick={stopCamera}
+                                className="bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          )}
+
+                          {faceImage && !isCapturing && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFaceImage(null)
+                                startCamera()
+                              }}
+                              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+                            >
+                              Retake
+                            </button>
+                          )}
+                        </div>
+
+                        {cameraError && (
+                          <p className="text-xs text-red-600 mt-2">{cameraError}</p>
+                        )}
+                      </div>
+
                       <div className="mb-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">Agricultural Profile</h3>
                         <p className="text-sm text-gray-600">Tell us about your farming setup</p>

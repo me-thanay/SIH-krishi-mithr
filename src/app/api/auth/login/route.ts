@@ -55,7 +55,11 @@ export async function POST(request: NextRequest) {
     if (!process.env.DATABASE_URL) {
       console.error('DATABASE_URL is not set')
       return NextResponse.json(
-        { error: 'Server configuration error: DATABASE_URL missing' },
+        { 
+          success: false,
+          error: 'Server configuration error: DATABASE_URL missing',
+          message: 'Please configure DATABASE_URL in your Vercel environment variables.'
+        },
         { status: 500 }
       )
     }
@@ -63,7 +67,26 @@ export async function POST(request: NextRequest) {
     if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback-secret-key') {
       console.error('JWT_SECRET is not set or using fallback')
       return NextResponse.json(
-        { error: 'Server configuration error: JWT_SECRET missing' },
+        { 
+          success: false,
+          error: 'Server configuration error: JWT_SECRET missing',
+          message: 'Please configure JWT_SECRET in your Vercel environment variables.'
+        },
+        { status: 500 }
+      )
+    }
+
+    // Test database connection
+    try {
+      await prisma.$connect()
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError)
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Database connection failed',
+          message: dbError.message || 'Unable to connect to database. Please check DATABASE_URL.'
+        },
         { status: 500 }
       )
     }

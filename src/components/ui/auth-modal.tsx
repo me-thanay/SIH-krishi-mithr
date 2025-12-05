@@ -258,7 +258,22 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
         body: JSON.stringify(requestBody)
       })
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError)
+        setError('Server error: Invalid response. Please check your environment variables.')
+        setIsLoading(false)
+        return
+      }
+
+      if (!response.ok) {
+        const errorMessage = data.error || data.message || `Server error (${response.status})`
+        setError(errorMessage)
+        setIsLoading(false)
+        return
+      }
 
       if (data.success) {
         localStorage.setItem('auth_token', data.token)
@@ -269,7 +284,8 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
         setError(data.error || 'Login failed')
       }
     } catch (error) {
-      setError('Network error. Please try again.')
+      console.error('Login error:', error)
+      setError(error instanceof Error ? error.message : 'Network error. Please try again.')
     } finally {
       setIsLoading(false)
     }

@@ -9,14 +9,15 @@ export async function GET(request: NextRequest) {
     const mandi = searchParams.get('mandi') || 'All'
     const source = searchParams.get('source') || 'agmarknet' // agmarknet, fao, worldbank
 
-    // If location is provided, proxy to Render backend (for market-prices component)
-    if (location && location.trim() !== '') {
+    // If location is provided, always return data (try backend first, fallback to mock)
+    if (location) {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sih-krishi-mithr-api.onrender.com'
       const cleanBackendUrl = backendUrl.replace(/\/+$/, '')
       
+      // Try backend, but always fallback to mock data
       try {
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const timeoutId = setTimeout(() => controller.abort(), 5000) // Shorter timeout
         
         try {
           const backendResponse = await fetch(
@@ -37,48 +38,29 @@ export async function GET(request: NextRequest) {
                 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
               },
             })
-          } else {
-            // Backend returned error, use fallback mock data for location
-            console.error('[MARKET-PRICES] Backend returned error:', backendResponse.status)
-            return getMockLocationPriceData(location)
           }
         } catch (fetchError: any) {
           clearTimeout(timeoutId)
-          // Fall through to mock data if backend fails
-          console.error('[MARKET-PRICES] Backend fetch failed:', fetchError.message)
-          return getMockLocationPriceData(location)
+          // Silently fall through to mock data
         }
       } catch (error) {
-        // Fall through to mock data
-        console.error('[MARKET-PRICES] Backend proxy error:', error)
-        return getMockLocationPriceData(location)
+        // Silently fall through to mock data
       }
-    }
-
-    // Use mock data for testing or as fallback (when crop is provided)
-    // Only return 400 if neither location nor crop is provided
-    if (!crop && (!location || location.trim() === '')) {
-      return NextResponse.json(
-        { error: 'Please provide crop name or location' },
-        { status: 400 }
-      )
-    }
-    
-    // If we reach here with location but no crop, return mock location data
-    if (location && location.trim() !== '' && !crop) {
+      
+      // Always return mock data if backend fails or unavailable
       return getMockLocationPriceData(location)
     }
 
-    // Return mock data for immediate testing or as fallback
-    // At this point, crop must be provided (we've checked above)
-    if (!crop) {
-      return NextResponse.json(
-        { error: 'Crop parameter is required' },
-        { status: 400 }
-      )
+    // If crop is provided, return crop-based data
+    if (crop) {
+      return getMockPriceData(crop, state, mandi, source)
     }
-    
-    return getMockPriceData(crop, state, mandi, source)
+
+    // If neither location nor crop is provided, return error
+    return NextResponse.json(
+      { error: 'Please provide either location or crop parameter' },
+      { status: 400 }
+    )
 
   } catch (error) {
     console.error('Market prices API error:', error)

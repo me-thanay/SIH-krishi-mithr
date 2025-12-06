@@ -100,18 +100,11 @@ export const MarketPrices = ({
     setError(null)
     
     try {
-      let apiBase =
-        process.env.NEXT_PUBLIC_API_URL ||
-        (typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-          ? 'http://localhost:8000'
-          : '')
-      // Remove trailing slash to avoid double slashes
-      apiBase = apiBase.replace(/\/+$/, '')
-      // Fetch both prices and trends in parallel
+      // Use Next.js API proxy routes to avoid CORS issues
+      // These routes make server-side requests to the Render backend
       const [pricesResponse, trendsResponse] = await Promise.all([
-        fetch(`${apiBase}/api/market-prices?location=${encodeURIComponent(location)}`),
-        fetch(`${apiBase}/api/market-prices/trends?location=${encodeURIComponent(location)}`)
+        fetch(`/api/market-prices-proxy?location=${encodeURIComponent(location)}`),
+        fetch(`/api/market-prices-trends-proxy?location=${encodeURIComponent(location)}`)
       ])
       
       if (!pricesResponse.ok) {

@@ -42,7 +42,9 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
 # Allow all origins including Vercel and Render
 allowed_origins = [
     "https://sih-krishi-mithr-d6xc.vercel.app",
-    "https://sih-krishi-mithr-82sc.vercel.app",  # Current Vercel deployment
+    "https://sih-krishi-mithr-82sc.vercel.app",
+    "https://sih-krishi-mithr-g9tt.vercel.app",  # Current Vercel deployment
+    "https://sih-krishi-mithr.vercel.app",  # Main Vercel domain
     "https://sih-krishi-mithr.onrender.com",
     "http://localhost:3000",
     "http://localhost:8000",

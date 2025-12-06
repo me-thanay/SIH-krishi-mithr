@@ -105,17 +105,5 @@ function getMockTrendsData(location: string, days: number) {
     last_updated: new Date().toISOString(),
     note: 'Mock trends data - backend unavailable'
   })
-
-  } catch (error) {
-    console.error('Market price trends API error:', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch market price trends',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
 }
 

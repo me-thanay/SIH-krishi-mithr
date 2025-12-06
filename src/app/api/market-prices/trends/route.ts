@@ -10,7 +10,9 @@ export async function GET(request: NextRequest) {
     const location = searchParams.get('location')
     const days = searchParams.get('days') || '7'
     
-    if (!location) {
+    console.log('[MARKET-PRICES-TRENDS] Request params:', { location, days })
+    
+    if (!location || location.trim() === '') {
       return NextResponse.json(
         { error: 'Location parameter is required' },
         { status: 400 }

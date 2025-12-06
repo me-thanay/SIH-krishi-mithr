@@ -9,8 +9,11 @@ export async function GET(request: NextRequest) {
     const mandi = searchParams.get('mandi') || 'All'
     const source = searchParams.get('source') || 'agmarknet' // agmarknet, fao, worldbank
 
-    // If location is provided, always return data (try backend first, fallback to mock)
-    if (location) {
+    // Debug logging
+    console.log('[MARKET-PRICES] Request params:', { crop, location, state, mandi })
+
+    // If location is provided (not null and not empty), always return data
+    if (location && location.trim() !== '') {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sih-krishi-mithr-api.onrender.com'
       const cleanBackendUrl = backendUrl.replace(/\/+$/, '')
       
@@ -48,17 +51,22 @@ export async function GET(request: NextRequest) {
       }
       
       // Always return mock data if backend fails or unavailable
+      console.log('[MARKET-PRICES] Returning mock data for location:', location)
       return getMockLocationPriceData(location)
     }
 
     // If crop is provided, return crop-based data
-    if (crop) {
+    if (crop && crop.trim() !== '') {
       return getMockPriceData(crop, state, mandi, source)
     }
 
-    // If neither location nor crop is provided, return error
+    // If neither location nor crop is provided, return error with helpful message
+    console.error('[MARKET-PRICES] Missing required parameter. Location:', location, 'Crop:', crop)
     return NextResponse.json(
-      { error: 'Please provide either location or crop parameter' },
+      { 
+        error: 'Please provide either location or crop parameter',
+        received: { location: location || null, crop: crop || null }
+      },
       { status: 400 }
     )
 

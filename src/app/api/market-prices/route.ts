@@ -37,20 +37,26 @@ export async function GET(request: NextRequest) {
                 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
               },
             })
+          } else {
+            // Backend returned error, use fallback mock data for location
+            console.error('[MARKET-PRICES] Backend returned error:', backendResponse.status)
+            return getMockLocationPriceData(location)
           }
         } catch (fetchError: any) {
           clearTimeout(timeoutId)
           // Fall through to mock data if backend fails
           console.error('[MARKET-PRICES] Backend fetch failed:', fetchError.message)
+          return getMockLocationPriceData(location)
         }
       } catch (error) {
         // Fall through to mock data
         console.error('[MARKET-PRICES] Backend proxy error:', error)
+        return getMockLocationPriceData(location)
       }
     }
 
-    // Use mock data for testing or as fallback
-    if (!crop && !location) {
+    // Use mock data for testing or as fallback (when crop is provided)
+    if (!crop) {
       return NextResponse.json(
         { error: 'Please provide crop name or location' },
         { status: 400 }
@@ -58,7 +64,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Return mock data for immediate testing or as fallback
-    return getMockPriceData(crop || 'rice', state, mandi, source)
+    return getMockPriceData(crop, state, mandi, source)
 
   } catch (error) {
     console.error('Market prices API error:', error)
@@ -181,6 +187,24 @@ function getMockPriceData(crop: string, state: string, mandi: string, source: st
   }
 
   return NextResponse.json(mockData)
+}
+
+function getMockLocationPriceData(location: string) {
+  // Mock data in the format expected by the backend API (MarketPricesResponse)
+  const commonCrops = [
+    { commodity: 'Rice', price: 2850, unit: 'quintal', change: 5.2, status: 'up' },
+    { commodity: 'Wheat', price: 2200, unit: 'quintal', change: -2.1, status: 'down' },
+    { commodity: 'Maize', price: 1950, unit: 'quintal', change: 3.5, status: 'up' },
+    { commodity: 'Cotton', price: 6500, unit: 'quintal', change: 1.8, status: 'up' },
+    { commodity: 'Sugarcane', price: 320, unit: 'quintal', change: -0.5, status: 'down' },
+  ]
+
+  return NextResponse.json({
+    location: location,
+    prices: commonCrops,
+    last_updated: new Date().toISOString(),
+    note: 'Mock data - backend unavailable'
+  })
 }
 
 function getPriceRecommendation(crop: string): string {

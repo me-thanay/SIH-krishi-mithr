@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const source = searchParams.get('source') || 'agmarknet' // agmarknet, fao, worldbank
 
     // If location is provided, proxy to Render backend (for market-prices component)
-    if (location) {
+    if (location && location.trim() !== '') {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sih-krishi-mithr-api.onrender.com'
       const cleanBackendUrl = backendUrl.replace(/\/+$/, '')
       
@@ -56,11 +56,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Use mock data for testing or as fallback (when crop is provided)
-    if (!crop) {
+    // Only return 400 if neither location nor crop is provided
+    if (!crop && (!location || location.trim() === '')) {
       return NextResponse.json(
         { error: 'Please provide crop name or location' },
         { status: 400 }
       )
+    }
+    
+    // If we reach here with location but no crop, return mock location data
+    if (location && location.trim() !== '' && !crop) {
+      return getMockLocationPriceData(location)
     }
 
     // Return mock data for immediate testing or as fallback

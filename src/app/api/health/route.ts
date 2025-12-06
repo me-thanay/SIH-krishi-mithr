@@ -5,7 +5,33 @@ import { NextRequest, NextResponse } from 'next/server'
  * GET /api/health
  */
 export async function GET(request: NextRequest) {
-  const health = {
+  const health: {
+    status: string
+    timestamp: string
+    environment: {
+      nodeEnv: string
+      hasDatabaseUrl: boolean
+      hasJwtSecret: boolean
+      databaseUrlPrefix: string
+      jwtSecretLength: number
+      databaseConnection?: string
+      databaseError?: {
+        code?: string
+        message?: string
+      }
+    }
+    routes: {
+      appRouter: {
+        login: string
+        signup: string
+        profile: string
+      }
+      pagesRouter: {
+        login: string
+        note: string
+      }
+    }
+  } = {
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: {

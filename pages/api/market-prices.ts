@@ -6,10 +6,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { crop, source } = req.query
+    const { crop, location, source } = req.query
+
+    // If location is provided, redirect to App Router route or return mock data
+    if (location) {
+      const commonCrops = [
+        { commodity: 'Rice', price: 2850, unit: 'quintal', change: 5.2, status: 'up' },
+        { commodity: 'Wheat', price: 2200, unit: 'quintal', change: -2.1, status: 'down' },
+        { commodity: 'Maize', price: 1950, unit: 'quintal', change: 3.5, status: 'up' },
+        { commodity: 'Cotton', price: 6500, unit: 'quintal', change: 1.8, status: 'up' },
+        { commodity: 'Sugarcane', price: 320, unit: 'quintal', change: -0.5, status: 'down' },
+      ]
+      
+      return res.status(200).json({
+        location: location as string,
+        prices: commonCrops,
+        last_updated: new Date().toISOString(),
+        note: 'Mock data - use App Router route for better handling'
+      })
+    }
 
     if (!crop) {
-      return res.status(400).json({ error: 'Crop parameter is required' })
+      return res.status(400).json({ error: 'Crop parameter is required (or provide location parameter)' })
     }
 
     // Try to fetch from Agmarknet first if source is specified

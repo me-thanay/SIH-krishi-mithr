@@ -5,20 +5,12 @@ import { createAuthResponse, isValidPhone } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { 
-      phone, 
-      aadharNumber, 
-      aadharName, 
-      aadharDob, 
-      aadharAddress, 
-      faceImage, 
-      landArea 
-    } = body
+    const { phone, faceImage } = body
 
     // Validate required fields
-    if (!phone || !aadharNumber || !aadharName || !aadharDob || !aadharAddress || !landArea) {
+    if (!phone || !faceImage) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Phone number and face image are required' },
         { status: 400 }
       )
     }
@@ -31,65 +23,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate Aadhar number format (12 digits)
-    const aadharRegex = /^\d{12}$/
-    const cleanAadhar = aadharNumber.replace(/\s/g, '')
-    if (!aadharRegex.test(cleanAadhar)) {
-      return NextResponse.json(
-        { error: 'Invalid Aadhar number format. Please enter a 12-digit Aadhar number.' },
-        { status: 400 }
-      )
-    }
-
-    // Validate date of birth
-    const dob = new Date(aadharDob)
-    if (isNaN(dob.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid date of birth' },
-        { status: 400 }
-      )
-    }
-
-    // Check if user already exists by phone (using findFirst since phone may not be unique in DB yet)
-    const existingUserByPhone = await prisma.user.findFirst({
+    // Check if user already exists by phone
+    const existingUser = await prisma.user.findFirst({
       where: { phone }
     })
 
-    if (existingUserByPhone) {
+    if (existingUser) {
       return NextResponse.json(
         { error: 'User already exists with this phone number' },
         { status: 400 }
       )
     }
 
-    // Check if Aadhar number is already registered
-    const existingUserByAadhar = await prisma.user.findFirst({
-      where: { aadharNumber: cleanAadhar }
-    })
-
-    if (existingUserByAadhar) {
-      return NextResponse.json(
-        { error: 'Aadhar number is already registered' },
-        { status: 400 }
-      )
-    }
-
-    // Create user with Aadhar details and agricultural profile
+    // Create user with phone and face image only
     const user = await prisma.user.create({
       data: {
         phone,
-        aadharNumber: cleanAadhar,
-        aadharName,
-        aadharDob: dob,
-        aadharAddress,
-        faceImage: faceImage || null,
-        name: aadharName, // Use Aadhar name as user name
-        agriculturalProfile: {
-          create: {
-            landArea,
-            farmSize: landArea // Keep for backward compatibility
-          }
-        }
+        faceImage: faceImage,
+        name: `User ${phone.slice(-4)}`, // Default name from phone number
       },
       include: {
         agriculturalProfile: true

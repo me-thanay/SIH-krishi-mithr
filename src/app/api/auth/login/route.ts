@@ -53,24 +53,26 @@ export async function POST(request: NextRequest) {
   try {
     // Check for required environment variables
     if (!process.env.DATABASE_URL) {
-      console.error('DATABASE_URL is not set')
+      console.error('[LOGIN ERROR] DATABASE_URL is not set')
       return NextResponse.json(
         { 
           success: false,
           error: 'Server configuration error: DATABASE_URL missing',
-          message: 'Please configure DATABASE_URL in your Vercel environment variables.'
+          message: 'Please configure DATABASE_URL in your environment variables.',
+          debug: process.env.NODE_ENV === 'development' ? 'DATABASE_URL environment variable is not set' : undefined
         },
         { status: 500 }
       )
     }
     
     if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback-secret-key') {
-      console.error('JWT_SECRET is not set or using fallback')
+      console.error('[LOGIN ERROR] JWT_SECRET is not set or using fallback')
       return NextResponse.json(
         { 
           success: false,
           error: 'Server configuration error: JWT_SECRET missing',
-          message: 'Please configure JWT_SECRET in your Vercel environment variables.'
+          message: 'Please configure JWT_SECRET in your environment variables.',
+          debug: process.env.NODE_ENV === 'development' ? 'JWT_SECRET environment variable is not set or is using fallback value' : undefined
         },
         { status: 500 }
       )
@@ -79,19 +81,50 @@ export async function POST(request: NextRequest) {
     // Test database connection
     try {
       await prisma.$connect()
+      console.log('[LOGIN] Database connection successful')
     } catch (dbError: any) {
-      console.error('Database connection error:', dbError)
+      console.error('[LOGIN ERROR] Database connection error:', dbError)
+      console.error('[LOGIN ERROR] Error code:', dbError.code)
+      console.error('[LOGIN ERROR] Error message:', dbError.message)
       return NextResponse.json(
         { 
           success: false,
           error: 'Database connection failed',
-          message: dbError.message || 'Unable to connect to database. Please check DATABASE_URL.'
+          message: dbError.message || 'Unable to connect to database. Please check DATABASE_URL.',
+          code: dbError.code || 'DB_CONNECTION_ERROR',
+          debug: process.env.NODE_ENV === 'development' ? {
+            error: dbError.message,
+            code: dbError.code,
+            name: dbError.name
+          } : undefined
         },
         { status: 500 }
       )
     }
 
-    const body = await request.json()
+    // Parse request body
+    let body
+    try {
+      body = await request.json()
+      console.log('[LOGIN] Request received:', { 
+        hasEmail: !!body.email, 
+        hasPassword: !!body.password, 
+        hasPhone: !!body.phone, 
+        hasFaceImage: !!body.faceImage,
+        loginMethod: body.loginMethod 
+      })
+    } catch (jsonError: any) {
+      console.error('[LOGIN ERROR] JSON parsing error:', jsonError)
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Invalid request body',
+          message: 'Request body must be valid JSON.'
+        },
+        { status: 400 }
+      )
+    }
+
     const { email, password, phone, faceImage, loginMethod } = body
 
     // Handle face recognition login
@@ -260,15 +293,20 @@ export async function POST(request: NextRequest) {
     )
 
   } catch (error: any) {
-    console.error('Login error:', error)
-    console.error('Error stack:', error.stack)
-    console.error('Error code:', error.code)
-    console.error('Error name:', error.name)
+    console.error('[LOGIN ERROR] Unexpected error:', error)
+    console.error('[LOGIN ERROR] Error stack:', error.stack)
+    console.error('[LOGIN ERROR] Error code:', error.code)
+    console.error('[LOGIN ERROR] Error name:', error.name)
+    console.error('[LOGIN ERROR] Error message:', error.message)
     
     // Provide more specific error messages
     if (error.code === 'P2002') {
       return NextResponse.json(
-        { error: 'Database constraint violation' },
+        { 
+          success: false,
+          error: 'Database constraint violation',
+          message: 'A record with this information already exists.'
+        },
         { status: 400 }
       )
     }
@@ -277,8 +315,10 @@ export async function POST(request: NextRequest) {
     if (error.code === 'P1001' || error.message?.includes('Can\'t reach database server')) {
       return NextResponse.json(
         { 
+          success: false,
           error: 'Database connection failed',
-          message: 'Unable to connect to database. Please check DATABASE_URL configuration.'
+          message: 'Unable to connect to database. Please check DATABASE_URL configuration.',
+          code: error.code || 'P1001'
         },
         { status: 500 }
       )
@@ -287,8 +327,10 @@ export async function POST(request: NextRequest) {
     if (error.code === 'P1017' || error.message?.includes('Connection closed')) {
       return NextResponse.json(
         { 
+          success: false,
           error: 'Database connection closed',
-          message: 'Database connection was closed unexpectedly.'
+          message: 'Database connection was closed unexpectedly.',
+          code: error.code || 'P1017'
         },
         { status: 500 }
       )
@@ -298,8 +340,13 @@ export async function POST(request: NextRequest) {
     if (error.code === 'P2010') {
       return NextResponse.json(
         { 
+          success: false,
           error: 'Database query execution failed',
-          message: 'Prisma query execution error. This usually means: 1) DATABASE_URL is incorrect, 2) MongoDB connection failed, 3) Prisma client needs regeneration, or 4) Schema mismatch with database.'
+          message: 'Prisma query execution error. This usually means: 1) DATABASE_URL is incorrect, 2) MongoDB connection failed, 3) Prisma client needs regeneration, or 4) Schema mismatch with database.',
+          code: 'P2010',
+          debug: process.env.NODE_ENV === 'development' ? {
+            suggestion: 'Run: npx prisma generate && npx prisma db push'
+          } : undefined
         },
         { status: 500 }
       )
@@ -308,8 +355,10 @@ export async function POST(request: NextRequest) {
     if (error.message?.includes('DATABASE_URL') || error.message?.includes('PrismaClient') || error.message?.includes('Prisma')) {
       return NextResponse.json(
         { 
+          success: false,
           error: 'Database configuration error',
-          message: 'Database connection is not properly configured. Please check environment variables.'
+          message: 'Database connection is not properly configured. Please check environment variables.',
+          code: 'DB_CONFIG_ERROR'
         },
         { status: 500 }
       )
@@ -319,8 +368,10 @@ export async function POST(request: NextRequest) {
     if (error.message?.includes('JWT_SECRET')) {
       return NextResponse.json(
         { 
+          success: false,
           error: 'JWT configuration error',
-          message: 'JWT_SECRET is not properly configured.'
+          message: 'JWT_SECRET is not properly configured.',
+          code: 'JWT_CONFIG_ERROR'
         },
         { status: 500 }
       )
@@ -329,9 +380,15 @@ export async function POST(request: NextRequest) {
     // Return error with message for debugging
     return NextResponse.json(
       { 
+        success: false,
         error: 'Internal server error',
         message: error.message || 'An unexpected error occurred',
-        code: error.code || 'UNKNOWN'
+        code: error.code || 'UNKNOWN',
+        debug: process.env.NODE_ENV === 'development' ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 5) // First 5 lines of stack
+        } : undefined
       },
       { status: 500 }
     )

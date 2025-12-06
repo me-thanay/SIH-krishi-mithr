@@ -4,20 +4,61 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const crop = searchParams.get('crop')
+    const location = searchParams.get('location')
     const state = searchParams.get('state') || 'All'
     const mandi = searchParams.get('mandi') || 'All'
     const source = searchParams.get('source') || 'agmarknet' // agmarknet, fao, worldbank
 
-    // Use mock data for testing
-    if (!crop) {
+    // If location is provided, proxy to Render backend (for market-prices component)
+    if (location) {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sih-krishi-mithr-api.onrender.com'
+      const cleanBackendUrl = backendUrl.replace(/\/+$/, '')
+      
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        
+        try {
+          const backendResponse = await fetch(
+            `${cleanBackendUrl}/api/market-prices?location=${encodeURIComponent(location)}`,
+            {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+              signal: controller.signal,
+            }
+          )
+          
+          clearTimeout(timeoutId)
+          
+          if (backendResponse.ok) {
+            const data = await backendResponse.json()
+            return NextResponse.json(data, {
+              headers: {
+                'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+              },
+            })
+          }
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId)
+          // Fall through to mock data if backend fails
+          console.error('[MARKET-PRICES] Backend fetch failed:', fetchError.message)
+        }
+      } catch (error) {
+        // Fall through to mock data
+        console.error('[MARKET-PRICES] Backend proxy error:', error)
+      }
+    }
+
+    // Use mock data for testing or as fallback
+    if (!crop && !location) {
       return NextResponse.json(
-        { error: 'Please provide crop name' },
+        { error: 'Please provide crop name or location' },
         { status: 400 }
       )
     }
 
-    // Return mock data for immediate testing
-    return getMockPriceData(crop, state, mandi, source)
+    // Return mock data for immediate testing or as fallback
+    return getMockPriceData(crop || 'rice', state, mandi, source)
 
   } catch (error) {
     console.error('Market prices API error:', error)

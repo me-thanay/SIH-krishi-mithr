@@ -100,11 +100,11 @@ export const MarketPrices = ({
     setError(null)
     
     try {
-      // Use Next.js API proxy routes to avoid CORS issues
+      // Use Next.js API routes to avoid CORS issues
       // These routes make server-side requests to the Render backend
       const [pricesResponse, trendsResponse] = await Promise.all([
-        fetch(`/api/market-prices-proxy?location=${encodeURIComponent(location)}`),
-        fetch(`/api/market-prices-trends-proxy?location=${encodeURIComponent(location)}`)
+        fetch(`/api/market-prices?location=${encodeURIComponent(location)}`),
+        fetch(`/api/market-prices/trends?location=${encodeURIComponent(location)}`)
       ])
       
       if (!pricesResponse.ok) {

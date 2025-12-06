@@ -70,6 +70,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Return mock data for immediate testing or as fallback
+    // At this point, crop must be provided (we've checked above)
+    if (!crop) {
+      return NextResponse.json(
+        { error: 'Crop parameter is required' },
+        { status: 400 }
+      )
+    }
+    
     return getMockPriceData(crop, state, mandi, source)
 
   } catch (error) {

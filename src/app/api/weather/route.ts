@@ -11,8 +11,14 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get('city')
     const type = searchParams.get('type') || 'current' // current, forecast, soil
 
-    // Short-circuit to mock data to avoid external API failures / missing keys
-    return getMockWeatherData(city || 'Hyderabad', type)
+    // Short-circuit to a minimal stub to avoid external weather calls
+    return NextResponse.json({
+      success: true,
+      type,
+      location: city || `${lat || '0'}, ${lon || '0'}`,
+      data: { note: 'Weather API disabled' },
+      mocked: true
+    })
 
     // Use NASA POWER API (no key needed) or OpenWeather if available
     if (USE_OPENWEATHER) {

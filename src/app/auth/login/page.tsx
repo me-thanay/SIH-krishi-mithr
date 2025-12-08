@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { Sprout, Camera, Phone } from "lucide-react"
 
 export default function LoginPage() {
-  const [loginMethod, setLoginMethod] = useState<'face' | 'phone'>('face')
   const [formData, setFormData] = useState({
     phone: ""
   })
@@ -80,7 +79,7 @@ export default function LoginPage() {
     return phoneRegex.test(phone.replace(/\s/g, ''))
   }
 
-  const handleFaceLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError(null)
     
@@ -95,7 +94,7 @@ export default function LoginPage() {
     }
     
     if (!faceImage) {
-      setLoginError('Please capture your face for verification')
+      setLoginError('Please capture your face photo')
       return
     }
     
@@ -109,57 +108,7 @@ export default function LoginPage() {
         },
         body: JSON.stringify({
           phone: formData.phone,
-          faceImage: faceImage,
-          loginMethod: 'face'
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed')
-      }
-
-      if (data.success && data.token) {
-        localStorage.setItem('auth_token', data.token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        router.push('/dashboard')
-      } else {
-        throw new Error(data.error || 'Login failed')
-      }
-    } catch (error) {
-      console.error('Login error:', error)
-      setLoginError(error instanceof Error ? error.message : 'Login failed')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handlePhoneLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoginError(null)
-    
-    if (!formData.phone) {
-      setLoginError('Please enter your phone number')
-      return
-    }
-    
-    if (!validatePhone(formData.phone)) {
-      setLoginError('Please enter a valid 10-digit phone number')
-      return
-    }
-    
-    setIsLoading(true)
-    
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone: formData.phone,
-          loginMethod: 'phone'
+          faceImage: faceImage
         })
       })
 
@@ -196,44 +145,6 @@ export default function LoginPage() {
           <p className="text-gray-600">Sign in to Krishi Mithr</p>
         </div>
 
-        {/* Login Method Toggle */}
-        <div className="mb-6">
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setLoginMethod('face')
-                setFaceImage(null)
-                stopCamera()
-              }}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                loginMethod === 'face'
-                  ? 'bg-green-600 text-white'
-                  : 'text-gray-700 hover:text-gray-900'
-              }`}
-            >
-              <Camera className="inline w-4 h-4 mr-2" />
-              Face Login
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setLoginMethod('phone')
-                setFaceImage(null)
-                stopCamera()
-              }}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                loginMethod === 'phone'
-                  ? 'bg-green-600 text-white'
-                  : 'text-gray-700 hover:text-gray-900'
-              }`}
-            >
-              <Phone className="inline w-4 h-4 mr-2" />
-              Phone Only
-            </button>
-          </div>
-        </div>
-
         {/* Error Message */}
         {loginError && (
           <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
@@ -241,9 +152,8 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Face Login Form */}
-        {loginMethod === 'face' && (
-          <form onSubmit={handleFaceLogin} className="space-y-6">
+        {/* Login Form */}
+        <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                 <Phone className="inline w-4 h-4 mr-2" />
@@ -359,41 +269,9 @@ export default function LoginPage() {
               disabled={isLoading || !faceImage}
               className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Verifying..." : "Login with Face"}
+              {isLoading ? "Logging In..." : "Login"}
             </button>
           </form>
-        )}
-
-        {/* Phone Only Login Form */}
-        {loginMethod === 'phone' && (
-          <form onSubmit={handlePhoneLogin} className="space-y-6">
-            <div>
-              <label htmlFor="phone-only" className="block text-sm font-medium text-gray-700 mb-2">
-                <Phone className="inline w-4 h-4 mr-2" />
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                id="phone-only"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Enter your 10-digit phone number"
-                maxLength={10}
-              />
-              <p className="mt-1 text-sm text-gray-500">Enter the phone number you used during signup</p>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50"
-            >
-              {isLoading ? "Signing In..." : "Login with Phone"}
-            </button>
-          </form>
-        )}
 
         {/* Sign Up Link */}
         <div className="mt-6 text-center">

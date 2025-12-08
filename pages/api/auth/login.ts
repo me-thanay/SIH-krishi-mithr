@@ -36,10 +36,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   
   try {
-    const { phone } = req.body
+    const { phone, faceImage } = req.body
 
     if (!phone) {
       return res.status(400).json({ error: 'Phone number is required' })
+    }
+
+    if (!faceImage) {
+      return res.status(400).json({ error: 'Face photo is required' })
     }
 
     // Find user by phone
@@ -54,9 +58,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'No account found with this phone number' })
     }
 
-    // Create token for phone-only login
-    const token = generateToken(user.id, user.phone || user.id)
-    const { password: _, faceImage: __, email: ___, name: ____, ...userWithoutSensitiveData } = user
+    // Update user's face image with the new photo (replace old one)
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { faceImage },
+      include: {
+        agriculturalProfile: true
+      }
+    })
+
+    // Create token
+    const token = generateToken(updatedUser.id, updatedUser.phone || updatedUser.id)
+    const { password: _, faceImage: __, email: ___, name: ____, ...userWithoutSensitiveData } = updatedUser
 
     return res.status(200).json(createAuthResponse(
       true,
@@ -64,7 +77,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       token,
       'Login successful'
     ))
-    return res.status(400).json({ error: 'Invalid login request.' })
 
   } catch (error: any) {
     console.error('Login error:', error)

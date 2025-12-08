@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '../../../src/lib/prisma'
-import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
 // Helper functions
@@ -14,11 +13,6 @@ function generateToken(userId: string, identifier: string): string {
     secret,
     { expiresIn: '7d' }
   )
-}
-
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
 }
 
 function createAuthResponse(success: boolean, user?: any, token?: string, message?: string) {
@@ -42,135 +36,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   
   try {
-    const { email, password, phone, faceImage, loginMethod } = req.body
+    const { phone } = req.body
 
-    // Handle face recognition login
-    if (loginMethod === 'face' || faceImage) {
-      if (!phone || !faceImage) {
-        return res.status(400).json({ error: 'Phone number and face image are required for face login' })
-      }
-
-      // Find user by phone
-      const user = await prisma.user.findFirst({
-        where: { phone },
-        include: {
-          agriculturalProfile: true
-        }
-      })
-
-      if (!user) {
-        return res.status(401).json({ error: 'No account found with this phone number' })
-      }
-
-      // Check if user has a stored face image
-      if (!user.faceImage) {
-        return res.status(401).json({ error: 'Face verification not set up. Please use phone-only login.' })
-      }
-
-      // Simple face comparison (basic implementation)
-      const base64Image1 = faceImage.split(',')[1] || faceImage
-      const base64Image2 = user.faceImage.split(',')[1] || user.faceImage
-      
-      let facesMatch = false
-      try {
-        const buffer1 = Buffer.from(base64Image1, 'base64')
-        const buffer2 = Buffer.from(base64Image2, 'base64')
-        const sizeDiff = Math.abs(buffer1.length - buffer2.length) / Math.max(buffer1.length, buffer2.length)
-        facesMatch = sizeDiff < 0.3 // Basic comparison for demo
-      } catch (error) {
-        console.error('Face comparison error:', error)
-      }
-
-      if (!facesMatch) {
-        return res.status(401).json({ error: 'Face verification failed. Please try again.' })
-      }
-
-      // Faces match - create token
-      const token = generateToken(user.id, user.email || user.phone || user.id)
-      const { password: _, faceImage: __, ...userWithoutSensitiveData } = user
-
-      return res.status(200).json(createAuthResponse(
-        true,
-        userWithoutSensitiveData,
-        token,
-        'Face verification successful'
-      ))
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required' })
     }
 
-    // Handle phone-only login
-    if (loginMethod === 'phone' && phone) {
-      if (!phone) {
-        return res.status(400).json({ error: 'Phone number is required' })
+    // Find user by phone
+    const user = await prisma.user.findFirst({
+      where: { phone },
+      include: {
+        agriculturalProfile: true
       }
+    })
 
-      // Find user by phone
-      const user = await prisma.user.findFirst({
-        where: { phone },
-        include: {
-          agriculturalProfile: true
-        }
-      })
-
-      if (!user) {
-        return res.status(401).json({ error: 'No account found with this phone number' })
-      }
-
-      // Create token for phone-only login
-      const token = generateToken(user.id, user.email || user.phone || user.id)
-      const { password: _, faceImage: __, ...userWithoutSensitiveData } = user
-
-      return res.status(200).json(createAuthResponse(
-        true,
-        userWithoutSensitiveData,
-        token,
-        'Login successful'
-      ))
+    if (!user) {
+      return res.status(401).json({ error: 'No account found with this phone number' })
     }
 
-    // Handle traditional email/password login (backward compatibility)
-    if (email && password) {
-      // Validate email format
-      if (!isValidEmail(email)) {
-        return res.status(400).json({ error: 'Invalid email format' })
-      }
+    // Create token for phone-only login
+    const token = generateToken(user.id, user.phone || user.id)
+    const { password: _, faceImage: __, email: ___, name: ____, ...userWithoutSensitiveData } = user
 
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { email },
-        include: {
-          agriculturalProfile: true
-        }
-      })
-
-      if (!user) {
-        return res.status(401).json({ error: 'Invalid email or password' })
-      }
-
-      // Check if user has a password
-      if (!user.password) {
-        return res.status(401).json({ error: 'Password not set. Please use phone or face login.' })
-      }
-
-      // Check password
-      const isValidPassword = await bcrypt.compare(password, user.password)
-
-      if (!isValidPassword) {
-        return res.status(401).json({ error: 'Invalid email or password' })
-      }
-
-      // Create JWT token
-      const token = generateToken(user.id, user.email || user.phone || user.id)
-      const { password: _, faceImage: __, ...userWithoutSensitiveData } = user
-
-      return res.status(200).json(createAuthResponse(
-        true,
-        userWithoutSensitiveData,
-        token,
-        'Login successful'
-      ))
-    }
-
-    return res.status(400).json({ error: 'Invalid login method. Please provide phone+face, phone only, or email+password.' })
+    return res.status(200).json(createAuthResponse(
+      true,
+      userWithoutSensitiveData,
+      token,
+      'Login successful'
+    ))
+    return res.status(400).json({ error: 'Invalid login request.' })
 
   } catch (error: any) {
     console.error('Login error:', error)

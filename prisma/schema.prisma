@@ -15,7 +15,7 @@ model User {
   email     String?  @unique
   password  String?
   name      String?
-  phone     String?
+  phone     String   @unique
   // Aadhar card details (optional for basic signup)
   aadharNumber  String?
   aadharName    String?

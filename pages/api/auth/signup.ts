@@ -1,25 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '../../../src/lib/prisma'
-import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-
-// Helper functions
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
-}
-
-function isValidPassword(password: string): { valid: boolean; message?: string } {
-  if (password.length < 6) {
-    return { valid: false, message: 'Password must be at least 6 characters long' }
-  }
-  
-  if (password.length > 100) {
-    return { valid: false, message: 'Password must be less than 100 characters' }
-  }
-
-  return { valid: true }
-}
 
 function isValidPhone(phone: string): boolean {
   const phoneRegex = /^[6-9]\d{9}$/
@@ -35,50 +16,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' })
   }
   try {
-    const { email, password, name, phone, faceImage, agriculturalProfile } = req.body
+    const { phone, agriculturalProfile } = req.body
 
     // Validate required fields
-    if (!email || !password || !name || !agriculturalProfile) {
-      return res.status(400).json({ error: 'Missing required fields' })
-    }
-
-    // Validate email format
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ error: 'Invalid email format' })
-    }
-
-    // Validate password strength
-    const passwordValidation = isValidPassword(password)
-    if (!passwordValidation.valid) {
-      return res.status(400).json({ error: passwordValidation.message })
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone is required' })
     }
 
     // Validate phone if provided
-    if (phone && !isValidPhone(phone)) {
+    if (!isValidPhone(phone)) {
       return res.status(400).json({ error: 'Invalid phone number format' })
     }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { phone }
     })
 
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists with this email' })
+      return res.status(400).json({ error: 'User already exists with this phone' })
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12)
-
-    // Create user with agricultural profile
+    // Create user with agricultural profile (optional)
     const user = await prisma.user.create({
       data: {
-        email,
-        password: hashedPassword,
-        name,
         phone,
-        faceImage: faceImage || null,
-        agriculturalProfile: {
+        agriculturalProfile: agriculturalProfile ? {
           create: {
             farmSize: agriculturalProfile.farmSize || agriculturalProfile.landArea,
             landArea: agriculturalProfile.landArea || agriculturalProfile.farmSize || '',
@@ -92,19 +55,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             annualIncome: agriculturalProfile.annualIncome || '',
             governmentSchemes: JSON.stringify(agriculturalProfile.governmentSchemes || [])
           }
-        }
+        } : undefined
       },
       include: {
         agriculturalProfile: true
       }
     })
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user
+    const userWithoutSensitive = {
+      ...user,
+      password: undefined,
+      faceImage: undefined,
+      email: undefined,
+      name: undefined,
+    }
 
     return res.status(200).json(createAuthResponse(
       true,
-      userWithoutPassword,
+      userWithoutSensitive,
       undefined,
       'User created successfully'
     ))

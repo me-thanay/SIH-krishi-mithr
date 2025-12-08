@@ -303,12 +303,8 @@ export default function DashboardPage() {
     setIsLoading(true)
     
     try {
-      // Fetch weather data for user's location
-      const weatherResponse = await fetch(`/api/weather?city=${encodeURIComponent(user.agriculturalProfile.location)}&type=current`)
-      const weather = await weatherResponse.json()
-      if (weather.success) {
-        setWeatherData(weather.data.current)
-      }
+      // Skip weather fetch (disabled)
+      setWeatherData(null)
 
       // Fetch market prices for user's crops
       const marketPromises = user.agriculturalProfile.crops.map(crop =>
@@ -1252,6 +1248,7 @@ export default function DashboardPage() {
                           <span className="animate-spin mr-2">⏳</span> Sending...
                         </span>
                       ) : (
+                        
                         '⏸ Turn OFF'
                       )}
                     </button>

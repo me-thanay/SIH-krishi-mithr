@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Mail, Lock, User, MapPin, Calendar, Droplets, Eye, EyeOff, Sprout, Camera, Phone } from 'lucide-react'
+import { X, User, Sprout, Camera, Phone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AuthModalProps {
@@ -12,22 +12,10 @@ interface AuthModalProps {
   onAuthSuccess?: (user: any) => void
 }
 
-interface AgriculturalProfile {
-  farmSize: string
-  crops: string[]
-  location: string
-  soilType: string
-  irrigationType: string
-  farmingExperience: string
-  annualIncome: string
-  governmentSchemes: string[]
-}
 
 export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSuccess }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'signup'>(defaultMode)
   const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [currentStep, setCurrentStep] = useState(1)
   const [error, setError] = useState('')
 
   // Login form state
@@ -42,26 +30,16 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
-  // Signup form state
+  // Signup form state - only phone and face
   const [signupData, setSignupData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
     phone: ''
   })
-  const [signupFaceRequired] = useState(true) // require face capture on signup
-
-  const [agriculturalProfile, setAgriculturalProfile] = useState<AgriculturalProfile>({
-    farmSize: '',
-    crops: [],
-    location: '',
-    soilType: '',
-    irrigationType: '',
-    farmingExperience: '',
-    annualIncome: '',
-    governmentSchemes: []
-  })
+  const [signupFaceImage, setSignupFaceImage] = useState<string | null>(null)
+  const [signupIsCapturing, setSignupIsCapturing] = useState(false)
+  const [signupCameraError, setSignupCameraError] = useState<string | null>(null)
+  const signupVideoRef = useRef<HTMLVideoElement>(null)
+  const signupCanvasRef = useRef<HTMLCanvasElement>(null)
+  const signupStreamRef = useRef<MediaStream | null>(null)
 
   // Start camera for face detection (with fallback constraints)
   const startCamera = async () => {
@@ -185,15 +163,9 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
   useEffect(() => {
     return () => {
       stopCamera()
+      stopSignupCamera()
     }
   }, [])
-
-  // Auto-start camera when entering signup step 2 (face required)
-  useEffect(() => {
-    if (mode === 'signup' && currentStep === 2 && !faceImage && !isCapturing) {
-      startCamera()
-    }
-  }, [mode, currentStep, faceImage, isCapturing])
 
   // Auto-start camera when face login method is selected
   useEffect(() => {
@@ -208,10 +180,11 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
 
   const handleClose = () => {
     setError('')
-    setCurrentStep(1)
     setMode(defaultMode)
     setFaceImage(null)
+    setSignupFaceImage(null)
     stopCamera()
+    stopSignupCamera()
     onClose()
   }
 
@@ -291,54 +264,98 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
     }
   }
 
+  // Signup camera functions
+  const startSignupCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setSignupCameraError('Camera not supported in this browser/environment.')
+      return
+    }
+
+    setSignupCameraError(null)
+    setSignupIsCapturing(true)
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: 640, height: 480 }
+      })
+      signupStreamRef.current = stream
+      
+      if (signupVideoRef.current) {
+        signupVideoRef.current.srcObject = stream
+        await signupVideoRef.current.play()
+      }
+    } catch (err) {
+      console.error('Camera error:', err)
+      setSignupIsCapturing(false)
+      setSignupCameraError('Unable to access camera. Please allow camera permission and try again.')
+    }
+  }
+
+  const stopSignupCamera = () => {
+    if (signupStreamRef.current) {
+      signupStreamRef.current.getTracks().forEach(track => track.stop())
+      signupStreamRef.current = null
+    }
+    if (signupVideoRef.current) {
+      signupVideoRef.current.srcObject = null
+    }
+    setSignupIsCapturing(false)
+  }
+
+  const captureSignupFace = () => {
+    if (signupVideoRef.current && signupCanvasRef.current) {
+      const video = signupVideoRef.current
+      const canvas = signupCanvasRef.current
+      const context = canvas.getContext('2d')
+      
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      context?.drawImage(video, 0, 0, canvas.width, canvas.height)
+      
+      const imageData = canvas.toDataURL('image/jpeg', 0.8)
+      setSignupFaceImage(imageData)
+      stopSignupCamera()
+    }
+  }
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (signupData.password !== signupData.confirmPassword) {
-      setError('Passwords do not match')
+    setError('')
+
+    if (!signupData.phone) {
+      setError('Please enter your phone number')
       return
     }
 
-    if (signupFaceRequired && !faceImage) {
-      setError('Please capture your face to complete signup')
+    if (!validatePhone(signupData.phone)) {
+      setError('Please enter a valid 10-digit phone number')
       return
     }
 
-    if (currentStep === 1) {
-      setCurrentStep(2)
+    if (!signupFaceImage) {
+      setError('Please capture your face photo for verification')
       return
     }
 
     setIsLoading(true)
-    setError('')
 
     try {
-      // Parse location into state and district
-      const locationParts = agriculturalProfile.location.split(',')
-      const state = locationParts[0]?.trim() || ''
-      const district = locationParts[1]?.trim() || ''
-
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...signupData,
-          faceImage: faceImage,
-          agriculturalProfile: {
-            ...agriculturalProfile,
-            state,
-            district
-          }
+          phone: signupData.phone,
+          faceImage: signupFaceImage
         })
       })
 
       const data = await response.json()
 
       if (data.success) {
-        localStorage.setItem('auth_token', data.token)
         localStorage.setItem('user', JSON.stringify(data.user))
         onAuthSuccess?.(data.user)
         handleClose()
+        alert('Account created successfully! Please login to continue.')
       } else {
         setError(data.error || 'Signup failed')
       }
@@ -352,20 +369,8 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
   const toggleMode = () => {
     setMode(mode === 'login' ? 'signup' : 'login')
     setError('')
-    setCurrentStep(1)
-  }
-
-  const updateAgriculturalProfile = (field: keyof AgriculturalProfile, value: any) => {
-    setAgriculturalProfile(prev => ({ ...prev, [field]: value }))
-  }
-
-  const toggleArrayItem = (field: 'crops' | 'governmentSchemes', item: string) => {
-    setAgriculturalProfile(prev => ({
-      ...prev,
-      [field]: prev[field].includes(item)
-        ? prev[field].filter(i => i !== item)
-        : [...prev[field], item]
-    }))
+    setSignupFaceImage(null)
+    stopSignupCamera()
   }
 
   if (!isOpen) return null
@@ -599,317 +604,128 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
                 </form>
                   ) : (
                 <form onSubmit={handleSignup} className="space-y-4">
-                  {currentStep === 1 ? (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Full Name
-                        </label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <input
-                            type="text"
-                            required
-                            value={signupData.name}
-                            onChange={(e) => setSignupData(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            placeholder="Enter your full name"
-                          />
-                        </div>
-                      </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Phone className="inline w-4 h-4 mr-2" />
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="tel"
+                        required
+                        value={signupData.phone}
+                        onChange={(e) => setSignupData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="Enter your 10-digit phone number"
+                        maxLength={10}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Enter your 10-digit mobile number</p>
+                  </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Email Address
-                        </label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <input
-                            type="email"
-                            required
-                            value={signupData.email}
-                            onChange={(e) => setSignupData(prev => ({ ...prev, email: e.target.value }))}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            placeholder="Enter your email"
-                          />
-                        </div>
-                      </div>
+                  {/* Face Capture Section */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Camera className="inline w-4 h-4 mr-2" />
+                      Face Verification
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Position your face in front of the camera for verification
+                    </p>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Phone Number
-                        </label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <input
-                            type="tel"
-                            value={signupData.phone}
-                            onChange={(e) => setSignupData(prev => ({ ...prev, phone: e.target.value }))}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            placeholder="Enter your phone number"
-                          />
-                        </div>
+                    {signupCameraError && (
+                      <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+                        {signupCameraError}
                       </div>
+                    )}
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Password
-                        </label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <input
-                            type={showPassword ? 'text' : 'password'}
-                            required
-                            value={signupData.password}
-                            onChange={(e) => setSignupData(prev => ({ ...prev, password: e.target.value }))}
-                            className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            placeholder="Create a password"
-                          />
+                    <div className="relative bg-gray-100 rounded-lg overflow-hidden mb-2" style={{ aspectRatio: '4/3', maxHeight: '200px' }}>
+                      {!signupIsCapturing && !signupFaceImage && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-xs text-gray-600">Camera not started</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {signupIsCapturing && (
+                        <video
+                          ref={signupVideoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-full object-cover"
+                          style={{ transform: 'scaleX(-1)' }}
+                        />
+                      )}
+
+                      {signupFaceImage && !signupIsCapturing && (
+                        <img
+                          src={signupFaceImage}
+                          alt="Captured face"
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+
+                      <canvas ref={signupCanvasRef} className="hidden" />
+                    </div>
+
+                    <div className="flex gap-2">
+                      {!signupIsCapturing && !signupFaceImage && (
+                        <button
+                          type="button"
+                          onClick={startSignupCamera}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Camera className="w-4 h-4" />
+                          Start Camera
+                        </button>
+                      )}
+
+                      {signupIsCapturing && (
+                        <>
                           <button
                             type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            onClick={captureSignupFace}
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
                           >
-                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            <Camera className="w-4 h-4" />
+                            Capture
                           </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Confirm Password
-                        </label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <input
-                            type={showPassword ? 'text' : 'password'}
-                            required
-                            value={signupData.confirmPassword}
-                            onChange={(e) => setSignupData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            placeholder="Confirm your password"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="bg-white border rounded-lg p-4 shadow-sm">
-                        <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                          <Camera className="w-4 h-4 text-green-600" />
-                          Face Capture (required for signup)
-                        </h3>
-
-                        <div className="relative bg-gray-100 rounded-lg overflow-hidden mb-2" style={{ aspectRatio: '4/3', maxHeight: '200px' }}>
-                          {!isCapturing && !faceImage && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="text-center">
-                                <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                                <p className="text-xs text-gray-600">Camera not started</p>
-                              </div>
-                            </div>
-                          )}
-
-                          {isCapturing && (
-                            <video
-                              ref={videoRef}
-                              autoPlay
-                              playsInline
-                              muted
-                              className="w-full h-full object-cover"
-                              style={{ transform: 'scaleX(-1)' }}
-                            />
-                          )}
-
-                          {faceImage && !isCapturing && (
-                            <img
-                              src={faceImage}
-                              alt="Captured face"
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-
-                          <canvas ref={canvasRef} className="hidden" />
-                        </div>
-
-                        <div className="flex gap-2">
-                          {!isCapturing && !faceImage && (
-                            <button
-                              type="button"
-                              onClick={startCamera}
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                            >
-                              <Camera className="w-4 h-4" />
-                              Start Camera
-                            </button>
-                          )}
-
-                          {isCapturing && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={captureFace}
-                                className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                              >
-                                <Camera className="w-4 h-4" />
-                                Capture
-                              </button>
-                              <button
-                                type="button"
-                                onClick={stopCamera}
-                                className="bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          )}
-
-                          {faceImage && !isCapturing && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFaceImage(null)
-                                startCamera()
-                              }}
-                              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors"
-                            >
-                              Retake
-                            </button>
-                          )}
-                        </div>
-
-                        {cameraError && (
-                          <p className="text-xs text-red-600 mt-2">{cameraError}</p>
-                        )}
-                      </div>
-
-                      <div className="mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Agricultural Profile</h3>
-                        <p className="text-sm text-gray-600">Tell us about your farming setup</p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Farm Size (acres)
-                        </label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <input
-                            type="text"
-                            required
-                            value={agriculturalProfile.farmSize}
-                            onChange={(e) => updateAgriculturalProfile('farmSize', e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            placeholder="e.g., 5 acres"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Location (State, District)
-                        </label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <input
-                            type="text"
-                            required
-                            value={agriculturalProfile.location}
-                            onChange={(e) => updateAgriculturalProfile('location', e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            placeholder="e.g., Maharashtra, Pune"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Soil Type
-                        </label>
-                        <select
-                          required
-                          value={agriculturalProfile.soilType}
-                          onChange={(e) => updateAgriculturalProfile('soilType', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        >
-                          <option value="">Select soil type</option>
-                          <option value="clay">Clay</option>
-                          <option value="sandy">Sandy</option>
-                          <option value="loamy">Loamy</option>
-                          <option value="red">Red Soil</option>
-                          <option value="black">Black Soil</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Irrigation Type
-                        </label>
-                        <div className="relative">
-                          <Droplets className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <select
-                            required
-                            value={agriculturalProfile.irrigationType}
-                            onChange={(e) => updateAgriculturalProfile('irrigationType', e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          <button
+                            type="button"
+                            onClick={stopSignupCamera}
+                            className="bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors"
                           >
-                            <option value="">Select irrigation type</option>
-                            <option value="drip">Drip Irrigation</option>
-                            <option value="sprinkler">Sprinkler</option>
-                            <option value="flood">Flood Irrigation</option>
-                            <option value="rainfed">Rainfed</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Farming Experience
-                        </label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <select
-                            required
-                            value={agriculturalProfile.farmingExperience}
-                            onChange={(e) => updateAgriculturalProfile('farmingExperience', e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                          >
-                            <option value="">Select experience</option>
-                            <option value="beginner">Beginner (0-2 years)</option>
-                            <option value="intermediate">Intermediate (3-10 years)</option>
-                            <option value="experienced">Experienced (10+ years)</option>
-                          </select>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="flex gap-3">
-                    {currentStep === 2 && (
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(1)}
-                        className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-                      >
-                        Back
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className={cn(
-                        "flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                        currentStep === 1 && "w-full"
+                            Cancel
+                          </button>
+                        </>
                       )}
-                    >
-                      {isLoading 
-                        ? 'Creating Account...' 
-                        : currentStep === 1 
-                          ? 'Next: Agricultural Profile' 
-                          : 'Create Account'
-                      }
-                    </button>
+
+                      {signupFaceImage && !signupIsCapturing && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSignupFaceImage(null)
+                            startSignupCamera()
+                          }}
+                          className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+                        >
+                          Retake
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading || !signupFaceImage}
+                    className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isLoading ? 'Creating Account...' : 'Sign Up'}
+                  </button>
                 </form>
               )}
 

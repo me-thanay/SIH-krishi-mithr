@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils"
 
 interface MarketPricesProps {
   className?: string
+  // kept for backward compatibility; currently unused
+  location?: string
+  autoDetectLocation?: boolean
 }
 
 // Market prices temporarily disabled to avoid backend 404s on trends endpoint.

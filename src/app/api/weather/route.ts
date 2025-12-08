@@ -36,13 +36,13 @@ export async function GET(request: NextRequest) {
       // Use city name
       if (type === 'forecast') {
         url = `https://api.openweathermap.org/data/2.5/forecast`
-        params.append('q', city)
+        params.append('q', city ?? '')
       } else if (type === 'soil') {
         url = `https://api.openweathermap.org/data/2.5/soil`
-        params.append('q', city)
+        params.append('q', city ?? '')
       } else {
         url = `https://api.openweathermap.org/data/2.5/weather`
-        params.append('q', city)
+        params.append('q', city ?? '')
       }
     } else {
       // Use coordinates

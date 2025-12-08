@@ -7,8 +7,9 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  # Disable Python detection for Next.js build
+  # Force Node.js only, disable Python detection
   PYTHON = ""
   PYTHON_VERSION = ""
-  # Disable Nixpacks Python detection
   NIXPACKS_NO_PYTHON = "1"
+  # Use explicit buildpack
+  NIXPACKS_CONFIG_FILE = ".nixpacks.toml"

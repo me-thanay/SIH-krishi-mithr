@@ -30,19 +30,20 @@ export async function GET(request: NextRequest) {
     }
 
     let url = ''
-    let params = new URLSearchParams()
+    const params = new URLSearchParams()
+    const cityParam = city ?? ''
 
     if (city) {
       // Use city name
       if (type === 'forecast') {
         url = `https://api.openweathermap.org/data/2.5/forecast`
-        params.append('q', city ?? '')
+        params.append('q', cityParam)
       } else if (type === 'soil') {
         url = `https://api.openweathermap.org/data/2.5/soil`
-        params.append('q', city ?? '')
+        params.append('q', cityParam)
       } else {
         url = `https://api.openweathermap.org/data/2.5/weather`
-        params.append('q', city ?? '')
+        params.append('q', cityParam)
       }
     } else {
       // Use coordinates

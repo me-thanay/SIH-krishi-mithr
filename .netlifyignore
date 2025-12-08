@@ -1,6 +1,10 @@
 # Ignore Python files during Netlify build
 runtime.txt
-requirements*.txt
+runtime.txt.bak
+requirements.txt
+requirements.txt.bak
+requirements_mqtt.txt
+requirements_mqtt.txt.bak
 *.py
 mqtt_to_mongodb*.py
 __pycache__/

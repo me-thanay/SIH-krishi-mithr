@@ -91,13 +91,13 @@ export default function SignupPage() {
     if (!validatePhone(formData.phone)) {
       setSignupError('Please enter a valid 10-digit phone number')
       return
-    }
-    
+  }
+
     if (!faceImage) {
       setSignupError('Please capture your face photo for verification')
       return
-    }
-    
+  }
+
     setIsLoading(true)
     
     try {
@@ -154,30 +154,30 @@ export default function SignupPage() {
 
         {/* Signup Form */}
         <form onSubmit={handleSignup} className="space-y-6">
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-              <Phone className="inline w-4 h-4 mr-2" />
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              required
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Enter your 10-digit phone number"
-              maxLength={10}
-            />
-            <p className="mt-1 text-sm text-gray-500">Enter your 10-digit mobile number</p>
-          </div>
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                <Phone className="inline w-4 h-4 mr-2" />
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                id="phone"
+                required
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Enter your 10-digit phone number"
+                maxLength={10}
+              />
+              <p className="mt-1 text-sm text-gray-500">Enter your 10-digit mobile number</p>
+            </div>
 
           {/* Face Capture Section */}
-          <div>
+            <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <Camera className="inline w-4 h-4 mr-2" />
               Face Verification
-            </label>
+              </label>
             <p className="text-sm text-gray-500 mb-3">
               Position your face in front of the camera for verification
             </p>
@@ -261,18 +261,18 @@ export default function SignupPage() {
                 >
                   Retake Photo
                 </button>
-              )}
+                )}
+              </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
+              <button
+                type="submit"
             disabled={isLoading || !faceImage}
             className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+              >
             {isLoading ? "Creating Account..." : "Sign Up"}
-          </button>
-        </form>
+              </button>
+          </form>
 
         {/* Sign In Link */}
         <div className="mt-6 text-center">

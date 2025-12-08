@@ -7,11 +7,8 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  # Disable Python detection - this is a Next.js project
+  # Disable Python detection for Next.js build
   PYTHON = ""
   PYTHON_VERSION = ""
-
-# Ignore Python files during build
-[build.ignore]
-  ignore = ["requirements*.txt", "runtime.txt", "*.py", "mqtt_to_mongodb*.py"]
-
+  # Disable Nixpacks Python detection
+  NIXPACKS_NO_PYTHON = "1"

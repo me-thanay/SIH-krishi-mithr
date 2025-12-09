@@ -507,7 +507,19 @@ export default function DashboardPage() {
     name: 'Guest',
     email: '',
     phone: '',
-    agriculturalProfile: null,
+    agriculturalProfile: {
+      farmSize: '-',
+      crops: [],
+      location: '-',
+      soilType: '-',
+      irrigationType: '-',
+      farmingExperience: '-',
+      annualIncome: '-',
+      state: '-',
+      district: '-',
+      landArea: '-',
+      governmentSchemes: [],
+    },
   }
 
   const recommendations = displayUserData && displayUserData.agriculturalProfile

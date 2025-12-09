@@ -318,12 +318,13 @@ export default function DashboardPage() {
   }
 
   const getFarmingRecommendations = () => {
-    if (!displayUserData) return []
+    if (!displayUserData || !displayUserData.agriculturalProfile) return []
 
     const recommendations = []
+    const profile = displayUserData.agriculturalProfile
 
     // Crop-specific recommendations
-    displayUserData.agriculturalProfile.crops.forEach(crop => {
+    (profile.crops || []).forEach(crop => {
       if (crop === "Rice") {
         recommendations.push({
           type: "info",
@@ -335,7 +336,7 @@ export default function DashboardPage() {
     })
 
     // Soil recommendations
-    if (displayUserData.agriculturalProfile.soilType === "Clay") {
+    if (profile.soilType === "Clay") {
       recommendations.push({
         type: "info",
         icon: Leaf,

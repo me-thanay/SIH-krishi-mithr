@@ -537,7 +537,9 @@ export default function DashboardPage() {
     agriculturalProfile: null,
   }
 
-  const recommendations = displayUserData ? getFarmingRecommendations() : []
+  const recommendations = displayUserData && displayUserData.agriculturalProfile
+    ? getFarmingRecommendations()
+    : []
 
   return (
     <div className="min-h-screen bg-gray-50">

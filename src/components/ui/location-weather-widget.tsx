@@ -180,30 +180,18 @@ export const LocationWeatherWidget = ({
     // Use mock data directly (no API call)
     setWeatherData({
       current: {
-        temperature: {
-          current: 28,
-          feels_like: 30,
-          min: 25,
-          max: 32
-        },
+        temperature: 28,
         humidity: 65,
-        wind: {
-          speed: 3.5,
-          direction: 180
-        },
-        weather: {
-          main: 'Clear',
-          description: 'Weather API disabled',
-          icon: '01d'
-        },
+        condition: 'Clear',
         farming_conditions: {
           irrigation_needed: false,
-          crop_stress: false,
           good_growing: true,
-          planting_suitable: true,
-          harvesting_suitable: true
+          planting_suitable: true
         }
-      }
+      },
+      forecast: [],
+      source: 'Mock Data',
+      location: city
     })
     setIsLoading(false)
   }

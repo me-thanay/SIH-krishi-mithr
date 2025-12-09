@@ -5,24 +5,13 @@ import { useRouter } from "next/navigation"
 
 export default function SignupPage() {
   const router = useRouter()
-  
+
   useEffect(() => {
-    router.push('/')
+    router.replace("/")
   }, [router])
-  
+
   return null
-  const [formData, setFormData] = useState({
-    phone: ""
-  })
-  const [faceImage, setFaceImage] = useState<string | null>(null)
-  const [isCapturing, setIsCapturing] = useState(false)
-  const [cameraError, setCameraError] = useState<string | null>(null)
-  const [signupError, setSignupError] = useState<string | null>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+}
 
   // Start camera for face detection
   const startCamera = async () => {

@@ -14,6 +14,9 @@ interface AuthModalProps {
 
 
 export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSuccess }: AuthModalProps) {
+  // Auth disabled - always return null
+  return null
+  
   const [mode, setMode] = useState<'login' | 'signup'>(defaultMode)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')

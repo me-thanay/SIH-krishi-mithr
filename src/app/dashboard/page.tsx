@@ -95,7 +95,7 @@ export default function DashboardPage() {
   const [subsidies, setSubsidies] = useState<SubsidyData[]>([])
   const [sensorData, setSensorData] = useState<SensorData | null>(null)
   const [historyData, setHistoryData] = useState<SensorData[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [relayLoading, setRelayLoading] = useState<string | null>(null)
   const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null)
   const [dataUpdated, setDataUpdated] = useState(false)
@@ -431,17 +431,6 @@ export default function DashboardPage() {
     }
 
     return recommendations
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your personalized dashboard...</p>
-        </div>
-      </div>
-    )
   }
 
   // No auth: allow dashboard even without user data

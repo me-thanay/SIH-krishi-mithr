@@ -30,9 +30,8 @@ export const FeatureCard = ({
   const { isAuthenticated, showAuthModal } = useAuth()
 
   const handleAction = () => {
-    if (requiresAuth && !isAuthenticated) {
-      showAuthModal('login')
-    } else if (actionUrl) {
+    // Auth disabled - always allow access
+    if (actionUrl) {
       window.location.href = actionUrl
     }
   }

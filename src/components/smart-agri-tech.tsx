@@ -212,14 +212,14 @@ const SmartAgriTechComponent = () => {
                 <>
                        <button
                          className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium"
-                         onClick={() => showAuthModal('login')}
+                         onClick={() => window.location.href = '/dashboard'}
                        >
                          Sign In
                        </button>
 
                        <button
                          className="border border-green-600 text-green-600 hover:bg-green-50 px-8 py-3 rounded-lg font-medium"
-                         onClick={() => showAuthModal('signup')}
+                         onClick={() => window.location.href = '/dashboard'}
                        >
                          Sign Up
                        </button>
@@ -658,7 +658,7 @@ const SmartAgriTechComponent = () => {
               <Button 
                 size="lg" 
                 className="bg-white text-green-600 hover:bg-gray-100 font-semibold"
-                onClick={() => showAuthModal('signup')}
+                onClick={() => window.location.href = '/dashboard'}
               >
                 Start Free Trial
               </Button>

@@ -260,7 +260,7 @@ export default function DashboardPage() {
   }
 
   // Auth/data disabled: no personalized recommendations
-  const getFarmingRecommendations = () => []
+  const getFarmingRecommendations = () => [];
 
   const getSensorRecommendations = (sensor: SensorData) => {
     const recommendations = []
@@ -430,8 +430,8 @@ export default function DashboardPage() {
       })
     }
 
-    return recommendations
-  }
+    return recommendations;
+  };
 
   // No auth: allow dashboard even without user data
   const displayUserData = userData || {

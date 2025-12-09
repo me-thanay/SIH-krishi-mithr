@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements_mqtt.txt .
+# Copy requirements first for better caching (renamed to avoid Netlify picking it up)
+COPY requirements_mqtt.backend.txt ./requirements_mqtt.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements_mqtt.txt

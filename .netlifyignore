@@ -3,8 +3,10 @@ runtime.txt
 runtime.txt.bak
 requirements.txt
 requirements.txt.bak
+requirements.backend.txt
 requirements_mqtt.txt
 requirements_mqtt.txt.bak
+requirements_mqtt.backend.txt
 *.py
 mqtt_to_mongodb*.py
 __pycache__/

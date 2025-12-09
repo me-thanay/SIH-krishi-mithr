@@ -317,36 +317,8 @@ export default function DashboardPage() {
     return subsidies
   }
 
-  const getFarmingRecommendations = () => {
-    if (!displayUserData || !displayUserData.agriculturalProfile) return []
-
-    const recommendations = []
-    const profile = displayUserData.agriculturalProfile
-
-    // Crop-specific recommendations
-    (profile.crops || []).forEach(crop => {
-      if (crop === "Rice") {
-        recommendations.push({
-          type: "info",
-          icon: Leaf,
-          title: "Rice Farming Tips",
-          message: "Ensure adequate water supply and proper drainage for rice cultivation."
-        })
-      }
-    })
-
-    // Soil recommendations
-    if (profile.soilType === "Clay") {
-      recommendations.push({
-        type: "info",
-        icon: Leaf,
-        title: "Clay Soil Management",
-        message: "Clay soil retains water well. Avoid over-irrigation and ensure good drainage."
-      })
-    }
-
-    return recommendations
-  }
+  // Auth/data disabled: no personalized recommendations
+  const getFarmingRecommendations = () => []
 
   const getSensorRecommendations = (sensor: SensorData) => {
     const recommendations = []

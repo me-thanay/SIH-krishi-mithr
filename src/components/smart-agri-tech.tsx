@@ -20,6 +20,7 @@ import {
   Award,
   Smartphone,
   Droplets,
+  Cloud,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Card } from "./ui/card"

@@ -25,14 +25,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   
   // Check for required environment variables
-  if (!process.env.DATABASE_URL) {
+  const databaseUrl = process.env.DATABASE_URL
+  const jwtSecret = process.env.JWT_SECRET
+  
+  if (!databaseUrl) {
     console.error('DATABASE_URL is not set')
-    return res.status(500).json({ error: 'Server configuration error: DATABASE_URL missing' })
+    return res.status(500).json({ 
+      error: 'Server configuration error: DATABASE_URL missing',
+      debug: {
+        hasDatabaseUrl: !!databaseUrl,
+        nodeEnv: process.env.NODE_ENV
+      }
+    })
   }
   
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback-secret-key') {
+  if (!jwtSecret || jwtSecret === 'fallback-secret-key') {
     console.error('JWT_SECRET is not set or using fallback')
-    return res.status(500).json({ error: 'Server configuration error: JWT_SECRET missing' })
+    return res.status(500).json({ 
+      error: 'Server configuration error: JWT_SECRET missing',
+      debug: {
+        hasJwtSecret: !!jwtSecret,
+        isFallback: jwtSecret === 'fallback-secret-key'
+      }
+    })
   }
   
   try {
@@ -46,26 +61,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Face photo is required' })
     }
 
+    // Validate phone number format (10 digits)
+    const phoneRegex = /^[0-9]{10}$/
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ error: 'Phone number must be exactly 10 digits' })
+    }
+
     // Find user by phone
-    const user = await prisma.user.findFirst({
-      where: { phone },
-      include: {
-        agriculturalProfile: true
-      }
-    })
+    let user
+    try {
+      user = await prisma.user.findFirst({
+        where: { phone },
+        include: {
+          agriculturalProfile: true
+        }
+      })
+    } catch (dbError: any) {
+      console.error('Database query error:', dbError)
+      throw new Error(`Database query failed: ${dbError.message}`)
+    }
 
     if (!user) {
       return res.status(401).json({ error: 'No account found with this phone number' })
     }
 
     // Update user's face image with the new photo (replace old one)
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: { faceImage },
-      include: {
-        agriculturalProfile: true
-      }
-    })
+    let updatedUser
+    try {
+      updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { faceImage },
+        include: {
+          agriculturalProfile: true
+        }
+      })
+    } catch (updateError: any) {
+      console.error('Database update error:', updateError)
+      throw new Error(`Database update failed: ${updateError.message}`)
+    }
 
     // Create token
     const token = generateToken(updatedUser.id, updatedUser.phone || updatedUser.id)

@@ -11,29 +11,41 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get('city')
     const type = searchParams.get('type') || 'current' // current, forecast, soil
 
-    // Short-circuit to a minimal stub to avoid external weather calls
+    // Always return a simple stub response - Weather API is disabled
     return NextResponse.json({
       success: true,
       type,
       location: city || `${lat || '0'}, ${lon || '0'}`,
-      data: { note: 'Weather API disabled' },
-      mocked: true
-    })
-
-    // Use NASA POWER API (no key needed) or OpenWeather if available
-    if (USE_OPENWEATHER) {
-      // Use OpenWeather API
-    } else {
-      // Use NASA POWER API (no key needed)
-      return getNASAPowerWeatherData(lat, lon, city, type)
-    }
-
-    if (!lat && !lon && !city) {
-      return NextResponse.json(
-        { error: 'Please provide lat/lon coordinates or city name' },
-        { status: 400 }
-      )
-    }
+      data: {
+        current: {
+          temperature: {
+            current: 28,
+            feels_like: 30,
+            min: 25,
+            max: 32
+          },
+          humidity: 65,
+          wind: {
+            speed: 3.5,
+            direction: 180
+          },
+          weather: {
+            main: 'Clear',
+            description: 'Weather API disabled',
+            icon: '01d'
+          },
+          farming_conditions: {
+            irrigation_needed: false,
+            crop_stress: false,
+            good_growing: true,
+            planting_suitable: true,
+            harvesting_suitable: true
+          }
+        }
+      },
+      mocked: true,
+      note: 'Weather API disabled - using mock data'
+    }, { status: 200 })
 
     let url = ''
     const params = new URLSearchParams()

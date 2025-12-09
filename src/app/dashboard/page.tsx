@@ -230,91 +230,33 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run once on mount - fetchLatestSensorData will use current state values
 
-  const fetchPersonalizedData = async (user: UserData) => {
-    setIsLoading(true)
-    
-    try {
-      // Fetch market prices for user's crops
-      const marketPromises = user.agriculturalProfile.crops.map(crop =>
-        fetch(`/api/agmarknet-prices?crop=${encodeURIComponent(crop)}`)
-          .then(res => res.json())
-          .then(data => data.success ? data.data : null)
-      )
-      
-      const marketResults = await Promise.all(marketPromises)
-      setMarketData(marketResults.filter(Boolean))
-
-      // Generate personalized subsidies
-      const personalizedSubsidies = generateSubsidies(user.agriculturalProfile)
-      setSubsidies(personalizedSubsidies)
-
-    } catch (error) {
-      console.error('Error fetching personalized data:', error)
-    } finally {
-      setIsLoading(false)
-    }
+  // Personalized data disabled
+  const fetchPersonalizedData = async (_user: UserData) => {
+    setIsLoading(false)
   }
 
-  const generateSubsidies = (profile: UserData['agriculturalProfile']): SubsidyData[] => {
-    const subsidies: SubsidyData[] = []
-
-    // PM-KISAN (₹6000/year for all farmers)
-    subsidies.push({
-      scheme: "PM-KISAN",
-      amount: "₹6,000/year",
-      eligibility: true,
-      description: "Direct income support for all farmers"
-    })
-
-    // Soil Health Card
-    subsidies.push({
-      scheme: "Soil Health Card",
-      amount: "Free",
-      eligibility: true,
-      description: "Free soil testing and health card"
-    })
-
-    // Crop Insurance
-    if (profile.crops.length > 0) {
-      subsidies.push({
+  const generateSubsidies = (_profile: UserData['agriculturalProfile']): SubsidyData[] => {
+    // Return generic subsidies (not personalized)
+    return [
+      {
+        scheme: "PM-KISAN",
+        amount: "₹6,000/year",
+        eligibility: true,
+        description: "Direct income support for all farmers"
+      },
+      {
+        scheme: "Soil Health Card",
+        amount: "Free",
+        eligibility: true,
+        description: "Free soil testing and health card"
+      },
+      {
         scheme: "Pradhan Mantri Fasal Bima Yojana",
         amount: "Up to ₹50,000",
         eligibility: true,
-        description: "Crop insurance for your crops: " + profile.crops.join(', ')
-      })
-    }
-
-    // Irrigation subsidies
-    if (profile.irrigationType === "Drip Irrigation" || profile.irrigationType === "Sprinkler") {
-      subsidies.push({
-        scheme: "Micro Irrigation Fund",
-        amount: "Up to ₹1,00,000",
-        eligibility: true,
-        description: "Subsidy for micro irrigation systems"
-      })
-    }
-
-    // Organic farming
-    if (profile.soilType === "Red Soil" || profile.soilType === "Black Soil") {
-      subsidies.push({
-        scheme: "Paramparagat Krishi Vikas Yojana",
-        amount: "₹50,000/hectare",
-        eligibility: true,
-        description: "Support for organic farming practices"
-      })
-    }
-
-    // Small farmer support
-    if (profile.farmSize === "0-1" || profile.farmSize === "1-5") {
-      subsidies.push({
-        scheme: "Small Farmer Agribusiness Consortium",
-        amount: "Up to ₹25,00,000",
-        eligibility: true,
-        description: "Support for small farmers' agribusiness ventures"
-      })
-    }
-
-    return subsidies
+        description: "Crop insurance for your crops"
+      }
+    ]
   }
 
   // Auth/data disabled: no personalized recommendations
@@ -522,9 +464,7 @@ export default function DashboardPage() {
     },
   }
 
-  const recommendations = displayUserData && displayUserData.agriculturalProfile
-    ? getFarmingRecommendations()
-    : []
+  const recommendations = []
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -534,21 +474,11 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Welcome back, {displayUserData.name}!
+                Welcome!
               </h1>
               <p className="text-gray-600 mt-1">
-                Your personalized agricultural dashboard
+                Explore the dashboard without login or profile.
               </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Farm Size</p>
-                <p className="font-semibold text-gray-900">{displayUserData.agriculturalProfile.farmSize} acres</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Location</p>
-                <p className="font-semibold text-gray-900">{displayUserData.agriculturalProfile.location}</p>
-              </div>
             </div>
           </div>
         </div>
@@ -1366,37 +1296,12 @@ export default function DashboardPage() {
 
           {/* Right Column */}
           <div className="space-y-6">
-            {/* Farm Profile */}
+            {/* Farm Profile (disabled) */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Farm Profile</h2>
-              <div className="space-y-3">
-                <div className="flex items-center">
-                  <MapPin className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-sm text-gray-600">{displayUserData.agriculturalProfile.location}</span>
-                </div>
-                <div className="flex items-center">
-                  <Sprout className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-sm text-gray-600">{displayUserData.agriculturalProfile.farmSize} acres</span>
-                </div>
-                <div className="flex items-center">
-                  <Leaf className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-sm text-gray-600">{displayUserData.agriculturalProfile.soilType} soil</span>
-                </div>
-                <div className="flex items-center">
-                  <Droplets className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-sm text-gray-600">{displayUserData.agriculturalProfile.irrigationType}</span>
-                </div>
-              </div>
-              <div className="mt-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Your Crops:</p>
-                <div className="flex flex-wrap gap-1">
-                  {displayUserData.agriculturalProfile.crops.map(crop => (
-                    <span key={crop} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                      {crop}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Required</h2>
+              <p className="text-sm text-gray-600">
+                You can use the dashboard without creating a profile or logging in.
+              </p>
             </div>
 
             {/* Subsidies */}

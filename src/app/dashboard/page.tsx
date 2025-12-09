@@ -103,8 +103,8 @@ export default function DashboardPage() {
   const [isHistoricalDisplay, setIsHistoricalDisplay] = useState(false)
 
   useEffect(() => {
-    // Auth disabled: skip checks, load generic data
-    fetchLatestSensorData()
+    // Auth disabled: load data immediately
+    fetchLatestSensorData(false)
   }, [])
 
   const fetchUserProfile = async () => {

@@ -4,7 +4,6 @@ import React, { useRef, useEffect, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
 import { 
   Sprout, 
-  Cloud, 
   Camera, 
   TrendingUp, 
   Mic, 
@@ -20,6 +19,7 @@ import {
   Heart,
   Award,
   Smartphone,
+  Droplets,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Card } from "./ui/card"
@@ -27,9 +27,6 @@ import { FeatureCard } from "./ui/feature-card"
 import { FloatingElement } from "./ui/floating-element"
 import { ScrollAnimationContainer } from "./ui/scroll-animation-container"
 import { VoiceAssistant } from "./ui/voice-assistant"
-import { WeatherWidget } from "./ui/weather-widget"
-import { WeatherForecast } from "./ui/weather-forecast"
-import { LocationWeatherWidget } from "./ui/location-weather-widget"
 import { MarketPrices } from "./ui/market-prices"
 import { SoilDetection } from "./ui/soil-detection"
 import { cn } from "@/lib/utils"
@@ -55,9 +52,9 @@ const SmartAgriTechComponent = () => {
       description: "Advanced soil analysis with precise fertilizer recommendations to optimize crop yield and maintain soil health."
     },
     {
-      icon: <Cloud className="w-6 h-6" />,
-      title: "Weather Alerts & Predictive Insights",
-      description: "Stay ahead with accurate weather forecasts, severe weather alerts, and climate-based farming insights."
+      icon: <Droplets className="w-6 h-6" />,
+      title: "Irrigation & Water Insights",
+      description: "Optimize irrigation schedules and water usage with data-driven guidance tailored for your crops."
     },
     {
       icon: <Camera className="w-6 h-6" />,
@@ -458,40 +455,6 @@ const SmartAgriTechComponent = () => {
                 </motion.div>
               </div>
             </motion.div>
-          </div>
-        </section>
-      </ScrollAnimationContainer>
-
-      {/* Live Weather Section */}
-      <ScrollAnimationContainer>
-        <section id="weather" className="py-20 px-4 bg-gradient-to-br from-blue-50 to-green-50">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                Live Weather Updates
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Get real-time weather data and agricultural recommendations to make 
-                informed farming decisions. Monitor conditions and plan your activities accordingly.
-              </p>
-            </motion.div>
-
-            <div className="grid lg:grid-cols-1 gap-8">
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                viewport={{ once: true }}
-              >
-                <LocationWeatherWidget showForecast={true} />
-              </motion.div>
-            </div>
           </div>
         </section>
       </ScrollAnimationContainer>

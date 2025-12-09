@@ -8,26 +8,17 @@ export class AgriculturalAPIService {
     this.baseUrl = baseUrl.replace(/\/+$/, '')
   }
 
-  // Weather Services
-  async getCurrentWeather(lat: number, lon: number) {
-    const response = await fetch(
-      `${this.baseUrl}/api/weather?lat=${lat}&lon=${lon}&type=current`
-    )
-    return response.json()
+  // Weather Services (disabled)
+  async getCurrentWeather(_lat: number, _lon: number) {
+    return { data: null }
   }
 
-  async getWeatherForecast(lat: number, lon: number) {
-    const response = await fetch(
-      `${this.baseUrl}/api/weather?lat=${lat}&lon=${lon}&type=forecast`
-    )
-    return response.json()
+  async getWeatherForecast(_lat: number, _lon: number) {
+    return { data: null }
   }
 
-  async getSoilMoisture(lat: number, lon: number) {
-    const response = await fetch(
-      `${this.baseUrl}/api/weather?lat=${lat}&lon=${lon}&type=soil`
-    )
-    return response.json()
+  async getSoilMoisture(_lat: number, _lon: number) {
+    return { data: null }
   }
 
   // Market Prices Services
@@ -112,17 +103,16 @@ export class AgriculturalAPIService {
   // Utility Methods
   async getFarmingRecommendations(lat: number, lon: number, crop?: string) {
     try {
-      const [weather, soil, prices] = await Promise.all([
-        this.getCurrentWeather(lat, lon),
+      const [soil, prices] = await Promise.all([
         this.getNASASoilData(lat, lon),
         crop ? this.getCropPrices(crop) : Promise.resolve(null)
       ])
 
       return {
-        weather_recommendations: this.generateWeatherRecommendations(weather),
+        weather_recommendations: [],
         soil_recommendations: this.generateSoilRecommendations(soil),
         market_recommendations: prices ? this.generateMarketRecommendations(prices) : null,
-        overall_score: this.calculateFarmingScore(weather, soil, prices)
+        overall_score: this.calculateFarmingScore(null, soil, prices)
       }
     } catch (error) {
       throw new Error(`Failed to get farming recommendations: ${error}`)
@@ -130,21 +120,7 @@ export class AgriculturalAPIService {
   }
 
   private generateWeatherRecommendations(weather: any): string[] {
-    const recommendations = []
-    
-    if (weather.data?.current?.farming_conditions?.irrigation_needed) {
-      recommendations.push('Irrigation recommended - low humidity detected')
-    }
-    
-    if (weather.data?.current?.farming_conditions?.crop_stress) {
-      recommendations.push('Monitor crops for stress - extreme temperatures')
-    }
-    
-    if (weather.data?.current?.farming_conditions?.good_growing) {
-      recommendations.push('Excellent growing conditions - ideal for planting')
-    }
-
-    return recommendations
+    return []
   }
 
   private generateSoilRecommendations(soil: any): string[] {
@@ -176,10 +152,8 @@ export class AgriculturalAPIService {
   private calculateFarmingScore(weather: any, soil: any, prices: any): number {
     let score = 0
     
-    // Weather score (0-40)
-    if (weather.data?.current?.farming_conditions?.good_growing) score += 40
-    else if (weather.data?.current?.farming_conditions?.crop_stress) score += 10
-    else score += 25
+    // Weather score (0-40) disabled
+    score += 20
 
     // Soil score (0-30)
     if (soil.data?.soil_moisture > 40) score += 30

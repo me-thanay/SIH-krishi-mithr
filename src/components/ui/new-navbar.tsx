@@ -31,7 +31,6 @@ export function NewNavbar() {
     { name: 'Home', url: '/', icon: Home },
     { name: 'Dashboard', url: '/dashboard', icon: BarChart3 },
     { name: 'Subsidies', url: '/subsidies', icon: Award },
-    { name: 'Weather', url: '/weather', icon: Cloud },
     { name: 'Market Prices', url: '/market-prices', icon: TrendingUp },
     { name: 'Soil Analysis', url: '/soil-analysis', icon: Leaf },
     { name: 'Profile', url: '/profile', icon: User },

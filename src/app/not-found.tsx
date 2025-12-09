@@ -43,9 +43,6 @@ export default function NotFound() {
             <Link href="/dashboard" className="text-green-600 hover:underline">
               Dashboard
             </Link>
-            <Link href="/weather" className="text-green-600 hover:underline">
-              Weather
-            </Link>
             <Link href="/market-prices" className="text-green-600 hover:underline">
               Market Prices
             </Link>

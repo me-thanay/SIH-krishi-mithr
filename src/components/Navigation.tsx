@@ -98,13 +98,6 @@ export default function Navigation({ className = '' }: NavigationProps) {
       description: 'Government schemes'
     },
     {
-      name: 'Weather',
-      href: '/weather',
-      icon: Cloud,
-      public: true,
-      description: 'Weather forecast'
-    },
-    {
       name: 'Market Prices',
       href: '/market-prices',
       icon: TrendingUp,

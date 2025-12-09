@@ -30,7 +30,6 @@ export default function NavbarTest() {
           <h2 className="text-2xl font-semibold mb-4">Navbar Features:</h2>
           <ul className="space-y-2 text-gray-700">
             <li>• <strong>Home</strong> - Main dashboard</li>
-            <li>• <strong>Weather</strong> - Weather forecasts</li>
             <li>• <strong>Pest Detection</strong> - AI pest identification</li>
             <li>• <strong>Soil Analysis</strong> - Soil health assessment</li>
             <li>• <strong>Market Prices</strong> - Commodity prices</li>

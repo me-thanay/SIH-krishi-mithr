@@ -530,7 +530,12 @@ export default function DashboardPage() {
   }
 
   // No auth: allow dashboard even without user data
-  const displayUserData = userData
+  const displayUserData = userData || {
+    name: 'Guest',
+    email: '',
+    phone: '',
+    agriculturalProfile: null,
+  }
 
   const recommendations = displayUserData ? getFarmingRecommendations() : []
 

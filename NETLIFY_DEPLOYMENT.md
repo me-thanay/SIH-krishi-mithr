@@ -155,3 +155,4 @@ The `netlify.toml` file is already configured with:
 **Documentation:** https://docs.netlify.com  
 **Next.js on Netlify:** https://docs.netlify.com/integrations/frameworks/nextjs/
 
+

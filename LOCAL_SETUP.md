@@ -72,3 +72,4 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 - Restart the dev server after changing environment variables
 - Prisma Client needs to be regenerated if schema changes
 
+

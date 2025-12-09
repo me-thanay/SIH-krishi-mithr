@@ -28,7 +28,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
   const [cameraError, setCameraError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)  
 
   // Signup form state - only phone and face
   const [signupData, setSignupData] = useState({

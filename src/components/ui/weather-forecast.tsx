@@ -46,60 +46,29 @@ export const WeatherForecast = ({
     setError(null)
     
     // Use mock forecast data (no API call)
-    const mockForecast = Array.from({ length: days }, (_, i) => ({
-      date: new Date(Date.now() + i * 24 * 60 * 60 * 1000),
-      temperature: { min: 25, max: 32 },
-      humidity: 65,
-      condition: 'Clear',
-      icon: '01d'
-    }))
+    const mockForecast: ForecastDay[] = Array.from({ length: days }, (_, i) => {
+      const date = new Date(Date.now() + i * 24 * 60 * 60 * 1000)
+      const dayNames = ['Today', 'Tomorrow', 'Day 3', 'Day 4', 'Day 5']
+      const descriptions = ['Sunny', 'Cloudy', 'Partly cloudy', 'Rainy', 'Clear']
+      const recommendations = [
+        'Ideal for planting',
+        'Monitor soil moisture',
+        'Good for harvesting',
+        'Cover crops',
+        'Resume field work'
+      ]
+      
+      return {
+        date: i < dayNames.length ? dayNames[i] : date.toLocaleDateString(),
+        temperature: 25 + Math.floor(Math.random() * 8), // 25-32°C
+        humidity: 60 + Math.floor(Math.random() * 15), // 60-75%
+        description: descriptions[i % descriptions.length],
+        recommendation: recommendations[i % recommendations.length]
+      }
+    })
     
     setForecast(mockForecast)
     setLoading(false)
-  }
-      setError('Unable to fetch forecast data')
-      
-      // Fallback to mock data
-      setForecast([
-        {
-          date: "Today",
-          temperature: 28,
-          humidity: 65,
-          description: "Sunny",
-          recommendation: "Ideal for planting"
-        },
-        {
-          date: "Tomorrow",
-          temperature: 26,
-          humidity: 70,
-          description: "Cloudy",
-          recommendation: "Monitor soil moisture"
-        },
-        {
-          date: "Day 3",
-          temperature: 30,
-          humidity: 60,
-          description: "Partly cloudy",
-          recommendation: "Good for harvesting"
-        },
-        {
-          date: "Day 4",
-          temperature: 24,
-          humidity: 75,
-          description: "Rainy",
-          recommendation: "Cover crops"
-        },
-        {
-          date: "Day 5",
-          temperature: 27,
-          humidity: 68,
-          description: "Sunny",
-          recommendation: "Resume field work"
-        }
-      ])
-    } finally {
-      setLoading(false)
-    }
   }
 
   useEffect(() => {

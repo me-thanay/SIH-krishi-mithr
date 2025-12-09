@@ -30,24 +30,24 @@ export default function NotFound() {
           </Link>
           
           <Link
-            href="/auth/signup"
+            href="/dashboard"
             className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Sign Up
+            Dashboard
           </Link>
         </div>
         
         <div className="mt-8 text-sm text-gray-500">
           <p>Popular pages:</p>
           <div className="flex justify-center space-x-4 mt-2">
-            <Link href="/auth/login" className="text-green-600 hover:underline">
-              Login
-            </Link>
             <Link href="/dashboard" className="text-green-600 hover:underline">
               Dashboard
             </Link>
-            <Link href="/auth/signup" className="text-green-600 hover:underline">
-              Signup
+            <Link href="/weather" className="text-green-600 hover:underline">
+              Weather
+            </Link>
+            <Link href="/market-prices" className="text-green-600 hover:underline">
+              Market Prices
             </Link>
           </div>
         </div>

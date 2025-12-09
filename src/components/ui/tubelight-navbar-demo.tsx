@@ -5,8 +5,6 @@ import { NavBar } from "./tubelight-navbar"
 import { useAuth } from '@/contexts/AuthContext'
 
 export function TubelightNavBarDemo() {
-  const { isAuthenticated, showAuthModal, isAuthModalOpen } = useAuth()
-
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
     { name: 'Dashboard', url: '/dashboard', icon: BarChart3 },
@@ -17,14 +15,8 @@ export function TubelightNavBarDemo() {
     { name: 'Profile', url: '/profile', icon: User },
     { name: 'Support', url: '#', icon: MessageCircle }
   ]
-  // Add auth buttons for non-authenticated users
-  const authItems = [
-    { name: 'Sign In', url: '#', icon: LogIn, onClick: () => showAuthModal('login') },
-    { name: 'Sign Up', url: '#', icon: UserPlus, onClick: () => showAuthModal('signup') }
-  ]
-  const allItems = isAuthenticated ? navItems : [...navItems.slice(0, 4), ...authItems]
 
-  return isAuthModalOpen ? null : <NavBar items={allItems} />
+  return <NavBar items={navItems} />
 }
 
 // Alternative version with fewer items for better mobile experience

@@ -1,7 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { AuthModal } from '@/components/ui/auth-modal'
+import React, { createContext, useContext, useState, ReactNode } from 'react'
 
 interface User {
   id: string
@@ -42,88 +41,38 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login')
+  // Always authenticated - no auth required
+  const [user] = useState<User | null>({
+    id: 'guest',
+    name: 'Guest User',
+    email: 'guest@krishimithr.com',
+    phone: '',
+    createdAt: new Date().toISOString(),
+    agriculturalProfile: undefined
+  })
+  const [isLoading] = useState(false)
 
-  const checkAuth = async () => {
-    try {
-      const token = localStorage.getItem('auth_token')
-      if (!token) {
-        setIsLoading(false)
-        return
-      }
-
-      const response = await fetch('/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          setUser(data.user)
-        } else {
-          localStorage.removeItem('auth_token')
-          localStorage.removeItem('user')
-        }
-      } else {
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('user')
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error)
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('user')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
-  // Auto-show modal for non-authenticated users
-  useEffect(() => {
-    if (!isLoading && !user) {
-      // Small delay to ensure the page has loaded
-      const timer = setTimeout(() => {
-        setAuthModalOpen(true)
-        setAuthModalMode('login')
-      }, 1000)
-
-      return () => clearTimeout(timer)
-    }
-  }, [isLoading, user])
-
-  const showAuthModal = (mode: 'login' | 'signup' = 'login') => {
-    setAuthModalMode(mode)
-    setAuthModalOpen(true)
+  const showAuthModal = () => {
+    // No-op - auth disabled
   }
 
   const hideAuthModal = () => {
-    setAuthModalOpen(false)
+    // No-op - auth disabled
   }
 
   const logout = () => {
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('user')
-    setUser(null)
+    // No-op - auth disabled
   }
 
-  const handleAuthSuccess = (userData: User) => {
-    setUser(userData)
-    hideAuthModal()
+  const checkAuth = async () => {
+    // No-op - auth disabled
   }
 
   const value: AuthContextType = {
     user,
     isLoading,
-    isAuthenticated: !!user,
-    isAuthModalOpen: authModalOpen,
+    isAuthenticated: true, // Always authenticated
+    isAuthModalOpen: false, // Never show modal
     showAuthModal,
     hideAuthModal,
     logout,
@@ -133,12 +82,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-        <AuthModal
-          isOpen={authModalOpen}
-          onClose={hideAuthModal}
-          defaultMode={authModalMode}
-          onAuthSuccess={handleAuthSuccess}
-        />
     </AuthContext.Provider>
   )
 }

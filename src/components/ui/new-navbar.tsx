@@ -88,39 +88,11 @@ export function NewNavbar() {
             })}
           </div>
 
-          {/* Desktop Auth Buttons */}
+          {/* Desktop User Info */}
           <div className="hidden md:flex items-center space-x-4">
-            {isAuthenticated ? (
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">
-                  Welcome, {user?.name || 'User'}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-white hover:bg-red-500 hover:shadow-md rounded-md transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={() => handleAuthClick('login')}
-                  className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-white hover:bg-blue-500 hover:shadow-md rounded-md transition-colors"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Sign In</span>
-                </button>
-                <button
-                  onClick={() => handleAuthClick('signup')}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1 shadow-md hover:shadow-lg"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Sign Up</span>
-                </button>
-              </>
-            )}
+            <span className="text-sm text-gray-600">
+              Welcome to Krishi Mithr
+            </span>
           </div>
 
           {/* Mobile menu button */}
@@ -167,39 +139,11 @@ export function NewNavbar() {
                 )
               })}
               
-              {/* Mobile Auth Section */}
+              {/* Mobile User Info */}
               <div className="pt-4 border-t border-gray-200">
-                {isAuthenticated ? (
-                  <div className="space-y-2">
-                    <div className="px-3 py-2 text-sm text-gray-500">
-                      Welcome, {user?.name || 'User'}
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-white hover:bg-red-500 hover:shadow-md transition-colors"
-                    >
-                      <LogOut className="w-5 h-5" />
-                      <span>Logout</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => handleAuthClick('login')}
-                      className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-white hover:bg-blue-500 hover:shadow-md transition-colors"
-                    >
-                      <LogIn className="w-5 h-5" />
-                      <span>Sign In</span>
-                    </button>
-                    <button
-                      onClick={() => handleAuthClick('signup')}
-                      className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium bg-green-600 text-white hover:bg-green-700 hover:shadow-lg transition-colors"
-                    >
-                      <UserPlus className="w-5 h-5" />
-                      <span>Sign Up</span>
-                    </button>
-                  </div>
-                )}
+                <div className="px-3 py-2 text-sm text-gray-500">
+                  Welcome to Krishi Mithr
+                </div>
               </div>
             </div>
           </motion.div>

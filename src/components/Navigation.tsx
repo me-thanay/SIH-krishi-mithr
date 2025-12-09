@@ -127,9 +127,8 @@ export default function Navigation({ className = '' }: NavigationProps) {
     }
   ]
 
-  const filteredItems = navigationItems.filter(item => 
-    item.public || user
-  )
+  // Always show all items - no auth required
+  const filteredItems = navigationItems
 
   const NavItem = ({ item, onClick }: { item: any, onClick?: () => void }) => (
     <button
@@ -179,41 +178,13 @@ export default function Navigation({ className = '' }: NavigationProps) {
               <span className="font-medium">Support</span>
             </button>
 
-            {/* User Section */}
-            {isLoading ? (
-              <div className="animate-pulse bg-gray-200 h-8 w-24 rounded ml-4"></div>
-            ) : user ? (
-              <div className="flex items-center gap-4 ml-4 pl-4 border-l border-gray-200">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {user.agriculturalProfile?.farmSize} • {user.agriculturalProfile?.state}
-                  </p>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors group"
-                >
-                  <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  <span className="text-sm font-medium">Logout</span>
-                </button>
+            {/* User Section - Always show guest user */}
+            <div className="flex items-center gap-4 ml-4 pl-4 border-l border-gray-200">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">Guest User</p>
+                <p className="text-xs text-gray-500">Welcome to Krishi Mithr</p>
               </div>
-            ) : (
-              <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
-                <button
-                  onClick={() => window.location.href = '/auth/login'}
-                  className="px-4 py-2 text-gray-600 hover:text-green-600 font-medium transition-colors"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => window.location.href = '/auth/signup'}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  Sign Up
-                </button>
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Mobile menu button */}
@@ -254,45 +225,13 @@ export default function Navigation({ className = '' }: NavigationProps) {
                 </div>
               </button>
 
-              {/* User Section */}
-              {user ? (
-                <div className="pt-4 border-t border-gray-200">
-                  <div className="px-4 py-2">
-                    <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {user.agriculturalProfile?.farmSize} • {user.agriculturalProfile?.state}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors w-full"
-                  >
-                    <LogOut className="w-5 h-5" />
-                    <span className="font-medium">Logout</span>
-                  </button>
+              {/* User Section - Always show guest */}
+              <div className="pt-4 border-t border-gray-200">
+                <div className="px-4 py-2">
+                  <p className="text-sm font-medium text-gray-900">Guest User</p>
+                  <p className="text-xs text-gray-500">Welcome to Krishi Mithr</p>
                 </div>
-              ) : (
-                <div className="pt-4 border-t border-gray-200 space-y-2">
-                  <button
-                    onClick={() => {
-                      window.location.href = '/auth/login'
-                      setIsMobileMenuOpen(false)
-                    }}
-                    className="w-full px-4 py-2 text-gray-600 hover:text-green-600 font-medium transition-colors"
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    onClick={() => {
-                      window.location.href = '/auth/signup'
-                      setIsMobileMenuOpen(false)
-                    }}
-                    className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                  >
-                    Sign Up
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         )}

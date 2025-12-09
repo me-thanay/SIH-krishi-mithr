@@ -1,12 +1,16 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from "react"
-import Link from "next/link"
+import { useEffect } from "react"
 import { useRouter } from "next/router"
-import { Sprout, Camera, Phone } from "lucide-react"
-import { NewNavbar } from "../../src/components/ui/new-navbar"
 
 export default function SignupPage() {
+  const router = useRouter()
+  
+  useEffect(() => {
+    router.push('/')
+  }, [router])
+  
+  return null
   const [formData, setFormData] = useState({
     phone: ""
   })

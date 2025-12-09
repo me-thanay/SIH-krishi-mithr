@@ -475,9 +475,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-          {/* Comprehensive Sensor Data from MQTT/MongoDB */}
-          {sensorData ? (
-          <>
+            {/* Comprehensive Sensor Data from MQTT/MongoDB */}
+            {sensorData ? (
+              <>
               {/* Device / MQTT status banner */}
               <div
                 className={`rounded-lg border px-4 py-3 text-sm flex items-center justify-between ${
@@ -1281,16 +1281,15 @@ export default function DashboardPage() {
                   })}
                 </div>
               </div>
+              </>
+            ) : (
+              <div className="bg-white rounded-lg shadow-sm border p-6 text-center text-gray-600">
+                No live sensor data available. Ensure your MQTT worker is running and devices are publishing data.
+              </div>
             )}
-          </>
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm border p-6 text-center text-gray-600">
-              No live sensor data available. Ensure your MQTT worker is running and devices are publishing data.
-            </div>
-          )}
-        </div>
+          </div>
 
-        {/* Right Column */}
+          {/* Right Column */}
           <div className="space-y-6">
             {/* Farm Profile (disabled) */}
             <div className="bg-white rounded-lg shadow-sm border p-6">

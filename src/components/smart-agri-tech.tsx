@@ -29,7 +29,6 @@ import { FloatingElement } from "./ui/floating-element"
 import { ScrollAnimationContainer } from "./ui/scroll-animation-container"
 import { VoiceAssistant } from "./ui/voice-assistant"
 import { MarketPrices } from "./ui/market-prices"
-import { SoilDetection } from "./ui/soil-detection"
 import { cn } from "@/lib/utils"
 import { TubelightNavBarDemo } from "./ui/tubelight-navbar-demo"
 import { useAuth } from '@/contexts/AuthContext'
@@ -50,7 +49,7 @@ const SmartAgriTechComponent = () => {
     {
       icon: <Leaf className="w-6 h-6" />,
       title: "Soil Health & Fertilizer Recommendations",
-      description: "Advanced soil analysis with precise fertilizer recommendations to optimize crop yield and maintain soil health."
+      description: "Advanced soil tips and fertilizer guidance to optimize crop yield and maintain soil health."
     },
     {
       icon: <Droplets className="w-6 h-6" />,
@@ -457,39 +456,6 @@ const SmartAgriTechComponent = () => {
                   <p className="opacity-90">Direct farmer support via familiar platform</p>
                 </motion.div>
               </div>
-            </motion.div>
-          </div>
-        </section>
-      </ScrollAnimationContainer>
-
-      {/* Soil Analysis Section */}
-      <ScrollAnimationContainer>
-        <section id="soil" className="py-20 px-4 bg-gradient-to-br from-green-50 to-blue-50">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                 AI-Powered Soil Analysis
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Upload a soil image to get comprehensive analysis including soil type, pH levels, 
-                nutrient content, crop suitability, fertilizer recommendations, and pest prevention strategies.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              viewport={{ once: true }}
-              className="flex justify-center"
-            >
-              <SoilDetection className="max-w-4xl w-full" />
             </motion.div>
           </div>
         </section>

@@ -46,16 +46,6 @@ interface UserData {
   }
 }
 
-interface WeatherData {
-  temperature: number
-  humidity: number
-  condition: string
-  farming_conditions: {
-    irrigation_needed: boolean
-    good_growing: boolean
-    planting_suitable: boolean
-  }
-}
 
 interface MarketData {
   crop: string
@@ -101,7 +91,6 @@ interface SensorData {
 
 export default function DashboardPage() {
   const [userData, setUserData] = useState<UserData | null>(null)
-  const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [subsidies, setSubsidies] = useState<SubsidyData[]>([])
   const [sensorData, setSensorData] = useState<SensorData | null>(null)
@@ -303,9 +292,6 @@ export default function DashboardPage() {
     setIsLoading(true)
     
     try {
-      // Skip weather fetch (disabled)
-      setWeatherData(null)
-
       // Fetch market prices for user's crops
       const marketPromises = user.agriculturalProfile.crops.map(crop =>
         fetch(`/api/agmarknet-prices?crop=${encodeURIComponent(crop)}`)
@@ -390,37 +376,18 @@ export default function DashboardPage() {
   }
 
   const getFarmingRecommendations = () => {
-    if (!displayUserData || !weatherData) return []
+    if (!displayUserData) return []
 
     const recommendations = []
 
-    // Weather-based recommendations
-    if (weatherData.farming_conditions.irrigation_needed) {
-      recommendations.push({
-        type: "warning",
-        icon: AlertTriangle,
-        title: "Irrigation Required",
-        message: "Low humidity detected. Consider irrigating your fields."
-      })
-    }
-
-    if (weatherData.farming_conditions.good_growing) {
-      recommendations.push({
-        type: "success",
-        icon: CheckCircle,
-        title: "Excellent Growing Conditions",
-        message: "Current weather is perfect for your crops."
-      })
-    }
-
     // Crop-specific recommendations
     displayUserData.agriculturalProfile.crops.forEach(crop => {
-      if (crop === "Rice" && weatherData.temperature > 30) {
+      if (crop === "Rice") {
         recommendations.push({
-          type: "warning",
-          icon: AlertTriangle,
-          title: "Rice Heat Stress",
-          message: "High temperature may affect rice flowering. Ensure adequate water."
+          type: "info",
+          icon: Leaf,
+          title: "Rice Farming Tips",
+          message: "Ensure adequate water supply and proper drainage for rice cultivation."
         })
       }
     })
@@ -671,33 +638,6 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Weather Card */}
-            {weatherData && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                    <CloudRain className="w-5 h-5 mr-2 text-blue-600" />
-                    Weather for {displayUserData.agriculturalProfile.location}
-                  </h2>
-                  <span className="text-sm text-gray-500">Real-time</span>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-900">{weatherData.temperature}°C</p>
-                    <p className="text-sm text-gray-600">Temperature</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-900">{weatherData.humidity}%</p>
-                    <p className="text-sm text-gray-600">Humidity</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-semibold text-gray-900">{weatherData.condition}</p>
-                    <p className="text-sm text-gray-600">Condition</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
           {/* Comprehensive Sensor Data from MQTT/MongoDB */}
           {sensorData ? (
           <>

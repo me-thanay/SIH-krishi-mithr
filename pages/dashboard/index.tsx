@@ -39,16 +39,6 @@ interface UserData {
   }
 }
 
-interface WeatherData {
-  temperature: number
-  humidity: number
-  condition: string
-  farming_conditions: {
-    irrigation_needed: boolean
-    good_growing: boolean
-    planting_suitable: boolean
-  }
-}
 
 interface MarketData {
   crop: string
@@ -94,7 +84,6 @@ interface SensorData {
 
 export default function DashboardPage() {
   const [userData, setUserData] = useState<UserData | null>(null)
-  const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [subsidies, setSubsidies] = useState<SubsidyData[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -214,30 +203,6 @@ export default function DashboardPage() {
       // Generate personalized subsidies (this always works)
       const personalizedSubsidies = generateSubsidies(profile)
       setSubsidies(personalizedSubsidies)
-
-      // Try to fetch weather data (optional)
-      try {
-        const weatherResponse = await fetch(`/api/weather?city=${encodeURIComponent(user.agriculturalProfile.location)}&type=current`)
-        if (weatherResponse.ok) {
-          const weather = await weatherResponse.json()
-          if (weather.success && weather.data?.current) {
-            setWeatherData(weather.data.current)
-          }
-        }
-      } catch (weatherError) {
-        console.log('Weather API not available, using mock data')
-        // Set mock weather data
-        setWeatherData({
-          temperature: 28,
-          humidity: 65,
-          condition: 'Partly Cloudy',
-          farming_conditions: {
-            irrigation_needed: false,
-            good_growing: true,
-            planting_suitable: true
-          }
-        })
-      }
 
       // Try to fetch market prices (optional)
       try {
@@ -360,38 +325,17 @@ export default function DashboardPage() {
       ? (userData.agriculturalProfile.crops as string[])
       : (JSON.parse(userData.agriculturalProfile.crops || '[]') as string[])
 
-    // Weather-based recommendations
-    if (weatherData) {
-      if (weatherData.farming_conditions.irrigation_needed) {
+    // Crop-specific recommendations
+    crops.forEach((crop: string) => {
+      if (crop === "Rice") {
         recommendations.push({
-          type: "warning",
-          icon: AlertTriangle,
-          title: "Irrigation Required",
-          message: "Low humidity detected. Consider irrigating your fields."
+          type: "info",
+          icon: Leaf,
+          title: "Rice Farming Tips",
+          message: "Ensure adequate water supply and proper drainage for rice cultivation."
         })
       }
-
-      if (weatherData.farming_conditions.good_growing) {
-        recommendations.push({
-          type: "success",
-          icon: CheckCircle,
-          title: "Excellent Growing Conditions",
-          message: "Current weather is perfect for your crops."
-        })
-      }
-
-      // Crop-specific recommendations
-      crops.forEach((crop: string) => {
-        if (crop === "Rice" && weatherData.temperature > 30) {
-          recommendations.push({
-            type: "warning",
-            icon: AlertTriangle,
-            title: "Rice Heat Stress",
-            message: "High temperature may affect rice flowering. Ensure adequate water."
-          })
-        }
-      })
-    }
+    })
 
     // Soil recommendations
     if (userData.agriculturalProfile.soilType === "Clay") {
@@ -486,32 +430,6 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Weather Card */}
-            {weatherData && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                    <CloudRain className="w-5 h-5 mr-2 text-blue-600" />
-                    Weather for {userData.agriculturalProfile.location}
-                  </h2>
-                  <span className="text-sm text-gray-500">Real-time</span>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-900">{weatherData.temperature}°C</p>
-                    <p className="text-sm text-gray-600">Temperature</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-900">{weatherData.humidity}%</p>
-                    <p className="text-sm text-gray-600">Humidity</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-semibold text-gray-900">{weatherData.condition}</p>
-                    <p className="text-sm text-gray-600">Condition</p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Sensor Data from MQTT/MongoDB */}
             {sensorData && (

@@ -5,10 +5,15 @@ import os
 import requests
 import json
 from dotenv import load_dotenv
+from collections import deque
+from datetime import datetime
 
 load_dotenv()
 
 router = APIRouter()
+
+# In-memory store for recent WhatsApp replies (resets on restart)
+recent_replies = deque(maxlen=50)
 
 async def send_whatsapp_message(phone_number: str, message: str) -> bool:
     """Send message to WhatsApp using WhatsApp Business API"""
@@ -102,11 +107,14 @@ async def whatsapp_webhook(request: Request) -> JSONResponse:
                     formatted_phone = f"+{from_wa}" if not from_wa.startswith("+") else from_wa
                     await send_whatsapp_message(formatted_phone, reply)
                 
-                response_messages.append({
+                reply_obj = {
                     "to": from_wa,
                     "message": reply,
-                    "type": "text"
-                })
+                    "type": "text",
+                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                }
+                response_messages.append(reply_obj)
+                recent_replies.appendleft(reply_obj)
         
         return JSONResponse({"status": "received", "replies": response_messages})
         
@@ -186,4 +194,13 @@ async def get_webhook_status():
             "Soil analysis",
             "Market prices"
         ]
+    }
+
+@router.get("/whatsapp/recent")
+async def get_recent_whatsapp_replies():
+    """Expose recent WhatsApp replies for the web dashboard (non-persistent)"""
+    return {
+        "status": "ok",
+        "count": len(recent_replies),
+        "replies": list(recent_replies)
     }

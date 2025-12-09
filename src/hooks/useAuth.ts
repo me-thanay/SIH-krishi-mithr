@@ -30,138 +30,39 @@ export function useAuth(): AuthState & AuthActions {
     user: null,
     agriculturalProfile: null,
     userCrops: [],
-    isLoading: true,
-    isAuthenticated: false,
+    isLoading: false,
+    isAuthenticated: true,
     error: null
   })
 
   // Initialize auth state on mount
   useEffect(() => {
-    initializeAuth();
+    // Auth disabled: mark as authenticated immediately
+    setState(prev => ({ ...prev, isAuthenticated: true, isLoading: false }))
   }, [])
 
   const initializeAuth = async () => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }))
-      
-      if (authUtils.isAuthenticated()) {
-        const response = await authAPI.getProfile()
-        if (response.success && response.user) {
-          setState(prev => ({
-            ...prev,
-            user: response.user!,
-            agriculturalProfile: response.user!.agriculturalProfile || null,
-            userCrops: response.user!.userCrops || [],
-            isAuthenticated: true,
-            isLoading: false
-          }))
-        } else {
-          // Invalid token, clear it
-          tokenManager.removeToken()
-          setState(prev => ({
-            ...prev,
-            isAuthenticated: false,
-            isLoading: false
-          }))
-        }
-      } else {
-        setState(prev => ({
-          ...prev,
-          isAuthenticated: false,
-          isLoading: false
-        }))
-      }
-    } catch (error) {
-      console.error('Auth initialization error:', error)
-      setState(prev => ({
-        ...prev,
-        error: 'Failed to initialize authentication',
-        isAuthenticated: false,
-        isLoading: false
-      }))
-    }
+    // Auth disabled: no-op
+    setState(prev => ({ ...prev, isAuthenticated: true, isLoading: false }))
   }
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }))
-      
-      const response = await authAPI.login(email, password)
-      
-      if (response.success && response.user) {
-        setState(prev => ({
-          ...prev,
-          user: response.user!,
-          isAuthenticated: true,
-          isLoading: false
-        }))
-        
-        // Refresh profile to get agricultural data
-        await refreshProfile()
-        return true
-      } else {
-        setState(prev => ({
-          ...prev,
-          error: response.error || 'Login failed',
-          isLoading: false
-        }))
-        return false
-      }
-    } catch (error) {
-      console.error('Login error:', error)
-      setState(prev => ({
-        ...prev,
-        error: 'Login failed. Please check your credentials.',
-        isLoading: false
-      }))
-      return false
-    }
+  const login = useCallback(async (_email: string, _password: string): Promise<boolean> => {
+    setState(prev => ({ ...prev, isAuthenticated: true, isLoading: false, error: null }))
+    return true
   }, [])
 
-  const signup = useCallback(async (userData: any): Promise<boolean> => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }))
-      
-      const response = await authAPI.signup(userData)
-      
-      if (response.success && response.user) {
-        setState(prev => ({
-          ...prev,
-          user: response.user!,
-          isAuthenticated: true,
-          isLoading: false
-        }))
-        
-        // Refresh profile to get agricultural data
-        await refreshProfile()
-        return true
-      } else {
-        setState(prev => ({
-          ...prev,
-          error: response.error || 'Signup failed',
-          isLoading: false
-        }))
-        return false
-      }
-    } catch (error) {
-      console.error('Signup error:', error)
-      setState(prev => ({
-        ...prev,
-        error: 'Signup failed. Please try again.',
-        isLoading: false
-      }))
-      return false
-    }
+  const signup = useCallback(async (_userData: any): Promise<boolean> => {
+    setState(prev => ({ ...prev, isAuthenticated: true, isLoading: false, error: null }))
+    return true
   }, [])
 
   const logout = useCallback(() => {
-    authAPI.logout()
     setState({
       user: null,
       agriculturalProfile: null,
       userCrops: [],
       isLoading: false,
-      isAuthenticated: false,
+      isAuthenticated: true,
       error: null
     })
   }, [])

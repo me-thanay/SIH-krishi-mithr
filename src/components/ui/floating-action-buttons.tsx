@@ -169,8 +169,17 @@ export function FloatingActionButtons({ className }: FloatingActionButtonsProps)
   }
 
   const fetchWeatherData = async (location: string) => {
-    const response = await fetch(`/api/weather?city=${location}&type=current`)
-    return response.json()
+    // Weather API is disabled - return mock data
+    return {
+      success: true,
+      data: {
+        current: {
+          temperature: { current: 28 },
+          humidity: 65,
+          farming_conditions: { good_growing: true }
+        }
+      }
+    }
   }
 
   const fetchPriceData = async (crop: string) => {

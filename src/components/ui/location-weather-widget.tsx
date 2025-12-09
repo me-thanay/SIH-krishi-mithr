@@ -173,24 +173,39 @@ export const LocationWeatherWidget = ({
   }
 
   const fetchWeatherData = async (city: string) => {
+    // Weather API is disabled - use mock data directly
     setIsLoading(true)
     setError(null)
     
-    try {
-      const response = await fetch(`/api/weather?city=${encodeURIComponent(city)}&type=current`)
-      const data = await response.json()
-      
-      if (data.success) {
-        setWeatherData(data.data)
-      } else {
-        setError(data.error || 'Failed to fetch weather data')
+    // Use mock data directly (no API call)
+    setWeatherData({
+      current: {
+        temperature: {
+          current: 28,
+          feels_like: 30,
+          min: 25,
+          max: 32
+        },
+        humidity: 65,
+        wind: {
+          speed: 3.5,
+          direction: 180
+        },
+        weather: {
+          main: 'Clear',
+          description: 'Weather API disabled',
+          icon: '01d'
+        },
+        farming_conditions: {
+          irrigation_needed: false,
+          crop_stress: false,
+          good_growing: true,
+          planting_suitable: true,
+          harvesting_suitable: true
+        }
       }
-    } catch (error) {
-      setError('Failed to fetch weather data')
-      console.error('Weather fetch error:', error)
-    } finally {
-      setIsLoading(false)
-    }
+    })
+    setIsLoading(false)
   }
 
   const handleCityChange = (city: string) => {

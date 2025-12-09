@@ -41,28 +41,22 @@ export const WeatherForecast = ({
   const [error, setError] = useState<string | null>(null)
 
   const fetchForecast = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      let apiBase =
-        process.env.NEXT_PUBLIC_API_URL ||
-        (typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-          ? 'http://localhost:8000'
-          : '')
-      // Remove trailing slash to avoid double slashes
-      apiBase = apiBase.replace(/\/+$/, '')
-      const response = await fetch(`${apiBase}/api/weather/forecast?city=${city}&days=${days}`)
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch forecast data')
-      }
-      
-      const data = await response.json()
-      setForecast(data.forecast || [])
-    } catch (err) {
-      console.error('Forecast fetch error:', err)
+    // Weather API is disabled - use mock data directly
+    setLoading(true)
+    setError(null)
+    
+    // Use mock forecast data (no API call)
+    const mockForecast = Array.from({ length: days }, (_, i) => ({
+      date: new Date(Date.now() + i * 24 * 60 * 60 * 1000),
+      temperature: { min: 25, max: 32 },
+      humidity: 65,
+      condition: 'Clear',
+      icon: '01d'
+    }))
+    
+    setForecast(mockForecast)
+    setLoading(false)
+  }
       setError('Unable to fetch forecast data')
       
       // Fallback to mock data

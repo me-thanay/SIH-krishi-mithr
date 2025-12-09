@@ -65,49 +65,27 @@ export const WeatherWidget = ({
   const [showLocationDetector, setShowLocationDetector] = useState(false)
 
   const fetchWeather = async (targetCity?: string) => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const cityToUse = targetCity || currentCity
-      let apiBase =
-        process.env.NEXT_PUBLIC_API_URL ||
-        (typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-          ? 'http://localhost:8000'
-          : '')
-      // Remove trailing slash to avoid double slashes
-      apiBase = apiBase.replace(/\/+$/, '')
-      const response = await fetch(`${apiBase}/api/weather/current?city=${cityToUse}`)
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch weather data')
-      }
-      
-      const data = await response.json()
-      setWeather(data)
-      setLastUpdated(new Date())
-    } catch (err) {
-      console.error('Weather fetch error:', err)
-      setError('Unable to fetch weather data')
-      
-      // Fallback to mock data
-      setWeather({
-        city: targetCity || currentCity,
-        temperature: 28,
-        humidity: 65,
-        wind_speed: 12,
-        description: "Partly cloudy",
-        recommendation: "Good conditions for crop growth. Consider light irrigation.",
-        feels_like: 30,
-        pressure: 1013,
-        visibility: 10,
-        uv_index: 6
-      })
-      setLastUpdated(new Date())
-    } finally {
-      setLoading(false)
-    }
+    // Weather API is disabled - use mock data directly
+    setLoading(true)
+    setError(null)
+    
+    const cityToUse = targetCity || currentCity
+    
+    // Use mock data directly (no API call)
+    setWeather({
+      city: cityToUse,
+      temperature: 28,
+      humidity: 65,
+      wind_speed: 12,
+      description: "Partly cloudy",
+      recommendation: "Good conditions for crop growth. Consider light irrigation.",
+      feels_like: 30,
+      pressure: 1013,
+      visibility: 10,
+      uv_index: 6
+    })
+    setLastUpdated(new Date())
+    setLoading(false)
   }
 
   const handleLocationDetected = (locationData: LocationData) => {

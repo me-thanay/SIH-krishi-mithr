@@ -1281,7 +1281,6 @@ export default function DashboardPage() {
                   })}
                 </div>
               </div>
-              </>
             ) : (
               <div className="bg-white rounded-lg shadow-sm border p-6 text-center text-gray-600">
                 No live sensor data available. Ensure your MQTT worker is running and devices are publishing data.

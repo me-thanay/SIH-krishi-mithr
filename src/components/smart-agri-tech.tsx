@@ -256,10 +256,12 @@ const SmartAgriTechComponent = () => {
               transition={{ duration: 0.6, delay: 1.3 }}
               className="mt-6 flex justify-start"
             >
-              <LocationWeatherWidget 
-                showForecast={false}
-                className="max-w-sm w-full" 
-              />
+              <div className="max-w-sm w-full bg-white/10 backdrop-blur-sm rounded-xl p-4 text-left">
+                <h3 className="text-lg font-semibold mb-2 text-white">Irrigation tips</h3>
+                <p className="text-sm text-white/80">
+                  Use soil moisture data and recent rainfall to plan efficient irrigation. Avoid overwatering and schedule in early mornings or late evenings to reduce evaporation.
+                </p>
+              </div>
             </motion.div>
           </motion.div>
 

@@ -451,7 +451,7 @@ export default function DashboardPage() {
       landArea: '-',
       governmentSchemes: [],
     },
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">

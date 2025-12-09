@@ -540,7 +540,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
 
                         {faceImage && !isCapturing && (
                           <img
-                            src={faceImage}
+                            src={faceImage ?? undefined}
                             alt="Captured face"
                             className="w-full h-full object-cover"
                           />
@@ -666,7 +666,14 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSucces
 
                       {signupFaceImage && !signupIsCapturing && (
                         <img
-                          src={signupFaceImage}
+                          src={signupFaceImage ?? undefined}
+                          alt="Captured face"
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      {signupFaceImage && !signupIsCapturing && (
+                        <img
+                          src={signupFaceImage ?? undefined}
                           alt="Captured face"
                           className="w-full h-full object-cover"
                         />

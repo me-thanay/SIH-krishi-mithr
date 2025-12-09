@@ -1032,6 +1032,9 @@ export default function DashboardPage() {
                       )}
                     </button>
                   </div>
+                  <div className="mt-3 text-xs text-gray-600">
+                    Commands go to `/api/mqtt/control` with `{ command: "motor:on/off" }`. Status updates come from `sensorData.motor_on` / `motor_state`.
+                  </div>
                 </div>
 
                 {/* HV Generator Control (Relay 2) */}

@@ -103,71 +103,13 @@ export default function DashboardPage() {
   const [isHistoricalDisplay, setIsHistoricalDisplay] = useState(false)
 
   useEffect(() => {
-    // Check for authentication - login is mandatory
-    const token = localStorage.getItem('auth_token')
-    const user = localStorage.getItem('user')
-    
-    if (!token || !user) {
-      // Redirect to login if not authenticated
-      window.location.href = '/auth/login'
-      return
-    }
-
-    try {
-      const parsedUser = JSON.parse(user)
-      setUserData(parsedUser)
-      
-      // Verify token and fetch fresh user data
-      fetchUserProfile()
-      
-      // Fetch personalized data based on user profile
-      fetchPersonalizedData(parsedUser)
-    } catch (e) {
-      console.error('Error parsing user data:', e)
-      // Clear invalid data and redirect to login
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('user')
-      window.location.href = '/auth/login'
-    }
-    
-    // Fetch sensor data
+    // Auth disabled: skip checks, load generic data
     fetchLatestSensorData()
   }, [])
 
   const fetchUserProfile = async () => {
-    try {
-      const token = localStorage.getItem('auth_token')
-      if (!token) {
-        window.location.href = '/auth/login'
-        return
-      }
-
-      const response = await fetch('/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success && data.user) {
-          setUserData(data.user)
-          // Update localStorage with fresh data
-          localStorage.setItem('user', JSON.stringify(data.user))
-        }
-      } else {
-        // Token invalid, redirect to login
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('user')
-        window.location.href = '/auth/login'
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error)
-      // On error, redirect to login
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('user')
-      window.location.href = '/auth/login'
-    }
+    // Auth disabled: no-op
+    return
   }
 
   const fetchLatestSensorData = async (isIncremental: boolean = false) => {
@@ -587,21 +529,7 @@ export default function DashboardPage() {
     )
   }
 
-  if (!userData) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600 mb-4">Please log in to access your dashboard.</p>
-          <a href="/auth/login" className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
-            Go to Login
-          </a>
-        </div>
-      </div>
-    )
-  }
-
-  // Use userData directly (login is mandatory)
+  // No auth: allow dashboard even without user data
   const displayUserData = userData
 
   const recommendations = displayUserData ? getFarmingRecommendations() : []

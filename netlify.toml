@@ -13,3 +13,9 @@
   NIXPACKS_NO_PYTHON = "1"
   # Use explicit buildpack
   NIXPACKS_CONFIG_FILE = ".nixpacks.toml"
+
+# Redirect legacy auth routes to home to avoid 404s
+[[redirects]]
+  from = "/auth/*"
+  to = "/"
+  status = 301

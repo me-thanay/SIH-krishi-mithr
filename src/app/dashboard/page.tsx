@@ -453,8 +453,6 @@ export default function DashboardPage() {
     },
   }
 
-  const recommendations: any[] = []
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}

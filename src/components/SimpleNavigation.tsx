@@ -62,14 +62,6 @@ export default function SimpleNavigation() {
             </button>
             
             <button
-              onClick={() => window.location.href = '/soil-analysis'}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg transition-colors group"
-            >
-              <FileText className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <span className="font-medium">Soil Analysis</span>
-            </button>
-            
-            <button
               onClick={() => window.location.href = '/profile'}
               className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg transition-colors group"
             >
@@ -78,7 +70,12 @@ export default function SimpleNavigation() {
             </button>
             
             <button
-              onClick={() => window.open('https://wa.me/7670997498?text=Hello, I need help with Krishi Mithr', '_blank')}
+              onClick={() => {
+                const phoneNumber = '917670997498' // +91 76709 97498 without + and spaces
+                const message = 'kissan'
+                const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+                window.open(whatsappUrl, '_blank')
+              }}
               className="flex items-center gap-2 px-4 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors group"
             >
               <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />

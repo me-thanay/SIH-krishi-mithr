@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
 import { 
   Sprout, 
+  Cloud, 
   Camera, 
   TrendingUp, 
   Mic, 
@@ -19,8 +20,6 @@ import {
   Heart,
   Award,
   Smartphone,
-  Droplets,
-  Cloud,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Card } from "./ui/card"
@@ -28,7 +27,9 @@ import { FeatureCard } from "./ui/feature-card"
 import { FloatingElement } from "./ui/floating-element"
 import { ScrollAnimationContainer } from "./ui/scroll-animation-container"
 import { VoiceAssistant } from "./ui/voice-assistant"
-import { MarketPrices } from "./ui/market-prices"
+import { WeatherWidget } from "./ui/weather-widget"
+import { WeatherForecast } from "./ui/weather-forecast"
+import { LocationWeatherWidget } from "./ui/location-weather-widget"
 import { cn } from "@/lib/utils"
 import { TubelightNavBarDemo } from "./ui/tubelight-navbar-demo"
 import { useAuth } from '@/contexts/AuthContext'
@@ -49,12 +50,12 @@ const SmartAgriTechComponent = () => {
     {
       icon: <Leaf className="w-6 h-6" />,
       title: "Soil Health & Fertilizer Recommendations",
-      description: "Advanced soil tips and fertilizer guidance to optimize crop yield and maintain soil health."
+      description: "Advanced soil analysis with precise fertilizer recommendations to optimize crop yield and maintain soil health."
     },
     {
-      icon: <Droplets className="w-6 h-6" />,
-      title: "Irrigation & Water Insights",
-      description: "Optimize irrigation schedules and water usage with data-driven guidance tailored for your crops."
+      icon: <Cloud className="w-6 h-6" />,
+      title: "Weather Alerts & Predictive Insights",
+      description: "Stay ahead with accurate weather forecasts, severe weather alerts, and climate-based farming insights."
     },
     {
       icon: <Camera className="w-6 h-6" />,
@@ -256,12 +257,10 @@ const SmartAgriTechComponent = () => {
               transition={{ duration: 0.6, delay: 1.3 }}
               className="mt-6 flex justify-start"
             >
-              <div className="max-w-sm w-full bg-white/10 backdrop-blur-sm rounded-xl p-4 text-left">
-                <h3 className="text-lg font-semibold mb-2 text-white">Irrigation tips</h3>
-                <p className="text-sm text-white/80">
-                  Use soil moisture data and recent rainfall to plan efficient irrigation. Avoid overwatering and schedule in early mornings or late evenings to reduce evaporation.
-                </p>
-              </div>
+              <LocationWeatherWidget 
+                showForecast={false}
+                className="max-w-sm w-full" 
+              />
             </motion.div>
           </motion.div>
 
@@ -344,7 +343,11 @@ const SmartAgriTechComponent = () => {
                 Get instant agricultural support through WhatsApp. Our AI assistant is available 24/7 to help with your farming queries.
               </p>
               <Button 
-                onClick={() => window.open('https://wa.me/7670997498?text=Hello! I need agricultural support.', '_blank')}
+                onClick={() => {
+                  const phoneNumber = '917670997498' // +91 76709 97498
+                  const message = 'kissan'
+                  window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank')
+                }}
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 mx-auto"
               >
                 <MessageCircle size={20} />
@@ -385,7 +388,7 @@ const SmartAgriTechComponent = () => {
                   delay={index * 0.1}
                   requiresAuth={index < 3} // First 3 features require auth
                   actionText={index < 3 ? "Try Now" : undefined}
-                  actionUrl={index >= 3 ? (index === 3 ? '/weather' : index === 4 ? '/market-prices' : '/soil-analysis') : undefined}
+                  actionUrl={index >= 3 ? (index === 3 ? '/weather' : '/market-prices') : undefined}
                 />
               ))}
             </div>
@@ -461,9 +464,9 @@ const SmartAgriTechComponent = () => {
         </section>
       </ScrollAnimationContainer>
 
-      {/* Market Intelligence Section */}
+      {/* Live Weather Section */}
       <ScrollAnimationContainer>
-        <section id="market" className="py-20 px-4 bg-gradient-to-br from-yellow-50 to-orange-50">
+        <section id="weather" className="py-20 px-4 bg-gradient-to-br from-blue-50 to-green-50">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -473,27 +476,24 @@ const SmartAgriTechComponent = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                 Market Intelligence
+                Live Weather Updates
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Stay updated with real-time market prices and trends. Make informed selling 
-                decisions with location-based price data and market forecasting.
+                Get real-time weather data and agricultural recommendations to make 
+                informed farming decisions. Monitor conditions and plan your activities accordingly.
               </p>
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              viewport={{ once: true }}
-              className="flex justify-center"
-            >
-              <MarketPrices 
-                location="Punjab" 
-                autoDetectLocation={true}
-                className="max-w-4xl w-full"
-              />
-            </motion.div>
+            <div className="grid lg:grid-cols-1 gap-8">
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+                viewport={{ once: true }}
+              >
+                <LocationWeatherWidget showForecast={true} />
+              </motion.div>
+            </div>
           </div>
         </section>
       </ScrollAnimationContainer>
@@ -559,7 +559,7 @@ const SmartAgriTechComponent = () => {
               </div>
             </div>
             <Button 
-              onClick={() => window.open('https://wa.me/7670997498?text=Hello! I need agricultural support.', '_blank')}
+              onClick={() => window.open('https://wa.me/7670997498?text=kissan%20I%20need%20agricultural%20support', '_blank')}
               className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg text-lg"
             >
               <MessageCircle size={24} className="mr-2" />

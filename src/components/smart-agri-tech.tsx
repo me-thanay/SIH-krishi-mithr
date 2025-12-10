@@ -87,11 +87,37 @@ const SmartAgriTechComponent = () => {
     return () => clearInterval(interval)
   }, [features.length])
 
-  const handleWhatsAppClick = () => {
+  const handleWhatsAppClick = async () => {
     const phoneNumber = "7670997498"
     const message = "kissan"
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
-    window.open(whatsappUrl, '_blank')
+    
+    try {
+      // Try to send via WhatsApp Business API first
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber: phoneNumber,
+          message: message
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        alert('Message sent successfully to WhatsApp!')
+      } else {
+        // Fallback to opening WhatsApp if API fails
+        const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`
+        window.open(whatsappUrl, '_blank')
+      }
+    } catch (error) {
+      // Fallback to opening WhatsApp if API fails
+      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`
+      window.open(whatsappUrl, '_blank')
+    }
   }
 
 
@@ -343,10 +369,25 @@ const SmartAgriTechComponent = () => {
                 Get instant agricultural support through WhatsApp. Our AI assistant is available 24/7 to help with your farming queries.
               </p>
               <Button 
-                onClick={() => {
-                  const phoneNumber = '917670997498' // +91 76709 97498
+                onClick={async () => {
+                  const phoneNumber = '7670997498'
                   const message = 'kissan'
-                  window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank')
+                  
+                  try {
+                    const response = await fetch('/api/whatsapp/send', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ phoneNumber, message })
+                    })
+                    const data = await response.json()
+                    if (response.ok && data.success) {
+                      alert('Message sent successfully!')
+                    } else {
+                      window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank')
+                    }
+                  } catch (error) {
+                    window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank')
+                  }
                 }}
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 mx-auto"
               >

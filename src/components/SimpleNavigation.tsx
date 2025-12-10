@@ -70,11 +70,39 @@ export default function SimpleNavigation() {
             </button>
             
             <button
-              onClick={() => {
-                const phoneNumber = '917670997498' // +91 76709 97498 without + and spaces
+              onClick={async () => {
+                const phoneNumber = '7670997498' // +91 76709 97498
                 const message = 'kissan'
-                const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
-                window.open(whatsappUrl, '_blank')
+                
+                try {
+                  // Try to send via WhatsApp Business API first
+                  const response = await fetch('/api/whatsapp/send', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      phoneNumber: phoneNumber,
+                      message: message
+                    })
+                  })
+
+                  const data = await response.json()
+
+                  if (response.ok && data.success) {
+                    alert('Message sent successfully to WhatsApp!')
+                  } else {
+                    // Fallback to opening WhatsApp if API fails
+                    console.log('WhatsApp API not available, opening WhatsApp app')
+                    const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`
+                    window.open(whatsappUrl, '_blank')
+                  }
+                } catch (error) {
+                  // Fallback to opening WhatsApp if API fails
+                  console.error('Error sending WhatsApp message:', error)
+                  const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`
+                  window.open(whatsappUrl, '_blank')
+                }
               }}
               className="flex items-center gap-2 px-4 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors group"
             >

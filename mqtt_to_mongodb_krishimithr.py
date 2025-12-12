@@ -19,7 +19,11 @@ import time
 load_dotenv()
 
 # MongoDB Atlas connection
-MONGODB_URI = os.getenv("DATABASE_URL", "mongodb+srv://trythanay_db_user:o7ldNkPkv99gx8dH@cluster0.gkbyivi.mongodb.net/krishi-mithr?appName=Cluster0")
+# Default now uses provided creds; prefer .env DATABASE_URL if set.
+MONGODB_URI = os.getenv(
+    "DATABASE_URL",
+    "mongodb+srv://trythanay_db_user:20406080p@cluster0.gkbyivi.mongodb.net/krishi-mithr?retryWrites=true&w=majority&appName=Cluster0&authSource=admin"
+)
 
 # MQTT broker details
 broker = "broker.hivemq.com"

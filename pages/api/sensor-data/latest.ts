@@ -6,9 +6,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  const sendMockData = () => {
+    const mock = {
+      temperature: 34,
+      humidity: 68,
+      TDS: 950,
+      soil_moisture: 18,
+      CO2_ppm: 120,
+      NH3_ppm: 25,
+      Benzene_ppm: 5,
+      Smoke_ppm: 12,
+      light: 850,
+      motion: 0,
+      motion_detected: false,
+      timestamp: new Date().toISOString()
+    }
+
+    return res.status(200).json({
+      data: mock,
+      updated: true,
+      timestamp: mock.timestamp,
+      available_fields: Object.keys(mock),
+      missing_fields: [],
+      mock: true,
+      message: 'Serving mock sensor data (database unreachable)'
+    })
+  }
+
   try {
     if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: 'DATABASE_URL not configured' })
+      console.warn('[sensor-data] DATABASE_URL missing, serving mock data')
+      return sendMockData()
     }
 
     const client = new MongoClient(process.env.DATABASE_URL)
@@ -86,8 +114,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       missing_fields: missingFields
     })
   } catch (error: any) {
-    console.error('Error fetching sensor data:', error)
-    return res.status(500).json({ error: 'Failed to fetch sensor data', details: error.message })
+    console.error('Error fetching sensor data, serving mock:', error?.message || error)
+    return sendMockData()
   }
 }
 

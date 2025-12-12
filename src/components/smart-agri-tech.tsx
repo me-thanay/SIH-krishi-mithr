@@ -33,6 +33,7 @@ const SmartAgriTechComponent = () => {
   const recognitionRef = useRef<any>(null)
   const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
+  const lastSpokenNotificationId = useRef<string | null>(null)
   const { notifications, addNotification, removeNotification } = useNotifications()
 
   // Initialize speech synthesis
@@ -158,6 +159,52 @@ const SmartAgriTechComponent = () => {
       currentUtteranceRef.current = null
     }
   }, [])
+
+  // Speak the latest notification automatically when it arrives
+  const speakLatestNotification = useCallback((notif: any) => {
+    const synth = speechSynthesisRef.current
+    if (!synth || !notif) return
+
+    // Cancel any ongoing speech to prioritize the latest alert
+    if (currentUtteranceRef.current) {
+      synth.cancel()
+    }
+
+    const title = speechLanguage === 'hi-IN' ? translateNotificationTitle(notif.title || '') : (notif.title || '')
+    const message = speechLanguage === 'hi-IN' ? translateNotificationMessage(notif.message || '') : (notif.message || '')
+
+    const text = title ? `${title}. ${message}` : message
+    if (!text) return
+
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = speechLanguage
+    utterance.rate = 0.9
+    utterance.pitch = 1
+    utterance.volume = 1
+
+    utterance.onend = () => {
+      setIsSpeaking(false)
+      currentUtteranceRef.current = null
+    }
+
+    utterance.onerror = () => {
+      setIsSpeaking(false)
+      currentUtteranceRef.current = null
+    }
+
+    currentUtteranceRef.current = utterance
+    setIsSpeaking(true)
+    synth.speak(utterance)
+  }, [speechLanguage])
+
+  useEffect(() => {
+    if (!notifications || notifications.length === 0) return
+    const latest = notifications[notifications.length - 1]
+    if (!latest?.id) return
+    if (lastSpokenNotificationId.current === latest.id) return
+    lastSpokenNotificationId.current = latest.id
+    speakLatestNotification(latest)
+  }, [notifications, speakLatestNotification])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -685,6 +732,17 @@ const SmartAgriTechComponent = () => {
                     <Mic className="w-5 h-5 text-green-600" />
                     Voice Ask (interactive)
                   </h3>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm text-gray-600">Voice language:</span>
+                    <select
+                      value={speechLanguage}
+                      onChange={(e) => setSpeechLanguage(e.target.value)}
+                      className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="en-US">English</option>
+                      <option value="hi-IN">हिंदी (Hindi)</option>
+                    </select>
+                  </div>
                   <VoiceChat
                     demoMode={false}
                     onStart={startVoiceListening}
@@ -709,7 +767,7 @@ const SmartAgriTechComponent = () => {
                     <input
                       value={quickText}
                       onChange={(e) => setQuickText(e.target.value)}
-                      placeholder="Type your question here..."
+                      placeholder="Type your question here... (English or हिंदी)"
                       onKeyPress={(e) => {
                         if (e.key === 'Enter' && quickText.trim()) {
                           sendWhatsAppMessage(quickText.trim())

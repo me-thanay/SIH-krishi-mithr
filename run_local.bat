@@ -20,26 +20,44 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM Check if .env file exists
+REM Ensure .env exists (prefer .env.local, otherwise create with provided creds)
 if not exist .env (
-    echo WARNING: .env file not found
-    echo Creating .env file with default DATABASE_URL...
-    echo DATABASE_URL=mongodb+srv://trythanay_db_user:o7ldNkPkv99gx8dH@cluster0.gkbyivi.mongodb.net/krishi-mithr?appName=Cluster0 > .env
-    if exist .env (
-        echo .env file created successfully.
+    if exist .env.local (
+        echo .env not found. Copying from .env.local ...
+        copy /Y .env.local .env >nul
     ) else (
-        echo WARNING: Could not create .env file. You may need to create it manually.
-        echo Please create .env file with: DATABASE_URL=mongodb+srv://...
+        echo .env not found. Creating .env with DATABASE_URL for MQTT -> MongoDB...
+        echo DATABASE_URL=mongodb+srv://trythanay_db_user:20406080p@cluster0.gkbyivi.mongodb.net/krishi-mithr?retryWrites=true&w=majority&appName=Cluster0&authSource=admin > .env
     )
     echo.
 )
 
+REM If both .env and .env.local exist but DATABASE_URL is missing, append it
+findstr /B /C:"DATABASE_URL=" .env >nul 2>&1
+if errorlevel 1 (
+    echo DATABASE_URL missing in .env, adding it now...
+    echo DATABASE_URL=mongodb+srv://trythanay_db_user:20406080p@cluster0.gkbyivi.mongodb.net/krishi-mithr?retryWrites=true&w=majority&appName=Cluster0&authSource=admin >> .env
+    echo.
+)
+
+REM Pick requirements file (prefer backend MQTT requirements)
+set "REQ_FILE=requirements_mqtt.backend.txt"
+if not exist "%REQ_FILE%" (
+    if exist "requirements_mqtt.txt" (
+        set "REQ_FILE=requirements_mqtt.txt"
+    ) else if exist "requirements_mqtt.txt.bak" (
+        set "REQ_FILE=requirements_mqtt.txt.bak"
+    ) else (
+        set "REQ_FILE=requirements.txt"
+    )
+)
+
 REM Check if dependencies are installed
-echo Checking dependencies...
+echo Checking dependencies (using %REQ_FILE%)...
 python -c "import paho.mqtt.client" >nul 2>&1
 if errorlevel 1 (
     echo Installing dependencies...
-    pip install -r requirements_mqtt.txt
+    pip install -r "%REQ_FILE%"
     if errorlevel 1 (
         echo ERROR: Failed to install dependencies
         pause

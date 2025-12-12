@@ -70,7 +70,6 @@ export function SensorStatusDisplay({ onConditionDetected }: SensorStatusDisplay
   const [lastNotifiedConditions, setLastNotifiedConditions] = useState<Set<string>>(new Set())
   const [previousSensorData, setPreviousSensorData] = useState<SensorData | null>(null)
   const [hasInitialCheck, setHasInitialCheck] = useState(false)
-  const [lastNotificationTime, setLastNotificationTime] = useState<number>(0)
   const notificationCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Helper function to get numeric value (must be defined first)
@@ -153,14 +152,12 @@ export function SensorStatusDisplay({ onConditionDetected }: SensorStatusDisplay
   }
 
   // Check and notify conditions (batched)
-  const performConditionCheck = () => {
-    if (!sensorData || !onConditionDetected) return
+  const performConditionCheck = (current: SensorData | null, previous: SensorData | null) => {
+    if (!current || !onConditionDetected) return
 
-    // Clear previous conditions and check all current conditions
     const currentConditions = new Set<string>()
-    checkAndNotifyConditions(sensorData, previousSensorData || {} as SensorData, currentConditions)
+    checkAndNotifyConditions(current, previous || {} as SensorData, currentConditions)
     setLastNotifiedConditions(currentConditions)
-    setLastNotificationTime(Date.now())
   }
 
   useEffect(() => {
@@ -183,26 +180,15 @@ export function SensorStatusDisplay({ onConditionDetected }: SensorStatusDisplay
             })
           }
           
-          setSensorData((prevData) => {
-            // Check for significant changes
-            if (prevData && hasInitialCheck) {
-              const hasChange = hasSignificantChange(currentData, prevData)
-              const timeSinceLastNotification = Date.now() - lastNotificationTime
-              const debounceTime = 5000 // 5 seconds debounce for immediate notifications
-              
-              if (hasChange && timeSinceLastNotification >= debounceTime) {
-                // Immediate notification for significant change (debounced)
-                setTimeout(() => {
-                  performConditionCheck()
-                }, 100)
-              }
-            }
-            
-            return currentData
-          })
+          // Update state
+          setSensorData(currentData)
           
+          // Immediate notification based on latest data vs previous snapshot
+          performConditionCheck(currentData, previousSensorData)
+
           setError(null)
-          setPreviousSensorData((prev) => prev || currentData)
+          setPreviousSensorData(currentData)
+          setHasInitialCheck(true)
         }
       } catch (err: any) {
         console.error('Error fetching sensor data:', err)
@@ -218,27 +204,8 @@ export function SensorStatusDisplay({ onConditionDetected }: SensorStatusDisplay
     // Fetch data every 10 seconds
     const dataFetchInterval = setInterval(fetchSensorData, 10000)
     
-    // Perform initial condition check after first data load (wait for all sensors to be ready)
-    const initialCheckTimeout = setTimeout(() => {
-      if (sensorData && onConditionDetected && !hasInitialCheck) {
-        performConditionCheck()
-        setHasInitialCheck(true)
-      }
-    }, 3000) // Wait 3 seconds after first load to ensure all data is ready
-
-    // Set up periodic condition check every 20 seconds
-    notificationCheckIntervalRef.current = setInterval(() => {
-      if (hasInitialCheck) {
-        performConditionCheck()
-      }
-    }, 20000) // 20 seconds
-
     return () => {
       clearInterval(dataFetchInterval)
-      clearTimeout(initialCheckTimeout)
-      if (notificationCheckIntervalRef.current) {
-        clearInterval(notificationCheckIntervalRef.current)
-      }
     }
   }, [])
   

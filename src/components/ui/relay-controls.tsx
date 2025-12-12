@@ -65,19 +65,22 @@ export function RelayControls({ className, speechLanguage = 'en-US' }: RelayCont
         body: JSON.stringify({ command }),
       })
 
-      // Check if response is OK before parsing JSON
-      if (!response.ok) {
+      // Parse response (whether success or error)
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        // If JSON parsing fails, read as text
         const errorText = await response.text()
-        let errorData
-        try {
-          errorData = JSON.parse(errorText)
-        } catch {
-          errorData = { error: `HTTP ${response.status}: ${errorText.substring(0, 100)}` }
-        }
-        throw new Error(errorData.error || errorData.detail || `HTTP ${response.status}`)
+        throw new Error(`Server error (${response.status}): ${errorText.substring(0, 200)}`)
       }
 
-      const data = await response.json()
+      // Check if response is OK
+      if (!response.ok) {
+        // Use detailed error message if available
+        const errorMsg = data.details || data.error || `HTTP ${response.status}`
+        throw new Error(errorMsg)
+      }
       
       if (data.success) {
         // Update state based on command
@@ -91,13 +94,16 @@ export function RelayControls({ className, speechLanguage = 'en-US' }: RelayCont
         // Clear success message after 3 seconds
         setTimeout(() => setLastCommand(null), 3000)
       } else {
-        setLastCommand(`❌ Failed: ${data.error || 'Unknown error'}`)
-        setTimeout(() => setLastCommand(null), 5000)
+        const errorMsg = data.details || data.error || 'Unknown error'
+        setLastCommand(`❌ Failed: ${errorMsg}`)
+        setTimeout(() => setLastCommand(null), 8000) // Show longer for backend connection errors
       }
     } catch (error: any) {
       console.error('Error sending relay command:', error)
-      setLastCommand(`❌ Error: ${error.message || 'Failed to send command'}`)
-      setTimeout(() => setLastCommand(null), 5000)
+      // Show user-friendly error message
+      const errorMsg = error.message || 'Failed to send command'
+      setLastCommand(`❌ Error: ${errorMsg}`)
+      setTimeout(() => setLastCommand(null), 8000) // Show longer for errors
     } finally {
       setLoading(null)
     }

@@ -36,7 +36,7 @@ export default function SubsidiesPage() {
   const [subsidies, setSubsidies] = useState<Subsidy[]>([])
   const [userSubsidies, setUserSubsidies] = useState<Subsidy[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'all' | 'personalized'>('personalized')
+  const [activeTab, setActiveTab] = useState<'all' | 'personalized'>('all')
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
@@ -381,15 +381,15 @@ export default function SubsidiesPage() {
             ) : (
               <div className="text-center py-12">
                 <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Please Sign In</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Personalization unavailable</h3>
                 <p className="text-gray-600 mb-4">
-                  Sign in to see personalized subsidies based on your agricultural profile.
+                  To see personalized subsidies, add your profile later from the dashboard. Meanwhile, browse all subsidies below.
                 </p>
                 <button
-                  onClick={() => window.location.href = '/auth/login'}
+                  onClick={() => setActiveTab('all')}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
-                  Sign In
+                  View All Subsidies
                 </button>
               </div>
             )}

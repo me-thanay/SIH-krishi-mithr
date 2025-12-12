@@ -49,7 +49,6 @@ export function SmartAgriTechNavbar() {
   const mainNavItems: NavItem[] = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Weather', href: '#weather', icon: CloudRain, description: 'Live weather updates & forecasts' },
-    { name: 'Soil Analysis', href: '#soil', icon: Leaf, description: 'AI-powered soil health analysis' },
     { name: 'Market Prices', href: '#market', icon: TrendingUp, description: 'Real-time commodity prices' },
     { name: 'Voice Assistant', href: '#voice', icon: Mic, description: 'Voice-enabled farming support' },
     { name: 'WhatsApp Bot', href: '#whatsapp', icon: MessageCircle, description: 'Direct farmer support' }

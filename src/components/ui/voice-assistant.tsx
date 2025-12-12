@@ -124,33 +124,17 @@ export function VoiceAssistant({ onTranscript, onResponse, className }: VoiceAss
     setIsProcessing(true)
     
     try {
-      console.log('Processing command:', command)
+      console.log('Processing voice command:', command)
       
-      // Check if it's a complex query that should redirect to WhatsApp
-      if (isComplexQuery(command)) {
-        console.log('Complex query detected, redirecting to WhatsApp')
-        redirectToWhatsApp(command)
-        return
-      }
-
-      // Process agricultural voice commands
-      const commandLanguage = detectCommandLanguage(command)
-      console.log('Detected language:', commandLanguage)
-      console.log('Calling processAgriculturalCommand with:', command.toLowerCase())
+      // Always send voice input to WhatsApp with "kissan" prefix
+      console.log('Sending voice message to WhatsApp')
+      await redirectToWhatsApp(command)
       
-      const response = await processAgriculturalCommand(command.toLowerCase())
-      console.log('Got response:', response)
-      
-      setResponse(response)
-      onResponse?.(response)
-      
-      // Speak the response in the detected language
-      speakResponse(response, commandLanguage)
     } catch (error) {
       console.error('Error processing voice command:', error)
       console.error('Error details:', (error as Error)?.message || String(error))
       console.error('Stack trace:', (error as Error)?.stack)
-      const errorResponse = "Sorry, I couldn't process your request. Please try again or contact our WhatsApp support."
+      const errorResponse = "Sorry, I couldn't process your request. Please try again."
       setResponse(errorResponse)
       speakResponse(errorResponse)
     } finally {
@@ -169,18 +153,49 @@ export function VoiceAssistant({ onTranscript, onResponse, className }: VoiceAss
     return complexKeywords.some(keyword => command.toLowerCase().includes(keyword))
   }
 
-  const redirectToWhatsApp = (command: string) => {
-    const whatsappMessage = `Hi Kissan! I have a question: ${command}`
-    const whatsappUrl = `https://wa.me/919876543210?text=${encodeURIComponent(whatsappMessage)}`
-    
-    const response = "I'm redirecting you to our WhatsApp support for detailed assistance. Please wait..."
-    setResponse(response)
-    speakResponse(response)
-    
-    // Open WhatsApp after speaking
-    setTimeout(() => {
-      window.open(whatsappUrl, '_blank')
-    }, 2000)
+  const redirectToWhatsApp = async (command: string) => {
+    const phoneNumber = '7670997498'
+    const message = `kissan ${command}`
+
+    try {
+      setResponse("Sending your message to WhatsApp...")
+
+      // Prefer same-origin API; otherwise fallback to NEXT_PUBLIC_API_URL
+      const apiBase =
+        (typeof window !== 'undefined' && window.location.origin)
+          ? window.location.origin
+          : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000')
+
+      const resp = await fetch(`${apiBase}/api/whatsapp/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, message })
+      })
+
+      const data = await resp.json().catch(() => ({}))
+
+      if (resp.ok && data.success) {
+        setResponse("Message sent to WhatsApp successfully!")
+        speakResponse("Message sent to WhatsApp successfully")
+        return
+      }
+
+      // Fallback: open WhatsApp Web with prefilled message
+      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`
+      setResponse("Opening WhatsApp to send your message...")
+      speakResponse("Opening WhatsApp to send your message")
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank')
+      }, 500)
+    } catch (error) {
+      console.error('Error sending to WhatsApp:', error)
+      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`
+      setResponse("Opening WhatsApp to send your message...")
+      speakResponse("Opening WhatsApp to send your message")
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank')
+      }, 500)
+    }
   }
 
   const detectCommandLanguage = (command: string): string => {
@@ -391,8 +406,7 @@ export function VoiceAssistant({ onTranscript, onResponse, className }: VoiceAss
     if (command.includes('soil') || command.includes('मिट्टी') || 
         command.includes('నేల') || command.includes('నేల విశ్లేషణ') ||
         command.includes('మట్టి') || command.includes('మట్టి పరీక్ష')) {
-      window.location.href = '/soil-analysis'
-      return "Opening soil analysis page..."
+      return "Soil analysis is currently disabled."
     }
     
     if (command.includes('profile') || command.includes('प्रोफाइल') || 
@@ -414,11 +428,11 @@ export function VoiceAssistant({ onTranscript, onResponse, className }: VoiceAss
     console.log('=== NO MATCHING QUERY FOUND ===')
     console.log('Command did not match any patterns:', command)
     if (commandLanguage === 'te') {
-      return "నేను వాతావరణం, మార్కెట్ ధరలు, నేల విశ్లేషణ, మరియు నావిగేషన్‌లో సహాయపడగలను. వివరమైన ప్రశ్నలకు WhatsApp సపోర్ట్‌కు కనెక్ట్ చేస్తాను."
+      return "నేను వాతావరణం, మార్కెట్ ధరలు, మరియు నావిగేషన్‌లో సహాయపడగలను. వివరమైన ప్రశ్నలకు WhatsApp సపోర్ట్‌కు కనెక్ట్ చేస్తాను."
     } else if (commandLanguage === 'hi') {
-      return "मैं मौसम, बाजार भाव, मिट्टी विश्लेषण और नेविगेशन में मदद कर सकता हूं। विस्तृत प्रश्नों के लिए WhatsApp सहायता से जुड़ूंगा।"
+      return "मैं मौसम, बाजार भाव और नेविगेशन में मदद कर सकता हूं। विस्तृत प्रश्नों के लिए WhatsApp सहायता से जुड़ूंगा।"
     } else {
-      return "I can help you with weather, market prices, soil analysis, and navigation. For detailed questions, I'll connect you to our WhatsApp support."
+      return "I can help you with weather, market prices, and navigation. For detailed questions, I'll connect you to our WhatsApp support."
     }
   }
 
@@ -503,11 +517,6 @@ export function VoiceAssistant({ onTranscript, onResponse, className }: VoiceAss
         }
       }
     }
-  }
-
-  const fetchSoilData = async () => {
-    const response = await fetch('/api/soil-analysis?lat=17.3850&lon=78.4867&source=openlandmap')
-    return response.json()
   }
 
   const translateWeatherCondition = (condition: string, language: string): string => {

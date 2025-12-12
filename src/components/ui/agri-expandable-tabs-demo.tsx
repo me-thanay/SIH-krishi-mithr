@@ -33,7 +33,6 @@ export function AgriMainTabsDemo() {
   const tabs: TabItem[] = [
     { title: "Home", icon: Home },
     { title: "Weather", icon: CloudRain },
-    { title: "Soil Analysis", icon: Leaf },
     { type: "separator" },
     { title: "Market Prices", icon: TrendingUp },
     { title: "Voice Assistant", icon: Mic },

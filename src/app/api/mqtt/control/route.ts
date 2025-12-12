@@ -23,15 +23,22 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ command }),
     })
 
-    const data = await response.json()
-
     if (!response.ok) {
+      const errorText = await response.text()
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { detail: errorText || 'Failed to send command' }
+      }
+      
       return NextResponse.json(
-        { success: false, error: data.detail || 'Failed to send command' },
+        { success: false, error: errorData.detail || errorData.error || 'Failed to send command' },
         { status: response.status }
       )
     }
 
+    const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
     console.error('MQTT control API error:', error)

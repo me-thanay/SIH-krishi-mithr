@@ -21,7 +21,6 @@ export function SimpleAgriNavbar() {
   const navItems = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Weather', href: '#weather', icon: CloudRain },
-    { name: 'Soil Analysis', href: '#soil', icon: Leaf },
     { name: 'Market Prices', href: '#market', icon: TrendingUp },
     { name: 'Voice Assistant', href: '#voice', icon: Mic },
     { name: 'WhatsApp Bot', href: '#whatsapp', icon: MessageCircle }

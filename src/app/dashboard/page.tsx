@@ -260,7 +260,7 @@ export default function DashboardPage() {
   }
 
   // Auth/data disabled: no personalized recommendations
-  const getFarmingRecommendations = () => [];
+  const getFarmingRecommendations = () => []
 
   const getSensorRecommendations = (sensor: SensorData) => {
     const recommendations = []
@@ -430,8 +430,8 @@ export default function DashboardPage() {
       })
     }
 
-    return recommendations;
-  };
+    return recommendations
+  }
 
   // No auth: allow dashboard even without user data
   const displayUserData = userData || {
@@ -451,7 +451,8 @@ export default function DashboardPage() {
       landArea: '-',
       governmentSchemes: [],
     },
-  };
+  }
+  const sensorRecommendations = sensorData ? getSensorRecommendations(sensorData) : []
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -475,9 +476,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Comprehensive Sensor Data from MQTT/MongoDB */}
-            {sensorData ? (
-              <>
+          {/* Comprehensive Sensor Data from MQTT/MongoDB */}
+          {sensorData ? (
+          <>
               {/* Device / MQTT status banner */}
               <div
                 className={`rounded-lg border px-4 py-3 text-sm flex items-center justify-between ${
@@ -1030,9 +1031,6 @@ export default function DashboardPage() {
                       )}
                     </button>
                   </div>
-                  <div className="mt-3 text-xs text-gray-600">
-                    Commands go to `/api/mqtt/control` with `{ command: "motor:on/off" }`. Status updates come from `sensorData.motor_on` / `motor_state`.
-                  </div>
                 </div>
 
                 {/* HV Generator Control (Relay 2) */}
@@ -1253,13 +1251,13 @@ export default function DashboardPage() {
             )}
 
             {/* Recommendations */}
-            {recommendations.length > 0 ? (
+            {sensorRecommendations.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm border p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
                   Farming Recommendations
                 </h2>
                 <div className="space-y-3">
-                  {recommendations.map((rec, index) => {
+                  {sensorRecommendations.map((rec, index) => {
                     const Icon = rec.icon
                     return (
                       <div key={index} className={`flex items-start p-3 rounded-lg ${
@@ -1281,17 +1279,7 @@ export default function DashboardPage() {
                   })}
                 </div>
               </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm border p-6 text-center text-gray-600">
-                No live sensor data available. Ensure your MQTT worker is running and devices are publishing data.
-              </div>
             )}
-            </>
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm border p-6 text-center text-gray-600">
-              No live sensor data available. Ensure your MQTT worker is running and devices are publishing data.
-            </div>
-          )}
           </div>
 
           {/* Right Column */}

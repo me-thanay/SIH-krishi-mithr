@@ -46,27 +46,11 @@ export default function SimpleNavigation() {
             </button>
             
             <button
-              onClick={() => window.location.href = '/weather'}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg transition-colors group"
-            >
-              <Cloud className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <span className="font-medium">Weather</span>
-            </button>
-            
-            <button
               onClick={() => window.location.href = '/market-prices'}
               className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg transition-colors group"
             >
               <TrendingUp className="w-5 h-5 group-hover:scale-110 transition-transform" />
               <span className="font-medium">Market Prices</span>
-            </button>
-            
-            <button
-              onClick={() => window.location.href = '/profile'}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg transition-colors group"
-            >
-              <User className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <span className="font-medium">Profile</span>
             </button>
             
             <button

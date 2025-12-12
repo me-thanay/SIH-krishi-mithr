@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     // If crop is provided, return crop-based data
     if (crop && crop.trim() !== '') {
-      return getMockPriceData(crop, state, mandi, source)
+    return getMockPriceData(crop, state, mandi, source)
     }
 
     // If neither location nor crop is provided, return error with helpful message

@@ -21,7 +21,7 @@ export default function ToolsPage() {
       rating: 4.9,
       image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=300&fit=crop",
       category: "Spraying",
-      features: ["GPS navigation", "Precision spraying"]
+      features: ["GPS navigation", "Precision spraying", "Weather resistant"]
     },
     {
       id: 3,

@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from typing import Dict, Any, Optional
+from pydantic import BaseModel
 import os
 import requests
 import json
+from urllib.parse import quote
 from dotenv import load_dotenv
 from collections import deque
 from datetime import datetime
@@ -14,6 +16,10 @@ router = APIRouter()
 
 # In-memory store for recent WhatsApp replies (resets on restart)
 recent_replies = deque(maxlen=50)
+
+# Pydantic model for send-whatsapp request
+class SendWhatsAppRequest(BaseModel):
+    message: str
 
 async def send_whatsapp_message(phone_number: str, message: str) -> bool:
     """Send message to WhatsApp using WhatsApp Business API"""
@@ -179,6 +185,42 @@ async def send_test_message(phone_number: str, message: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/whatsapp/send-voice")
+async def send_voice_message(request: Request):
+    """Send voice message to WhatsApp chatbot (automatically sends to 7670997498 with kissan prefix)"""
+    try:
+        body = await request.json()
+        voice_text = body.get("text", "")
+        
+        if not voice_text:
+            raise HTTPException(status_code=400, detail="Text is required")
+        
+        # Add "kissan" prefix as required by the chatbot
+        message = f"kissan {voice_text}"
+        
+        # Send to the chatbot number
+        chatbot_number = "7670997498"
+        success = await send_whatsapp_message(chatbot_number, message)
+        
+        if success:
+            return {
+                "status": "success",
+                "message": "Voice message sent to WhatsApp chatbot",
+                "sent_to": chatbot_number,
+                "message_text": message
+            }
+        else:
+            # If WhatsApp API is not configured, return a fallback response
+            return {
+                "status": "pending",
+                "message": "WhatsApp API not configured. Please configure WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID in your .env file.",
+                "fallback_url": f"https://wa.me/{chatbot_number}?text={quote(message)}"
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/whatsapp/status")
 async def get_webhook_status():
     """Get webhook status"""
@@ -204,3 +246,76 @@ async def get_recent_whatsapp_replies():
         "count": len(recent_replies),
         "replies": list(recent_replies)
     }
+
+@router.post("/send-whatsapp")
+async def send_whatsapp(request: SendWhatsAppRequest):
+    """
+    Send message to WhatsApp Cloud API
+    POST /send-whatsapp
+    Body: { "message": "<text>" }
+    """
+    try:
+        # Get message from request (allow empty for just "kissan")
+        text = request.message.strip() if request.message else ""
+        
+        # Add "kissan" prefix (if text is empty, message will be just "kissan")
+        message = f"kissan {text}".strip() if text else "kissan"
+        
+        # Get WhatsApp API credentials
+        access_token = os.getenv("WHATSAPP_ACCESS_TOKEN")
+        phone_number_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+        target_phone = "7670997498"  # Fixed phone number
+        
+        if not access_token or not phone_number_id:
+            raise HTTPException(
+                status_code=500,
+                detail="WhatsApp API credentials not configured. Please set WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID"
+            )
+        
+        # Format phone number (remove +, spaces, ensure starts with country code)
+        formatted_phone = target_phone.replace("+", "").replace(" ", "").replace("-", "")
+        if not formatted_phone.startswith("91"):
+            formatted_phone = "91" + formatted_phone
+        
+        # WhatsApp Cloud API endpoint
+        api_url = f"https://graph.facebook.com/v18.0/{phone_number_id}/messages"
+        
+        # Request body as specified
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": formatted_phone,
+            "type": "text",
+            "text": {
+                "body": message
+            }
+        }
+        
+        # Send to WhatsApp Cloud API
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(api_url, headers=headers, json=payload)
+        response_data = response.json()
+        
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "message": "Message sent to WhatsApp successfully",
+                "message_id": response_data.get("messages", [{}])[0].get("id"),
+                "sent_to": formatted_phone,
+                "message_text": message
+            }
+        else:
+            error_msg = response_data.get("error", {}).get("message", "Unknown error")
+            error_code = response_data.get("error", {}).get("code", "N/A")
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"WhatsApp API error: {error_msg} (Code: {error_code})"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send WhatsApp message: {str(e)}")

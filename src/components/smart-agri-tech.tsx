@@ -1,655 +1,759 @@
 "use client"
 
-import React, { useRef, useEffect, useState } from "react"
-import { motion, useScroll, useTransform } from "framer-motion"
+import React, { useState, useEffect, useRef, useCallback } from "react"
+import { motion } from "framer-motion"
 import { 
   Sprout, 
-  Cloud, 
-  Camera, 
-  TrendingUp, 
-  Mic, 
-  Brain, 
-  Users, 
+  Power,
+  BarChart3,
   MessageCircle,
-  Leaf,
-  Thermometer,
-  Bug,
-  DollarSign,
+  Bell,
+  Mic,
   Volume2,
-  RefreshCw,
-  Heart,
-  Award,
-  Smartphone,
+  VolumeX,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Card } from "./ui/card"
-import { FeatureCard } from "./ui/feature-card"
-import { FloatingElement } from "./ui/floating-element"
-import { ScrollAnimationContainer } from "./ui/scroll-animation-container"
-import { VoiceAssistant } from "./ui/voice-assistant"
-import { WeatherWidget } from "./ui/weather-widget"
-import { WeatherForecast } from "./ui/weather-forecast"
-import { LocationWeatherWidget } from "./ui/location-weather-widget"
-import { cn } from "@/lib/utils"
-import { TubelightNavBarDemo } from "./ui/tubelight-navbar-demo"
-import { useAuth } from '@/contexts/AuthContext'
+import { RelayControls } from "./ui/relay-controls"
+import { FarmAnalysis } from "./ui/farm-analysis"
+import { ToastContainer } from "./ui/toast-notification"
+import { useNotifications } from "@/hooks/useNotifications"
+import { SensorStatusDisplay } from "./ui/sensor-status-display"
 import { NewNavbar } from './ui/new-navbar'
+import { VoiceChat } from "./ui/ia-siri-chat"
 
 // Main Component
 const SmartAgriTechComponent = () => {
-  const [currentFeature, setCurrentFeature] = useState(0)
-  const { user, isAuthenticated, showAuthModal } = useAuth()
-  const heroRef = useRef<HTMLDivElement>(null)
+  const [activeTab, setActiveTab] = useState<'operations' | 'analysis' | 'questions'>('operations')
+  const [quickText, setQuickText] = useState('')
+  const [isListening, setIsListening] = useState(false)
+  const [voiceTranscript, setVoiceTranscript] = useState('')
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [speechLanguage, setSpeechLanguage] = useState<string>('en-US') // Default to English
+  const recognitionRef = useRef<any>(null)
+  const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
+  const { notifications, addNotification, removeNotification } = useNotifications()
 
-  const features = [
-    {
-      icon: <Sprout className="w-6 h-6" />,
-      title: "Real-time Multilingual Crop Advisory",
-      description: "Get instant, AI-powered crop recommendations in your local language with real-time monitoring and personalized guidance."
-    },
-    {
-      icon: <Leaf className="w-6 h-6" />,
-      title: "Soil Health & Fertilizer Recommendations",
-      description: "Advanced soil analysis with precise fertilizer recommendations to optimize crop yield and maintain soil health."
-    },
-    {
-      icon: <Cloud className="w-6 h-6" />,
-      title: "Weather Alerts & Predictive Insights",
-      description: "Stay ahead with accurate weather forecasts, severe weather alerts, and climate-based farming insights."
-    },
-    {
-      icon: <Camera className="w-6 h-6" />,
-      title: "Pest & Disease Detection via Photos",
-      description: "Snap a photo to instantly identify pests and diseases with AI-powered image recognition and treatment suggestions."
-    },
-    {
-      icon: <TrendingUp className="w-6 h-6" />,
-      title: "Market Price Tracking & Forecasting",
-      description: "Real-time market prices and predictive analytics to help you make informed selling decisions."
-    },
-    {
-      icon: <Mic className="w-6 h-6" />,
-      title: "Voice Support for Low-literate Users",
-      description: "Voice-enabled interface making advanced farming technology accessible to all farmers regardless of literacy level."
-    },
-    {
-      icon: <Brain className="w-6 h-6" />,
-      title: "Continuous Learning from Feedback",
-      description: "AI system that learns from farmer feedback and local conditions to provide increasingly accurate recommendations."
-    }
-  ]
-
+  // Initialize speech synthesis
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentFeature((prev) => (prev + 1) % features.length)
-    }, 4000)
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      speechSynthesisRef.current = window.speechSynthesis
+    }
+  }, [])
 
-    return () => clearInterval(interval)
-  }, [features.length])
+  // Function to speak alerts
+  const speakAlerts = useCallback(() => {
+    const synth = speechSynthesisRef.current
+    if (!synth) {
+      addNotification({
+        title: "⚠️ Not Supported",
+        message: "Text-to-speech is not available in your browser.",
+        type: "warning"
+      })
+      return
+    }
 
-  const handleWhatsAppClick = async () => {
-    const phoneNumber = "7670997498"
-    const message = "kissan"
+    // Stop any ongoing speech
+    if (currentUtteranceRef.current) {
+      synth.cancel()
+    }
+
+    // Combine all notifications (sensor alerts are already in notifications)
+    const allAlerts: Array<{ title: string; message: string }> = []
     
-    try {
-      // Try to send via WhatsApp Business API first
-      const response = await fetch('/api/whatsapp/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phoneNumber: phoneNumber,
-          message: message
+    // Add all notifications
+    if (notifications && notifications.length > 0) {
+      notifications.slice().reverse().forEach((notif) => {
+        // Translate notification titles and messages to Hindi if selected
+        const translatedTitle = speechLanguage === 'hi-IN' ? translateNotificationTitle(notif.title) : notif.title
+        const translatedMessage = speechLanguage === 'hi-IN' ? translateNotificationMessage(notif.message) : notif.message
+        
+        allAlerts.push({
+          title: translatedTitle,
+          message: translatedMessage
         })
       })
+    }
 
-      const data = await response.json()
+    // Debug: log alerts
+    console.log('Speaking alerts:', {
+      notificationsCount: notifications?.length || 0,
+      totalAlerts: allAlerts.length
+    })
 
-      if (response.ok && data.success) {
-        alert('Message sent successfully to WhatsApp!')
-      } else {
-        // Fallback to opening WhatsApp if API fails
-        const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`
-        window.open(whatsappUrl, '_blank')
+    // Check if we have any alerts (sensor or notifications)
+    if (allAlerts.length === 0) {
+      const noAlertsMessage = speechLanguage === 'hi-IN' 
+        ? "अभी कोई अलर्ट नहीं है। सब कुछ ठीक लग रहा है!"
+        : "No alerts right now. Everything looks good!"
+      
+      const utterance = new SpeechSynthesisUtterance(noAlertsMessage)
+      utterance.lang = speechLanguage
+      utterance.rate = 0.9
+      utterance.pitch = 1
+      synth.speak(utterance)
+      setIsSpeaking(true)
+      
+      utterance.onend = () => {
+        setIsSpeaking(false)
+        currentUtteranceRef.current = null
+      }
+      currentUtteranceRef.current = utterance
+      return
+    }
+
+    // Speak all alerts
+    let currentIndex = 0
+
+    const speakNext = () => {
+      if (currentIndex >= allAlerts.length) {
+        setIsSpeaking(false)
+        currentUtteranceRef.current = null
+        return
+      }
+
+      const alert = allAlerts[currentIndex]
+      // For sensor alerts (no title), just say the message. For notifications, include title.
+      let text = alert.title 
+        ? (speechLanguage === 'hi-IN' 
+            ? `अलर्ट ${currentIndex + 1}. ${alert.title}. ${alert.message}`
+            : `Alert ${currentIndex + 1}. ${alert.title}. ${alert.message}`)
+        : (speechLanguage === 'hi-IN'
+            ? `अलर्ट ${currentIndex + 1}. ${alert.message}`
+            : `Alert ${currentIndex + 1}. ${alert.message}`)
+      
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = speechLanguage
+      utterance.rate = 0.85 // Slower for farmers to understand
+      utterance.pitch = 1
+      utterance.volume = 1
+
+      utterance.onend = () => {
+        currentIndex++
+        // Small pause between alerts
+        setTimeout(() => {
+          speakNext()
+        }, 500)
+      }
+
+      utterance.onerror = () => {
+        setIsSpeaking(false)
+        currentUtteranceRef.current = null
+      }
+
+      currentUtteranceRef.current = utterance
+      synth.speak(utterance)
+    }
+
+    setIsSpeaking(true)
+    speakNext()
+  }, [notifications, speechLanguage, addNotification])
+
+  // Function to stop speaking
+  const stopSpeaking = useCallback(() => {
+    if (speechSynthesisRef.current && currentUtteranceRef.current) {
+      speechSynthesisRef.current.cancel()
+      setIsSpeaking(false)
+      currentUtteranceRef.current = null
+    }
+  }, [])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (speechSynthesisRef.current) {
+        speechSynthesisRef.current.cancel()
+      }
+    }
+  }, [])
+
+  // Function to redirect to WhatsApp with message
+  const sendWhatsAppMessage = useCallback((text: string) => {
+    // Add "kissan" prefix to the message
+    let message = text.trim() || ''
+    if (message && !message.toLowerCase().startsWith('kissan')) {
+      message = `kissan ${message}`
+    } else if (!message) {
+      message = 'kissan'
+    }
+    
+    // WhatsApp number: +91 76709 97498
+    const phoneNumber = '917670997498' // Remove + and spaces
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+    
+    // Open WhatsApp in new tab
+    if (typeof window !== 'undefined') {
+    window.open(whatsappUrl, '_blank')
+      
+      addNotification({
+        title: "✅ WhatsApp Opened",
+        message: `Message ready: "${message}"`,
+        type: "success"
+      })
+    }
+  }, [addNotification])
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
+      
+      // Create new recognition instance
+      recognitionRef.current = new SpeechRecognition()
+      
+      // Configure recognition
+      recognitionRef.current.continuous = true // Keep listening until stopped
+      recognitionRef.current.interimResults = true
+      recognitionRef.current.lang = speechLanguage // Use selected language
+
+      recognitionRef.current.onstart = () => {
+        setIsListening(true)
+        setVoiceTranscript('')
+      }
+
+      recognitionRef.current.onresult = (event: any) => {
+        let interimTranscript = ''
+        let finalTranscript = ''
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' '
+          } else {
+            interimTranscript += transcript
+          }
+        }
+
+        // Show interim results as user speaks
+        if (interimTranscript) {
+          setVoiceTranscript(interimTranscript)
+          setQuickText(interimTranscript)
+        }
+
+        // Update final transcript
+        if (finalTranscript.trim()) {
+          const fullTranscript = finalTranscript.trim()
+          setVoiceTranscript(fullTranscript)
+          setQuickText(fullTranscript)
+        }
+      }
+
+      recognitionRef.current.onend = () => {
+        // Only set listening to false if it was actually listening
+        // This prevents issues when manually stopping
+        if (isListening) {
+          setIsListening(false)
+        }
+      }
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error)
+        // Don't stop on all errors, only critical ones
+        if (event.error === 'no-speech' || event.error === 'aborted') {
+          // These are normal, just continue
+          return
+        }
+        setIsListening(false)
+        addNotification({
+          title: "❌ Voice Error",
+          message: "Could not recognize speech. Please try again.",
+          type: "warning"
+        })
+      }
+    } else {
+      // Browser doesn't support speech recognition
+      addNotification({
+        title: "❌ Not Supported",
+        message: "Voice recognition is not supported in this browser.",
+        type: "warning"
+      })
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop()
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
+  }, [addNotification, speechLanguage]) // Remove isListening and sendWhatsAppMessage from deps
+
+  // Listen to hash changes from navbar
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '')
+      if (hash === 'operations' || hash === 'analysis' || hash === 'questions') {
+        setActiveTab(hash as 'operations' | 'analysis' | 'questions')
+      }
+    }
+
+    // Check initial hash
+    const hash = window.location.hash.replace('#', '')
+    if (hash === 'operations' || hash === 'analysis' || hash === 'questions') {
+      setActiveTab(hash as 'operations' | 'analysis' | 'questions')
+    }
+
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+
+
+  // Translation function for notification titles (comprehensive)
+  const translateNotificationTitle = (title: string): string => {
+    const translations: Record<string, string> = {
+      // System messages
+      '✅ Message Sent Automatically': '✅ संदेश स्वचालित रूप से भेजा गया',
+      '⚠️ Session Required': '⚠️ सत्र आवश्यक',
+      '⚠️ API Error': '⚠️ एपीआई त्रुटि',
+      '⚠️ Connection Error': '⚠️ कनेक्शन त्रुटि',
+      '❌ Voice Error': '❌ आवाज त्रुटि',
+      '⚠️ Not Supported': '⚠️ समर्थित नहीं',
+      '❌ Not Supported': '❌ समर्थित नहीं',
+      
+      // Water quality titles
+      '⚠️ Very Salty Water Detected': '⚠️ बहुत नमकीन पानी का पता चला',
+      '⚠️ Bad Water Quality': '⚠️ खराब पानी की गुणवत्ता',
+      '⚠️ Water Becoming Salty': '⚠️ पानी नमकीन हो रहा है',
+      
+      // Temperature titles
+      '🔥 Extreme Heat Alert': '🔥 अत्यधिक गर्मी चेतावनी',
+      '🌡️ High Temperature': '🌡️ उच्च तापमान',
+      '❄️ Too Cold': '❄️ बहुत ठंडा',
+      
+      // Humidity titles
+      '💧 Very High Humidity': '💧 बहुत अधिक नमी',
+      '💧 High Humidity': '💧 उच्च नमी',
+      '💨 Low Humidity': '💨 कम नमी',
+      
+      // Soil moisture titles
+      '🌊 Flooding Detected': '🌊 बाढ़ का पता चला',
+      '🌵 Dry Soil Alert': '🌵 सूखी मिट्टी चेतावनी',
+      
+      // Gas/Air quality titles
+      '☠️ Dangerous Gas Level': '☠️ खतरनाक गैस स्तर',
+      
+      // Light titles
+      '☀️ Very High Sunlight': '☀️ बहुत अधिक धूप',
+      
+      // Motion titles
+      '👁️ Movement Detected': '👁️ गति का पता चला',
+      
+      // Mixed condition titles
+      '🚨 High Temperature + Dry Soil': '🚨 उच्च तापमान + सूखी मिट्टी',
+      '🚨 High Temperature + High Humidity': '🚨 उच्च तापमान + उच्च नमी',
+      '🚨 High Humidity + Low Light': '🚨 उच्च नमी + कम रोशनी',
+      '🚨 Very High Sunlight + Dry Soil': '🚨 बहुत अधिक धूप + सूखी मिट्टी',
+      '🚨 High TDS + High Temperature': '🚨 उच्च टीडीएस + उच्च तापमान',
+      '🚨 Flooding + High Humidity': '🚨 बाढ़ + उच्च नमी',
+      '🚨 Dangerous Gas + High Temperature': '🚨 खतरनाक गैस + उच्च तापमान',
+      '🚨 Motion Detected + Low Light (Night)': '🚨 गति का पता चला + कम रोशनी (रात)',
+    }
+    
+    // Try exact match first
+    if (translations[title]) return translations[title]
+    
+    // Try pattern matching for titles with emojis
+    if (title.includes('⚠️')) {
+      return title.replace('⚠️', '⚠️').replace(/Very Salty Water Detected/, 'बहुत नमकीन पानी का पता चला')
+        .replace(/Bad Water Quality/, 'खराब पानी की गुणवत्ता')
+        .replace(/Water Becoming Salty/, 'पानी नमकीन हो रहा है')
+    }
+    
+    return title
+  }
+
+  // Translation function for notification messages (comprehensive)
+  const translateNotificationMessage = (message: string): string => {
+    const translations: Record<string, string> = {
+      // WhatsApp messages
+      'sent to WhatsApp successfully': 'व्हाट्सएप पर सफलतापूर्वक भेजा गया',
+      'Message sent to WhatsApp successfully': 'संदेश व्हाट्सएप पर सफलतापूर्वक भेजा गया',
+      'Please send \'Hi\' to +91 76709 97498 first to start a session. Then messages will send automatically.': 'कृपया पहले +91 76709 97498 पर \'Hi\' भेजें सत्र शुरू करने के लिए। फिर संदेश स्वचालित रूप से भेजे जाएंगे।',
+      'Could not connect to backend API. Please check your connection.': 'बैकएंड एपीआई से कनेक्ट नहीं हो सका। कृपया अपना कनेक्शन जांचें।',
+      'Text-to-speech is not available in your browser.': 'आपके ब्राउज़र में टेक्स्ट-टू-स्पीच उपलब्ध नहीं है।',
+      'Could not recognize speech. Please try again.': 'भाषण को पहचान नहीं सका। कृपया पुनः प्रयास करें।',
+      'Could not start voice recognition. Please check browser permissions.': 'आवाज पहचान शुरू नहीं कर सका। कृपया ब्राउज़र अनुमतियां जांचें।',
+      'Voice recognition is not supported in this browser.': 'इस ब्राउज़र में आवाज पहचान समर्थित नहीं है।',
+      
+      // Water quality messages
+      'Avoid using; harvest rainwater.': 'उपयोग से बचें; बारिश का पानी इकट्ठा करें।',
+      'Leaves may turn yellow. Dilute water.': 'पत्तियां पीली हो सकती हैं। पानी पतला करें।',
+      'Mix with fresh water.': 'ताजा पानी के साथ मिलाएं।',
+      
+      // Temperature messages
+      'Crop burn risk! Use shade nets and mulching.': 'फसल जलने का खतरा! छाया जाली और मल्चिंग का उपयोग करें।',
+      'Leaves may dry. Water morning/evening.': 'पत्तियां सूख सकती हैं। सुबह/शाम पानी दें।',
+      'Growth slows. Reduce watering.': 'वृद्धि धीमी होती है। पानी कम करें।',
+      
+      // Humidity messages
+      'Disease guaranteed! Ventilate and use fungicide.': 'रोग निश्चित है! हवादार करें और कवकनाशी का उपयोग करें।',
+      'Fungus risk. Increase ventilation.': 'कवक का खतरा। वेंटिलेशन बढ़ाएं।',
+      'Plants dry fast. Increase irrigation.': 'पौधे तेजी से सूखते हैं। सिंचाई बढ़ाएं।',
+      
+      // Soil moisture messages
+      'Root rot risk! Improve drainage.': 'जड़ सड़ने का खतरा! जल निकासी में सुधार करें।',
+      'Plants wilting! Start irrigation.': 'पौधे मुरझा रहे हैं! सिंचाई शुरू करें।',
+      
+      // Gas/Air quality messages
+      'Crop damage risk! Ventilate immediately.': 'फसल क्षति का खतरा! तुरंत हवादार करें।',
+      
+      // Light messages
+      'Leaf burn risk! Use shade net.': 'पत्ती जलने का खतरा! छाया जाली का उपयोग करें।',
+      
+      // Motion messages
+      'Animal or human movement detected in the field. Activate alarm/light.': 'खेत में जानवर या मानव गति का पता चला। अलार्म/लाइट सक्रिय करें।',
+      
+      // Mixed condition messages
+      'Plants wilting fast': 'पौधे तेजी से मुरझा रहे हैं',
+      'Water early morning, mulching': 'सुबह जल्दी पानी, मल्चिंग',
+      'Fungal disease risk': 'कवक रोग का खतरा',
+      'Ventilation, reduce watering': 'वेंटिलेशन, पानी कम करें',
+      'Leaf rot, fungal growth': 'पत्ती सड़न, कवक वृद्धि',
+      'Airflow': 'हवा का प्रवाह',
+      'Leaf burn risk': 'पत्ती जलने का खतरा',
+      'Shade net': 'छाया जाली',
+      'Salt burn increases': 'नमक जलन बढ़ती है',
+      'Dilute water': 'पानी पतला करें',
+      'Root rot + fungus': 'जड़ सड़न + कवक',
+      'Stop irrigation': 'सिंचाई बंद करें',
+      'Chemical + heat damage': 'रासायनिक + गर्मी क्षति',
+      'Ventilation': 'वेंटिलेशन',
+      'Animal entry detected': 'जानवर प्रवेश का पता चला',
+      'Alarm / SMS': 'अलार्म / एसएमएस',
+    }
+    
+    // Try exact match first
+    if (translations[message]) return translations[message]
+    
+    // Try to translate patterns with numbers
+    let translated = message
+    
+    // TDS patterns
+    translated = translated.replace(/TDS is ([\d.]+) ppm\./g, 'टीडीएस $1 पीपीएम है।')
+    translated = translated.replace(/TDS is ([\d.]+) ppm/g, 'टीडीएस $1 पीपीएम है')
+    
+    // Temperature patterns
+    translated = translated.replace(/Temperature is ([\d.]+)°C\./g, 'तापमान $1 डिग्री सेल्सियस है।')
+    translated = translated.replace(/Temperature is ([\d.]+)°C/g, 'तापमान $1 डिग्री सेल्सियस है')
+    
+    // Humidity patterns
+    translated = translated.replace(/Humidity is ([\d.]+)%\./g, 'नमी $1 प्रतिशत है।')
+    translated = translated.replace(/Humidity is ([\d.]+)%/g, 'नमी $1 प्रतिशत है')
+    
+    // Soil moisture patterns
+    translated = translated.replace(/Soil moisture is ([\d.]+)%\./g, 'मिट्टी की नमी $1 प्रतिशत है।')
+    translated = translated.replace(/Soil moisture is ([\d.]+)%/g, 'मिट्टी की नमी $1 प्रतिशत है')
+    
+    // Gas level patterns
+    translated = translated.replace(/Gas level is ([\d.]+) ppm\./g, 'गैस स्तर $1 पीपीएम है।')
+    translated = translated.replace(/Gas level is ([\d.]+) ppm/g, 'गैस स्तर $1 पीपीएम है')
+    
+    // Light level patterns
+    translated = translated.replace(/Light level is ([\d.]+)\./g, 'प्रकाश स्तर $1 है।')
+    translated = translated.replace(/Light level is ([\d.]+)/g, 'प्रकाश स्तर $1 है')
+    
+    // Try partial matches for remaining text
+    for (const [key, value] of Object.entries(translations)) {
+      if (translated.includes(key)) {
+        translated = translated.replace(key, value)
+      }
+    }
+    
+    return translated !== message ? translated : message
+  }
+
+
+
+  const startVoiceListening = () => {
+    if (!recognitionRef.current) {
+      addNotification({
+        title: "❌ Not Supported",
+        message: "Voice recognition is not supported in this browser.",
+        type: "warning"
+      })
+      return
+    }
+
+    try {
+      // Update language before starting
+      recognitionRef.current.lang = speechLanguage
+      
+      // Clear previous transcript
+      setVoiceTranscript('')
+      setQuickText('')
+      
+      // Start recognition
+      recognitionRef.current.start()
+      setIsListening(true)
+    } catch (error: any) {
+      console.error('Error starting speech recognition:', error)
+      
+      // If already started, ignore the error
+      if (error.message?.includes('already started') || error.message?.includes('started')) {
+        return
+      }
+      
+      addNotification({
+        title: "❌ Voice Error",
+        message: "Could not start voice recognition. Please check browser permissions.",
+        type: "warning"
+      })
+      setIsListening(false)
+    }
+  }
+
+  const stopVoiceListening = () => {
+    if (!recognitionRef.current) {
+      return
+    }
+
+    try {
+      recognitionRef.current.stop()
+      setIsListening(false)
+      
+      // Process final transcript if available and send to WhatsApp
+      if (voiceTranscript.trim()) {
+        setTimeout(() => {
+          sendWhatsAppMessage(voiceTranscript.trim())
+        }, 300)
       }
     } catch (error) {
-      // Fallback to opening WhatsApp if API fails
-      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`
-      window.open(whatsappUrl, '_blank')
+      console.error('Error stopping speech recognition:', error)
+      setIsListening(false)
     }
   }
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
       <NewNavbar />
+      <ToastContainer 
+        notifications={notifications} 
+        onClose={removeNotification} 
+      />
 
-      {/* Animated Background Elements */}
-      <div className="fixed inset-0 pointer-events-none">
-        <FloatingElement delay={0} duration={4} className="absolute top-20 left-10">
-          <div className="w-16 h-16 bg-green-200 rounded-full opacity-30" />
-        </FloatingElement>
-        <FloatingElement delay={1} duration={5} className="absolute top-40 right-20">
-          <div className="w-12 h-12 bg-blue-200 rounded-full opacity-40" />
-        </FloatingElement>
-        <FloatingElement delay={2} duration={3.5} className="absolute bottom-40 left-1/4">
-          <div className="w-20 h-20 bg-yellow-200 rounded-full opacity-25" />
-        </FloatingElement>
-        <FloatingElement delay={1.5} duration={4.5} className="absolute bottom-20 right-1/3">
-          <div className="w-14 h-14 bg-purple-200 rounded-full opacity-35" />
-        </FloatingElement>
-      </div>
-
-      {/* Hero Section */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 py-20 pt-24">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-start lg:items-center">
-          {/* Left Content */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 pt-20">
+        {/* Header */}
           <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-            className="space-y-6 lg:space-y-8"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="flex items-center gap-2 text-green-600 font-medium"
-            >
-              <Sprout className="w-5 h-5" />
-              <span>Smart Agriculture Technology</span>
+          className="text-center mb-8"
+        >
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <Sprout className="w-10 h-10 text-green-600" />
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">🌾 Krishi Mithr</h1>
+          </div>
+          <p className="text-lg text-gray-700">Your simple farm remote</p>
             </motion.div>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight"
-            >
-              {user ? `🌱 Welcome back, ${user.name}!` : '🌱 Krishi Mithr'}
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="text-xl text-gray-600 leading-relaxed"
-            >
-              {user 
-                ? `Ready to manage your ${user.agriculturalProfile?.farmSize || 'farm'}? Access your personalized dashboard, check available subsidies, and get AI-powered farming insights.`
-                : 'Revolutionizing agriculture with AI-powered insights, real-time monitoring, and intelligent recommendations for modern farmers.'
-              }
-            </motion.p>
-
+        {/* Tab Content */}
             <motion.div
+          key={activeTab}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.7 }}
-              className="flex flex-col sm:flex-row gap-4 items-start sm:items-center"
-            >
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="group border-green-600 text-green-600 hover:bg-green-50"
-                onClick={handleWhatsAppClick}
-              >
-                <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                WhatsApp Support
-              </Button>
-
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="group border-blue-600 text-blue-600 hover:bg-blue-50"
-                onClick={() => {
-                  // Scroll to voice section or trigger voice assistant
-                  const voiceSection = document.getElementById('voice')
-                  if (voiceSection) {
-                    voiceSection.scrollIntoView({ behavior: 'smooth' })
-                  }
-                }}
-              >
-                <Mic className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                Voice Assistant
-              </Button>
+          transition={{ duration: 0.3 }}
+        >
+          {activeTab === 'operations' && (
+            <div className="space-y-6">
+              {/* Controls */}
+              <RelayControls speechLanguage={speechLanguage} />
               
-              {user ? (
-                <>
-                       <button
-                         className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium flex items-center"
-                         onClick={() => window.location.href = '/dashboard'}
-                       >
-                         <TrendingUp className="w-5 h-5 mr-2" />
-                         Go to Dashboard
-                       </button>
-
-                       <button
-                         className="border border-green-600 text-green-600 hover:bg-green-50 px-8 py-3 rounded-lg font-medium flex items-center"
-                         onClick={() => window.location.href = '/subsidies'}
-                       >
-                         <Award className="w-5 h-5 mr-2" />
-                         View Subsidies
-                       </button>
+              {/* Notifications List */}
+              <Card className="p-6 bg-white border-2 border-blue-200 rounded-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-6 h-6 text-blue-600" />
+                    <h2 className="text-2xl font-bold text-gray-900">Recent Alerts</h2>
+                    {notifications.length > 0 && (
+                      <span className="text-sm text-gray-500">
+                        ({notifications.length} alerts)
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Language Selector */}
+                    <select
+                      value={speechLanguage}
+                      onChange={(e) => setSpeechLanguage(e.target.value)}
+                      disabled={isSpeaking}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="en-US">English</option>
+                      <option value="hi-IN">हिंदी (Hindi)</option>
+                    </select>
+                    
+                    {notifications.length > 0 && (
+                      <Button 
+                        onClick={isSpeaking ? stopSpeaking : speakAlerts}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        {isSpeaking ? (
+                          <>
+                            <VolumeX className="w-4 h-4" />
+                            Stop Speaking
                 </>
               ) : (
                 <>
-                       <button
-                         className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium"
-                         onClick={() => window.location.href = '/dashboard'}
-                       >
-                         Sign In
-                       </button>
-
-                       <button
-                         className="border border-green-600 text-green-600 hover:bg-green-50 px-8 py-3 rounded-lg font-medium"
-                         onClick={() => window.location.href = '/dashboard'}
-                       >
-                         Sign Up
-                       </button>
+                            <Volume2 className="w-4 h-4" />
+                            Listen to Alerts
                 </>
               )}
-            </motion.div>
-
-            {/* Trust Indicators */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.9 }}
-              className="flex flex-wrap items-center gap-4 sm:gap-6 pt-4"
-            >
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Users className="w-4 h-4 text-green-600" />
-                <span>10,000+ Farmers</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Heart className="w-4 h-4 text-red-500" />
-                <span>Human-Centered Design</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Mic className="w-4 h-4 text-blue-600" />
-                <span>Voice Enabled</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <MessageCircle className="w-4 h-4 text-green-600" />
-                <span>24/7 WhatsApp</span>
-              </div>
-            </motion.div>
-
-            {/* Quick Weather Info */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1.3 }}
-              className="mt-6 flex justify-start"
-            >
-              <LocationWeatherWidget 
-                showForecast={false}
-                className="max-w-sm w-full" 
-              />
-            </motion.div>
-          </motion.div>
-
-          {/* Right Content - Feature Showcase */}
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="relative flex justify-center lg:justify-end"
-          >
-            <Card className="p-6 lg:p-8 bg-gradient-to-br from-white to-green-50 border-green-200 max-w-md w-full">
-              <motion.div
-                key={currentFeature}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="space-y-4"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600">
-                    {features[currentFeature].icon}
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    {features[currentFeature].title}
-                  </h3>
-                </div>
-                <p className="text-gray-600 leading-relaxed">
-                  {features[currentFeature].description}
-                </p>
-              </motion.div>
-
-              {/* Progress Indicators */}
-              <div className="flex gap-2 mt-6">
-                {features.map((_, index) => (
-                  <motion.div
-                    key={index}
-                    className={cn(
-                      "h-2 rounded-full transition-all duration-300",
-                      index === currentFeature ? "bg-green-600 w-8" : "bg-green-200 w-2"
+                      </Button>
                     )}
-                    animate={{
-                      scale: index === currentFeature ? 1.1 : 1
-                    }}
-                  />
-                ))}
+                  </div>
+                </div>
+                {notifications.length > 0 ? (
+                  <div className="space-y-3">
+                    {/* All notifications (sensor alerts are already included) */}
+                    {notifications.slice().reverse().map((notif) => {
+                      // Translate titles and messages based on selected language
+                      const displayTitle = speechLanguage === 'hi-IN' ? translateNotificationTitle(notif.title) : notif.title
+                      const displayMessage = speechLanguage === 'hi-IN' ? translateNotificationMessage(notif.message) : notif.message
+                      
+                      return (
+                        <div
+                          key={notif.id}
+                          className={`p-4 rounded-lg border-2 ${
+                            notif.type === 'danger' ? 'bg-red-50 border-red-200' :
+                            notif.type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+                            notif.type === 'success' ? 'bg-green-50 border-green-200' :
+                            'bg-blue-50 border-blue-200'
+                          }`}
+                        >
+                          <h3 className="font-bold text-gray-900 mb-1">{displayTitle}</h3>
+                          <p className="text-sm text-gray-700">{displayMessage}</p>
               </div>
+                      )
+                    })}
+              </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">No alerts right now. Everything looks good!</p>
+                    <Button
+                      onClick={speakAlerts}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 mx-auto"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                      Listen to Status
+                    </Button>
+                  </div>
+                )}
+              </Card>
+
+              {/* Hidden sensor display for notifications */}
+              <div className="hidden">
+                <SensorStatusDisplay 
+                  onConditionDetected={(notification) => {
+                    addNotification({
+                      title: notification.title,
+                      message: notification.message,
+                      type: notification.type,
+                      icon: notification.icon,
+                      duration: notification.type === "danger" ? 8000 : 6000
+                    })
+                  }}
+                />
+              </div>
+                </div>
+          )}
+
+          {activeTab === 'analysis' && (
+            <FarmAnalysis />
+          )}
+
+          {activeTab === 'questions' && (
+            <div className="space-y-6">
+              <Card className="p-8 bg-white border-2 border-green-200 rounded-xl text-center">
+                <div className="text-5xl mb-4">💬</div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-3">Ask Your Questions</h2>
+                <p className="text-lg text-gray-600 mb-6">
+                  Get instant help from our farming expert via WhatsApp
+                </p>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="p-4 md:p-6 bg-white border-2 border-green-200 rounded-xl">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Mic className="w-5 h-5 text-green-600" />
+                    Voice Ask (interactive)
+                  </h3>
+                  <VoiceChat
+                    demoMode={false}
+                    onStart={startVoiceListening}
+                    onStop={() => stopVoiceListening()}
+                    onVolumeChange={(vol) => {
+                      // mild haptic via console; hook available if needed
+                      if (vol > 80) console.debug('[VOICE] loud input', vol)
+                    }}
+                    className="bg-white"
+                  />
+                  {voiceTranscript && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">You said:</p>
+                      <p className="text-base font-medium text-gray-900">{voiceTranscript}</p>
+              </div>
+                  )}
             </Card>
 
-            {/* Floating Tech Elements */}
-            <FloatingElement delay={0} className="absolute -top-4 -right-4">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white shadow-lg">
-                <Smartphone className="w-4 h-4" />
+                <Card className="p-6 bg-white border-2 border-blue-200 rounded-xl">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Type or send instantly</h3>
+                  <div className="flex gap-3 mb-4">
+                    <input
+                      value={quickText}
+                      onChange={(e) => setQuickText(e.target.value)}
+                      placeholder="Type your question here..."
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && quickText.trim()) {
+                          sendWhatsAppMessage(quickText.trim())
+                          setQuickText('')
+                        }
+                      }}
+                      className="flex-1 px-5 py-4 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                    />
+              <Button 
+                      onClick={() => {
+                        if (!quickText.trim()) return
+                        sendWhatsAppMessage(quickText.trim())
+                        setQuickText('')
+                      }}
+                      disabled={!quickText.trim()}
+                      className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-base font-semibold rounded-lg disabled:opacity-50"
+                    >
+                      Send
+              </Button>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      sendWhatsAppMessage('')
+                    }}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-semibold rounded-lg"
+                  >
+                    📱 Send "kissan" to WhatsApp
+                  </Button>
+                </Card>
               </div>
-            </FloatingElement>
-            <FloatingElement delay={1} className="absolute -bottom-4 -left-4">
-              <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white shadow-lg">
-                <Brain className="w-4 h-4" />
-              </div>
-            </FloatingElement>
+            </div>
+          )}
           </motion.div>
         </div>
-      </section>
-
-      {/* WhatsApp Support Section */}
-      <section className="py-12 px-4 bg-gradient-to-r from-green-50 to-blue-50">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="flex justify-center"
-          >
-            <div className="max-w-2xl w-full text-center">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                Direct WhatsApp Support
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Get instant agricultural support through WhatsApp. Our AI assistant is available 24/7 to help with your farming queries.
-              </p>
-              <Button 
-                onClick={async () => {
-                  const phoneNumber = '7670997498'
-                  const message = 'kissan'
-                  
-                  try {
-                    const response = await fetch('/api/whatsapp/send', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ phoneNumber, message })
-                    })
-                    const data = await response.json()
-                    if (response.ok && data.success) {
-                      alert('Message sent successfully!')
-                    } else {
-                      window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank')
-                    }
-                  } catch (error) {
-                    window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank')
-                  }
-                }}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 mx-auto"
-              >
-                <MessageCircle size={20} />
-                <span>Start WhatsApp Chat</span>
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Features Grid Section */}
-      <ScrollAnimationContainer>
-        <section className="py-20 px-4">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                Comprehensive Agricultural Solutions
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                From soil analysis to market insights, our AI-powered platform provides 
-                everything modern farmers need to succeed.
-              </p>
-            </motion.div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {features.map((feature, index) => (
-                <FeatureCard
-                  key={index}
-                  icon={feature.icon}
-                  title={feature.title}
-                  description={feature.description}
-                  delay={index * 0.1}
-                  requiresAuth={index < 3} // First 3 features require auth
-                  actionText={index < 3 ? "Try Now" : undefined}
-                  actionUrl={index >= 3 ? (index === 3 ? '/weather' : '/market-prices') : undefined}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
-      </ScrollAnimationContainer>
-
-      {/* Technology Integration Section */}
-      <ScrollAnimationContainer>
-        <section className="py-20 px-4 bg-gradient-to-r from-green-600 to-blue-600 text-white">
-          <div className="max-w-7xl mx-auto text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="space-y-8"
-            >
-              <h2 className="text-4xl font-bold mb-4">
-                 Human Touch Still Matters
-              </h2>
-              <p className="text-xl opacity-90 max-w-4xl mx-auto leading-relaxed">
-                While AI powers most of our platform with IoT sensors, cloud computing, 
-                and mobile technology, we believe human connection and trust remain essential 
-                for successful adoption in agricultural communities.
-              </p>
-
-              <div className="grid md:grid-cols-3 gap-8 mt-12">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                  viewport={{ once: true }}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
-                >
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                    <Cloud className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">IoT & Cloud</h3>
-                  <p className="opacity-90">Real-time data collection and processing</p>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.4 }}
-                  viewport={{ once: true }}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
-                >
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                    <Smartphone className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">Mobile First</h3>
-                  <p className="opacity-90">Accessible on any smartphone or tablet</p>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.6 }}
-                  viewport={{ once: true }}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
-                >
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                    <MessageCircle className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">WhatsApp Bot</h3>
-                  <p className="opacity-90">Direct farmer support via familiar platform</p>
-                </motion.div>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-      </ScrollAnimationContainer>
-
-      {/* Live Weather Section */}
-      <ScrollAnimationContainer>
-        <section id="weather" className="py-20 px-4 bg-gradient-to-br from-blue-50 to-green-50">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                Live Weather Updates
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Get real-time weather data and agricultural recommendations to make 
-                informed farming decisions. Monitor conditions and plan your activities accordingly.
-              </p>
-            </motion.div>
-
-            <div className="grid lg:grid-cols-1 gap-8">
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                viewport={{ once: true }}
-              >
-                <LocationWeatherWidget showForecast={true} />
-              </motion.div>
-            </div>
-          </div>
-        </section>
-      </ScrollAnimationContainer>
-
-      {/* Voice Assistant Section */}
-      <ScrollAnimationContainer>
-        <section id="voice" className="py-20 px-4 bg-gradient-to-br from-green-50 to-blue-50">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                 Voice Assistant Integration
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Speak naturally in your preferred language and get instant responses 
-                from our AI-powered WhatsApp chatbot. Perfect for farmers who prefer voice interaction.
-              </p>
-            </motion.div>
-
-            <div className="flex justify-center">
-              <VoiceAssistant 
-                onTranscript={(text) => {
-                  console.log('Voice input received:', text)
-                }}
-                onResponse={(response) => {
-                  console.log('Voice response:', response)
-                }}
-                className="max-w-md"
-              />
-            </div>
-          </div>
-        </section>
-      </ScrollAnimationContainer>
-
-      {/* WhatsApp Integration Section */}
-      <ScrollAnimationContainer>
-        <section id="whatsapp" className="py-20 px-4">
-          <div className="max-w-7xl mx-auto text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">
-              WhatsApp Agricultural Support
-            </h2>
-            <p className="text-lg text-gray-600 mb-8 max-w-3xl mx-auto">
-              Get instant agricultural support through WhatsApp. Our AI assistant provides weather updates, 
-              market prices, soil analysis, and crop advice in multiple Indian languages.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-semibold text-green-600 mb-2">🌤️ Weather Updates</h3>
-                <p className="text-sm text-gray-600">Get real-time weather data from NASA satellites</p>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-semibold text-blue-600 mb-2">💰 Market Prices</h3>
-                <p className="text-sm text-gray-600">Access live Indian market prices from Agmarknet</p>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-semibold text-purple-600 mb-2">🌱 Crop Advice</h3>
-                <p className="text-sm text-gray-600">Get AI-powered farming recommendations</p>
-              </div>
-            </div>
-            <Button 
-              onClick={() => window.open('https://wa.me/7670997498?text=kissan%20I%20need%20agricultural%20support', '_blank')}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg text-lg"
-            >
-              <MessageCircle size={24} className="mr-2" />
-              Start WhatsApp Chat
-            </Button>
-          </div>
-        </section>
-      </ScrollAnimationContainer>
-
-      {/* Call to Action */}
-      <section className="py-20 px-4 bg-gradient-to-r from-green-600 to-blue-600 text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="space-y-8"
-          >
-            <h2 className="text-4xl font-bold">
-              Ready to Transform Your Farming?
-            </h2>
-            <p className="text-xl opacity-90">
-              Join thousands of farmers already using AI-powered agriculture technology 
-              to increase yields and reduce costs.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
-                className="bg-white text-green-600 hover:bg-gray-100 font-semibold"
-                onClick={() => window.location.href = '/dashboard'}
-              >
-                Start Free Trial
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="border-white text-white hover:bg-white hover:text-green-600"
-                onClick={handleWhatsAppClick}
-              >
-                <MessageCircle className="w-5 h-5" />
-                Contact WhatsApp Bot
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
     </div>
   )
 }
 
 export default SmartAgriTechComponent
+
+// TypeScript declarations for Speech Recognition
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any
+    SpeechRecognition: any
+  }
+}

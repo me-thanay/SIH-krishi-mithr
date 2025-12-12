@@ -79,10 +79,9 @@ async function processAgriculturalCommand(transcript: string, language: string) 
     return formatPriceResponse(priceData, crop, language)
   }
   
-  // Soil analysis queries
+  // Soil analysis queries (disabled)
   if (command.includes('soil') || command.includes('मिट्टी') || command.includes('నేల')) {
-    const soilData = await fetchSoilData()
-    return formatSoilResponse(soilData, language)
+    return formatSoilResponse(null, language)
   }
   
   // Crop advice queries
@@ -129,11 +128,6 @@ async function fetchPriceData(crop: string) {
   return response.json()
 }
 
-async function fetchSoilData() {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/soil-analysis?lat=17.3850&lon=78.4867&source=openlandmap`)
-  return response.json()
-}
-
 function formatWeatherResponse(data: any, location: string, language: string): string {
   if (data.success) {
     const current = data.data.current
@@ -162,18 +156,13 @@ function formatPriceResponse(data: any, crop: string, language: string): string 
   return `${crop} price data is not available right now.`
 }
 
-function formatSoilResponse(data: any, language: string): string {
-  if (data.success) {
-    const soil = data.data
-    if (language === 'hi') {
-      return `मिट्टी विश्लेषण: pH स्तर ${soil.ph_level}, कार्बनिक कार्बन ${soil.organic_carbon} प्रतिशत। ${soil.recommendations[0]}`
-    } else if (language === 'te') {
-      return `నేల విశ్లేషణ: pH స్థాయి ${soil.ph_level}, సేంద్రీయ కార్బన్ ${soil.organic_carbon} శాతం। ${soil.recommendations[0]}`
-    } else {
-      return `Soil analysis: pH level ${soil.ph_level}, Organic carbon ${soil.organic_carbon} percent. ${soil.recommendations[0]}`
-    }
+function formatSoilResponse(_data: any, language: string): string {
+  if (language === 'hi') {
+    return 'मिट्टी विश्लेषण सुविधा अभी अक्षम है।'
+  } else if (language === 'te') {
+    return 'మట్టి విశ్లేషణ సదుపాయం ప్రస్తుతం నిలిపివేయబడింది.'
   }
-  return 'Soil analysis data is not available right now.'
+  return 'Soil analysis is currently disabled.'
 }
 
 function getCropAdvice(command: string, language: string): string {

@@ -31,7 +31,7 @@ export default function TubelightNavbarDemoPage() {
                 Full Navigation
               </h3>
               <p className="text-gray-600 mb-4">
-                Complete navigation with all Krishi Mithr features including Home, Dashboard, Subsidies, Market Prices, Soil Analysis, Profile, and Support.
+                Complete navigation with all Krishi Mithr features including Home, Dashboard, Subsidies, Weather, Market Prices, Soil Analysis, Profile, and Support.
               </p>
               <div className="bg-gray-50 rounded-lg p-4">
                 <TubelightNavBarDemo />

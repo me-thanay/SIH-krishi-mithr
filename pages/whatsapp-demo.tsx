@@ -16,7 +16,7 @@ export default function WhatsAppDemo() {
         </div>
         
         <button
-          onClick={() => window.open('https://wa.me/7670997498?text=Hello! I need agricultural support.', '_blank')}
+          onClick={() => window.open('https://wa.me/7670997498?text=kissan%20I%20need%20agricultural%20support', '_blank')}
           className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg text-lg font-semibold flex items-center space-x-2 mx-auto"
         >
           <MessageCircle size={24} />

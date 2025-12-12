@@ -1,87 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * Send WhatsApp message using WhatsApp Business API
+ * Send WhatsApp message via backend
  * POST /api/whatsapp/send
- * Body: { phoneNumber: string, message: string }
+ * Body: { message: string } OR { phoneNumber: string, message: string } (legacy)
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { phoneNumber, message } = body
-
-    if (!phoneNumber || !message) {
+    
+    // Support both new format { message: string } and legacy format { phoneNumber, message }
+    let message: string
+    if (body.message !== undefined) {
+      // New format: just message (backend adds "kissan" prefix)
+      message = body.message
+    } else if (body.phoneNumber && body.message) {
+      // Legacy format: phoneNumber + message
+      message = body.message
+    } else {
       return NextResponse.json(
-        { error: 'Phone number and message are required' },
+        { error: 'Message is required' },
         { status: 400 }
       )
     }
 
-    // Get WhatsApp API credentials from environment variables
-    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+    // Get backend URL
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sih-krishi-mithr-api.onrender.com'
+    const apiUrl = `${backendUrl}/api/webhook/send-whatsapp`
 
-    if (!accessToken || !phoneNumberId) {
-      console.error('[WHATSAPP] Missing WhatsApp API credentials')
-      return NextResponse.json(
-        { 
-          error: 'WhatsApp API not configured',
-          message: 'Please configure WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID in environment variables'
-        },
-        { status: 500 }
-      )
-    }
+    console.log('[WHATSAPP PROXY] Sending to backend:', apiUrl)
+    console.log('[WHATSAPP PROXY] Message:', message)
 
-    // Format phone number (remove +, spaces, and ensure it starts with country code)
-    let formattedPhone = phoneNumber.replace(/[\s\+\-]/g, '')
-    if (!formattedPhone.startsWith('91')) {
-      formattedPhone = '91' + formattedPhone
-    }
-
-    // WhatsApp Business API endpoint
-    const apiUrl = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`
-
-    // Send message via WhatsApp Business API
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: formattedPhone,
-        type: 'text',
-        text: {
-          body: message
-        }
-      })
+      body: JSON.stringify({ message: message || '' }),
     })
 
-    const data = await response.json()
-
     if (!response.ok) {
-      console.error('[WHATSAPP] API error:', data)
+      const errorText = await response.text()
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { detail: errorText }
+      }
+      
       return NextResponse.json(
-        { 
-          error: 'Failed to send WhatsApp message',
-          details: data.error?.message || 'Unknown error',
-          code: data.error?.code
+        {
+          success: false,
+          error: errorData.detail || errorData.error || 'Unknown error',
+          code: errorData.code
         },
         { status: response.status }
       )
     }
 
+    const data = await response.json()
+    console.log('[WHATSAPP PROXY] Backend response:', data)
+
     return NextResponse.json({
       success: true,
       message: 'WhatsApp message sent successfully',
-      messageId: data.messages?.[0]?.id
+      messageId: data.message_id,
+      sentTo: data.sent_to,
+      messageText: data.message_text
     })
 
   } catch (error: any) {
-    console.error('[WHATSAPP] Error:', error)
+    console.error('[WHATSAPP PROXY] Error:', error)
     return NextResponse.json(
-      { 
+      {
+        success: false,
         error: 'Failed to send WhatsApp message',
         details: error.message || 'Unknown error'
       },

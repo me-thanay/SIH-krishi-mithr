@@ -128,10 +128,9 @@ export function FloatingActionButtons({ className }: FloatingActionButtonsProps)
       return formatPriceResponse(priceData, crop)
     }
     
-    // Soil analysis queries
+    // Soil analysis queries (disabled)
     if (command.includes('soil') || command.includes('मिट्टी') || command.includes('నేల')) {
-      const soilData = await fetchSoilData()
-      return formatSoilResponse(soilData)
+      return "Soil analysis is currently disabled."
     }
     
     // Crop advice queries
@@ -184,11 +183,6 @@ export function FloatingActionButtons({ className }: FloatingActionButtonsProps)
 
   const fetchPriceData = async (crop: string) => {
     const response = await fetch(`/api/agmarknet-prices?crop=${crop}`)
-    return response.json()
-  }
-
-  const fetchSoilData = async () => {
-    const response = await fetch('/api/soil-analysis?lat=17.3850&lon=78.4867&source=openlandmap')
     return response.json()
   }
 
@@ -253,9 +247,19 @@ export function FloatingActionButtons({ className }: FloatingActionButtonsProps)
     }
   }
 
+  const getWhatsappNumber = () => process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "7670997498"
+
+  const buildWhatsappMessage = () => {
+    const spoken = transcript?.trim()
+    // Always prefix with "kissan" as requested
+    return spoken && spoken.length > 0
+      ? `kissan ${spoken}`
+      : 'kissan I need agricultural support'
+  }
+
   const handleWhatsAppClick = () => {
-    const phoneNumber = "7670997498"
-    const message = "Hello! I need agricultural support."
+    const phoneNumber = getWhatsappNumber()
+    const message = buildWhatsappMessage()
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, '_blank')
   }

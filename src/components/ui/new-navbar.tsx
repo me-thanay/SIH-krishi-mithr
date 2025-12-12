@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { motion } from "framer-motion"
@@ -18,27 +18,55 @@ import {
   X,
   LogIn,
   UserPlus,
-  LogOut
+  LogOut,
+  Power
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 
 export function NewNavbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  // Default to operations so landing view matches primary tab
+  const [activeTab, setActiveTab] = useState<string>('operations')
   const router = useRouter()
   const { user, isAuthenticated, showAuthModal, logout } = useAuth()
 
+  // Check hash on mount and hash changes
+  useEffect(() => {
+    const updateActiveTab = () => {
+      if (typeof window !== 'undefined') {
+        const hash = window.location.hash.replace('#', '')
+        if (hash === 'operations' || hash === 'analysis' || hash === 'questions') {
+          setActiveTab(hash)
+        } else {
+          setActiveTab('operations')
+        }
+      }
+    }
+    
+    updateActiveTab()
+    window.addEventListener('hashchange', updateActiveTab)
+    return () => window.removeEventListener('hashchange', updateActiveTab)
+  }, [])
+
   const navItems = [
-    { name: 'Home', url: '/', icon: Home },
+    // Single primary entry for the main dashboard
+    { name: 'Home', url: '/#operations', icon: Home, isTab: true },
+    { name: 'Farm Analysis', url: '/#analysis', icon: BarChart3, isTab: true },
+    { name: 'Questions', url: '/#questions', icon: MessageCircle, isTab: true },
     { name: 'Dashboard', url: '/dashboard', icon: BarChart3 },
-    { name: 'Subsidies', url: '/subsidies', icon: Award },
-    { name: 'Market Prices', url: '/market-prices', icon: TrendingUp },
-    { name: 'Soil Analysis', url: '/soil-analysis', icon: Leaf },
-    { name: 'Profile', url: '/profile', icon: User },
   ]
 
-  const handleNavClick = (url: string) => {
+  const handleNavClick = (url: string, isTab?: boolean) => {
     setIsMobileMenuOpen(false)
-    router.push(url)
+    if (isTab) {
+      // For tab navigation, update the hash and trigger custom event
+      const tab = url.split('#')[1] || 'operations'
+      setActiveTab(tab)
+      window.location.hash = tab
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    } else {
+      router.push(url)
+    }
   }
 
   const handleAuthClick = (mode: 'login' | 'signup') => {
@@ -68,12 +96,13 @@ export function NewNavbar() {
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = router.pathname === item.url
+              const tabHash = item.isTab ? item.url.split('#')[1] : ''
+              const isActive = (item.isTab && activeTab === tabHash) || (!item.isTab && router.pathname === item.url)
               
               return (
                 <button
                   key={item.name}
-                  onClick={() => handleNavClick(item.url)}
+                  onClick={() => handleNavClick(item.url, item.isTab)}
                   className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-green-600 text-white shadow-md'
@@ -120,12 +149,13 @@ export function NewNavbar() {
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon
-                const isActive = router.pathname === item.url
+                const tabHash = item.isTab ? item.url.split('#')[1] : ''
+              const isActive = (item.isTab && activeTab === tabHash) || (!item.isTab && router.pathname === item.url)
                 
                 return (
                   <button
                     key={item.name}
-                    onClick={() => handleNavClick(item.url)}
+                    onClick={() => handleNavClick(item.url, item.isTab)}
                     className={`flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium transition-colors ${
                       isActive
                         ? 'bg-green-600 text-white shadow-md'

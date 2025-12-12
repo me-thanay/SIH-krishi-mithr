@@ -90,34 +90,9 @@ export default function Navigation({ className = '' }: NavigationProps) {
       public: false,
       description: 'Your farming dashboard'
     },
-    {
-      name: 'Subsidies',
-      href: '/subsidies',
-      icon: Award,
-      public: true,
-      description: 'Government schemes'
-    },
-    {
-      name: 'Market Prices',
-      href: '/market-prices',
-      icon: TrendingUp,
-      public: true,
-      description: 'Crop prices'
-    },
-    {
-      name: 'Soil Analysis',
-      href: '/soil-analysis',
-      icon: FileText,
-      public: true,
-      description: 'Soil health check'
-    },
-    {
-      name: 'Profile',
-      href: '/profile',
-      icon: User,
-      public: false,
-      description: 'Your profile'
-    }
+    // Weather removed
+    // Market Prices removed
+    // Profile removed
   ]
 
   // Always show all items - no auth required
@@ -171,11 +146,11 @@ export default function Navigation({ className = '' }: NavigationProps) {
               <span className="font-medium">Support</span>
             </button>
 
-            {/* User Section - Always show guest user */}
+            {/* User Section - Always show welcome text */}
             <div className="flex items-center gap-4 ml-4 pl-4 border-l border-gray-200">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">Guest User</p>
-                <p className="text-xs text-gray-500">Welcome to Krishi Mithr</p>
+                <p className="text-sm font-medium text-gray-900">Welcome to Krishi Mithr</p>
+                <p className="text-xs text-gray-500"></p>
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { AlertTriangle } from "lucide-react"
 import { Card } from "./card"
 import { cn } from "@/lib/utils"
 
@@ -11,18 +12,19 @@ interface MarketPricesProps {
   autoDetectLocation?: boolean
 }
 
+// Market prices temporarily disabled to avoid backend 404s on trends endpoint.
 export const MarketPrices = ({ className }: MarketPricesProps) => {
   return (
-    <Card className={cn("p-6 space-y-2", className)}>
-      <h3 className="text-lg font-semibold text-gray-900">Market Intelligence</h3>
-      <p className="text-sm text-gray-600">
-        Backend market API is disabled. Showing placeholder info.
-      </p>
-      <ul className="text-sm text-gray-700 list-disc list-inside space-y-1">
-        <li>Tomato: ₹45/kg (mock)</li>
-        <li>Onion: ₹38/kg (mock)</li>
-        <li>Potato: ₹25/kg (mock)</li>
-      </ul>
+    <Card className={cn("p-6", className)}>
+      <div className="flex items-center gap-3 text-amber-700">
+        <AlertTriangle className="w-5 h-5" />
+        <div>
+          <p className="text-sm font-semibold">Market prices temporarily disabled</p>
+          <p className="text-xs text-amber-700/80">
+            This section is disabled to prevent failing API calls. Re-enable when backend support is ready.
+          </p>
+        </div>
+      </div>
     </Card>
   )
 }

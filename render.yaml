@@ -1,13 +1,18 @@
 services:
-  # MQTT to MongoDB Background Worker (Free Tier - Manual Setup Recommended)
-  # Note: Use Manual Setup in Render Dashboard to avoid payment requirement
-  # Blueprint requires payment info on file (even for free tier)
-  - type: worker
-    name: krishi-mithr-mqtt-worker
-    env: python
-    buildCommand: pip install -r requirements_mqtt.txt
-    startCommand: python mqtt_to_mongodb_krishimithr.py
+  - type: web
+    name: sih-krishi-mithr-api
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.backend.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: PYTHONPATH
+        value: "."
       - key: DATABASE_URL
         sync: false
-
+      - key: DATA_GOV_API_KEY
+        sync: false

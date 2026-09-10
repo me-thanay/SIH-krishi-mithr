@@ -29,6 +29,7 @@ export default function MarketPricesPage() {
   const [stateFilter, setStateFilter] = useState("")
   const [sourceLabel, setSourceLabel] = useState("data.gov.in / AGMARKNET")
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
+  const [statusNote, setStatusNote] = useState<string | null>(null)
 
   useEffect(() => {
     fetchMarketData()
@@ -37,6 +38,7 @@ export default function MarketPricesPage() {
   const fetchMarketData = async (crop?: string, state?: string) => {
     setIsLoading(true)
     setError(null)
+    setStatusNote(null)
 
     try {
       const params = new URLSearchParams({ limit: "10", offset: "0" })
@@ -53,6 +55,7 @@ export default function MarketPricesPage() {
       setMarketData(body.data)
       setSourceLabel(body.source || "data.gov.in / AGMARKNET")
       setUpdatedAt(body.updated || null)
+      setStatusNote(body.cached ? body.message || "Showing last known mandi prices." : null)
     } catch (err) {
       console.error("Market data fetch error:", err)
       setMarketData([])
@@ -107,6 +110,11 @@ export default function MarketPricesPage() {
           <p className="mt-2 text-gray-600">
             Live mandi prices from AGMARKNET (data.gov.in)
           </p>
+          {statusNote && (
+            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+              {statusNote}
+            </p>
+          )}
         </div>
 
         <div className="mb-8 rounded-lg border bg-white p-6 shadow-sm">

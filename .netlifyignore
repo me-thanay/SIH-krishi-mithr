@@ -1,0 +1,35 @@
+# Ignore Python files during Netlify build
+runtime.txt
+runtime.txt.bak
+requirements.txt
+requirements.txt.bak
+requirements.backend.txt
+requirements_mqtt.txt
+requirements_mqtt.txt.bak
+requirements_mqtt.backend.txt
+*.py
+mqtt_to_mongodb*.py
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Ignore Railway-specific files
+Dockerfile.railway*
+railway.json
+railway.mqtt.json
+nixpacks.toml
+
+# Ignore deployment docs (not needed in build)
+*_DEPLOYMENT*.md
+*_ENV*.md
+*_FIX*.md
+*_QUICK*.md
+*_STEPS*.md
+RAILWAY_*.md
+NETLIFY_*.md
+VERCEL_*.md
+LOCAL_*.md
+

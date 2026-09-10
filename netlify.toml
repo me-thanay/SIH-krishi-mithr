@@ -1,0 +1,21 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  NODE_VERSION = "18"
+  # Force Node.js only, disable Python detection
+  PYTHON = ""
+  PYTHON_VERSION = ""
+  NIXPACKS_NO_PYTHON = "1"
+  # Use explicit buildpack
+  NIXPACKS_CONFIG_FILE = ".nixpacks.toml"
+
+# Redirect legacy auth routes to home to avoid 404s
+[[redirects]]
+  from = "/auth/*"
+  to = "/"
+  status = 301

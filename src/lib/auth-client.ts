@@ -2,11 +2,11 @@
 
 export interface User {
   id: string
-  email: string
-  name: string
-  phone?: string
+  email?: string | null
+  name?: string | null
+  phone?: string | null
   createdAt: string
-  updatedAt: string
+  updatedAt?: string
 }
 
 export interface AgriculturalProfile {
@@ -86,15 +86,30 @@ export interface Subsidy {
   updatedAt: string
 }
 
-// API Base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+function getApiBaseUrl() {
+  if (typeof window !== 'undefined') return ''
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return 'http://localhost:3000'
+}
 
 // Token management
 export const tokenManager = {
-  getToken: (): string | null => null,
-  setToken: (_token: string): void => {},
-  removeToken: (): void => {},
-  getAuthHeaders: (): HeadersInit => ({})
+  getToken: (): string | null => {
+    if (typeof window === 'undefined') return null
+    return localStorage.getItem('auth_token')
+  },
+  setToken: (token: string): void => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('auth_token', token)
+  },
+  removeToken: (): void => {
+    if (typeof window === 'undefined') return
+    localStorage.removeItem('auth_token')
+  },
+  getAuthHeaders: (): HeadersInit => {
+    const token = tokenManager.getToken()
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  }
 }
 
 // API request helper
@@ -103,7 +118,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   // Remove trailing slash from base URL and leading slash from endpoint to avoid double slashes
-  const baseUrl = API_BASE_URL.replace(/\/+$/, '')
+  const baseUrl = getApiBaseUrl().replace(/\/+$/, '')
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
   const url = `${baseUrl}${cleanEndpoint}`
   const response = await fetch(url, {
@@ -125,39 +140,25 @@ async function apiRequest<T>(
 
 // Authentication functions
 export const authAPI = {
-  // Sign up new user
-  signup: async (userData: {
-    email: string
-    password: string
-    name: string
-    phone?: string
-    agriculturalProfile: {
-      farmSize: string
-      crops: string[]
-      location: string
-      state: string
-      district?: string
-      soilType: string
-      irrigationType: string
-      farmingExperience: string
-      annualIncome: string
-      governmentSchemes: string[]
-    }
-  }): Promise<AuthResponse> => {
-    return apiRequest<AuthResponse>('/api/auth/signup', {
+  signup: async (phone: string, faceImage: string): Promise<AuthResponse> => {
+    const response = await apiRequest<AuthResponse>('/api/auth/signup', {
       method: 'POST',
-      body: JSON.stringify(userData),
+      body: JSON.stringify({ phone, faceImage }),
     })
+
+    if (response.success && response.token) {
+      tokenManager.setToken(response.token)
+    }
+
+    return response
   },
 
-  // Login user
-  login: async (email: string, password: string): Promise<AuthResponse> => {
+  login: async (phone: string, faceImage: string): Promise<AuthResponse> => {
     const response = await apiRequest<AuthResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ phone, faceImage }),
     })
 
-    // Store token if login successful
     if (response.success && response.token) {
       tokenManager.setToken(response.token)
     }

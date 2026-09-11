@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { authAPI, tokenManager, authUtils, User, AgriculturalProfile, UserCrop } from '@/lib/auth-client'
-import { InfinityIcon } from 'lucide-react'
+import { authAPI, tokenManager, User, AgriculturalProfile, UserCrop } from '@/lib/auth-client'
 
 interface AuthState {
   user: (User & {
@@ -17,8 +16,8 @@ interface AuthState {
 }
 
 interface AuthActions {
-  login: (email: string, password: string) => Promise<boolean>
-  signup: (userData: any) => Promise<boolean>
+  login: (phone: string, faceImage: string) => Promise<boolean>
+  signup: (phone: string, faceImage: string) => Promise<boolean>
   logout: () => void
   updateProfile: (profileData: any) => Promise<boolean>
   refreshProfile: () => Promise<void>
@@ -30,39 +29,113 @@ export function useAuth(): AuthState & AuthActions {
     user: null,
     agriculturalProfile: null,
     userCrops: [],
-    isLoading: false,
-    isAuthenticated: true,
+    isLoading: true,
+    isAuthenticated: false,
     error: null
   })
 
-  // Initialize auth state on mount
   useEffect(() => {
-    // Auth disabled: mark as authenticated immediately
-    setState(prev => ({ ...prev, isAuthenticated: true, isLoading: false }))
+    void initializeAuth()
   }, [])
 
   const initializeAuth = async () => {
-    // Auth disabled: no-op
-    setState(prev => ({ ...prev, isAuthenticated: true, isLoading: false }))
+    if (!tokenManager.getToken()) {
+      setState(prev => ({ ...prev, isAuthenticated: false, isLoading: false }))
+      return
+    }
+
+    try {
+      const response = await authAPI.getProfile()
+      if (response.success && response.user) {
+        setState(prev => ({
+          ...prev,
+          user: response.user!,
+          agriculturalProfile: response.user!.agriculturalProfile || null,
+          userCrops: response.user!.userCrops || [],
+          isAuthenticated: true,
+          isLoading: false,
+        }))
+        return
+      }
+    } catch (error) {
+      console.error('Auth init error:', error)
+    }
+
+    tokenManager.removeToken()
+    setState(prev => ({ ...prev, isAuthenticated: false, isLoading: false, user: null }))
   }
 
-  const login = useCallback(async (_email: string, _password: string): Promise<boolean> => {
-    setState(prev => ({ ...prev, isAuthenticated: true, isLoading: false, error: null }))
-    return true
+  const login = useCallback(async (phone: string, faceImage: string): Promise<boolean> => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }))
+      const response = await authAPI.login(phone, faceImage)
+      if (response.success && response.user) {
+        setState(prev => ({
+          ...prev,
+          user: response.user!,
+          isAuthenticated: true,
+          isLoading: false,
+        }))
+        return true
+      }
+      setState(prev => ({
+        ...prev,
+        error: response.error || 'Login failed',
+        isLoading: false,
+        isAuthenticated: false,
+      }))
+      return false
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Login failed',
+        isLoading: false,
+        isAuthenticated: false,
+      }))
+      return false
+    }
   }, [])
 
-  const signup = useCallback(async (_userData: any): Promise<boolean> => {
-    setState(prev => ({ ...prev, isAuthenticated: true, isLoading: false, error: null }))
-    return true
+  const signup = useCallback(async (phone: string, faceImage: string): Promise<boolean> => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }))
+      const response = await authAPI.signup(phone, faceImage)
+      if (response.success && response.user) {
+        setState(prev => ({
+          ...prev,
+          user: response.user!,
+          isAuthenticated: true,
+          isLoading: false,
+        }))
+        return true
+      }
+      setState(prev => ({
+        ...prev,
+        error: response.error || 'Signup failed',
+        isLoading: false,
+      }))
+      return false
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Signup failed',
+        isLoading: false,
+      }))
+      return false
+    }
   }, [])
 
   const logout = useCallback(() => {
+    tokenManager.removeToken()
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user')
+    }
     setState({
       user: null,
       agriculturalProfile: null,
       userCrops: [],
       isLoading: false,
-      isAuthenticated: true,
+      isAuthenticated: false,
       error: null
     })
   }, [])

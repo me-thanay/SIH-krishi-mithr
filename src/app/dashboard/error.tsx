@@ -44,7 +44,7 @@ export default function DashboardError({
           </button>
           
           <Link
-            href="/auth/login"
+            href="/login"
             className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
           >
             <LogIn className="w-4 h-4" />

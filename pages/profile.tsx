@@ -40,7 +40,7 @@ export default function ProfilePage() {
     try {
       const token = localStorage.getItem('auth_token')
       if (!token) {
-        window.location.href = '/auth/login'
+        window.location.href = '/login'
         return
       }
 
@@ -59,13 +59,13 @@ export default function ProfilePage() {
       } else {
         localStorage.removeItem('auth_token')
         localStorage.removeItem('user')
-        window.location.href = '/auth/login'
+        window.location.href = '/login'
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
       localStorage.removeItem('auth_token')
       localStorage.removeItem('user')
-      window.location.href = '/auth/login'
+      window.location.href = '/login'
     } finally {
       setIsLoading(false)
     }
@@ -150,7 +150,7 @@ export default function ProfilePage() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Profile Not Found</h3>
             <p className="text-gray-600 mb-4">Please sign in to view your profile.</p>
             <button
-              onClick={() => window.location.href = '/auth/login'}
+              onClick={() => window.location.href = '/login'}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               Sign In

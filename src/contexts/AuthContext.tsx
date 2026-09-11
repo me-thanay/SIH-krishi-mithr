@@ -1,12 +1,14 @@
 "use client"
 
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react'
+import { AuthModal } from '@/components/ui/auth-modal'
+import { authAPI, tokenManager } from '@/lib/auth-client'
 
 interface User {
   id: string
-  name: string
-  email: string
-  phone?: string
+  name?: string | null
+  email?: string | null
+  phone?: string | null
   createdAt: string
   agriculturalProfile?: {
     id: string
@@ -41,47 +43,87 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  // Always authenticated - no auth required
-  const [user] = useState<User | null>({
-    id: 'guest',
-    name: 'Guest User',
-    email: 'guest@krishimithr.com',
-    phone: '',
-    createdAt: new Date().toISOString(),
-    agriculturalProfile: undefined
-  })
-  const [isLoading] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
 
-  const showAuthModal = () => {
-    // No-op - auth disabled
-  }
+  const checkAuth = useCallback(async () => {
+    const token = tokenManager.getToken()
+    if (!token) {
+      setUser(null)
+      setIsLoading(false)
+      return
+    }
 
-  const hideAuthModal = () => {
-    // No-op - auth disabled
-  }
+    try {
+      const response = await authAPI.getProfile()
+      if (response.success && response.user) {
+        setUser(response.user)
+        return
+      }
 
-  const logout = () => {
-    // No-op - auth disabled
-  }
+      tokenManager.removeToken()
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user')
+      }
+      setUser(null)
+    } catch {
+      tokenManager.removeToken()
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user')
+      }
+      setUser(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
-  const checkAuth = async () => {
-    // No-op - auth disabled
-  }
+  useEffect(() => {
+    void checkAuth()
+  }, [checkAuth])
+
+  const showAuthModal = useCallback((mode: 'login' | 'signup' = 'login') => {
+    setAuthMode(mode)
+    setIsAuthModalOpen(true)
+  }, [])
+
+  const hideAuthModal = useCallback(() => {
+    setIsAuthModalOpen(false)
+  }, [])
+
+  const logout = useCallback(() => {
+    tokenManager.removeToken()
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user')
+    }
+    setUser(null)
+  }, [])
 
   const value: AuthContextType = {
     user,
     isLoading,
-    isAuthenticated: true, // Always authenticated
-    isAuthModalOpen: false, // Never show modal
+    isAuthenticated: !!user,
+    isAuthModalOpen,
     showAuthModal,
     hideAuthModal,
     logout,
-    checkAuth
+    checkAuth,
   }
 
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={hideAuthModal}
+        defaultMode={authMode}
+        onAuthSuccess={(nextUser) => {
+          setUser(nextUser)
+          setIsLoading(false)
+          hideAuthModal()
+        }}
+      />
     </AuthContext.Provider>
   )
 }

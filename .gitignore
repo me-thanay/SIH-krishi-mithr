@@ -40,3 +40,4 @@ build/
 *.swo
 
 /generated/prisma
+/data/local-users.json

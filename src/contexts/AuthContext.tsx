@@ -1,8 +1,13 @@
 "use client"
 
 import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react'
-import { AuthModal } from '@/components/ui/auth-modal'
+import dynamic from 'next/dynamic'
 import { authAPI, tokenManager } from '@/lib/auth-client'
+
+const AuthModal = dynamic(
+  () => import('@/components/ui/auth-modal').then((mod) => mod.AuthModal),
+  { ssr: false }
+)
 
 interface User {
   id: string
@@ -57,26 +62,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     try {
+      const cached = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+      if (cached) {
+        setUser(JSON.parse(cached))
+        setIsLoading(false)
+        return
+      }
+    } catch {
+      // Ignore invalid cached user JSON and fall through to the profile API.
+    }
+
+    try {
       const response = await authAPI.getProfile()
       if (response.success && response.user) {
         setUser(response.user)
+        setIsLoading(false)
         return
       }
-
-      tokenManager.removeToken()
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user')
-      }
-      setUser(null)
     } catch {
-      tokenManager.removeToken()
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user')
-      }
-      setUser(null)
-    } finally {
-      setIsLoading(false)
+      // Local or expired sessions should not keep a broken token around.
     }
+
+    tokenManager.removeToken()
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user')
+    }
+    setUser(null)
+    setIsLoading(false)
   }, [])
 
   useEffect(() => {

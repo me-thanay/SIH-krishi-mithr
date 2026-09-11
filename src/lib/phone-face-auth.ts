@@ -137,16 +137,27 @@ export async function signupWithPhoneAndFace(
     }
   }
 
-  const user = await createUserWithPhoneAndFace(phone, faceImage)
-  const token = generateToken(user.id, user.phone || user.id)
+  try {
+    const user = await createUserWithPhoneAndFace(phone, faceImage)
+    const token = generateToken(user.id, user.phone || user.id)
 
-  return {
-    status: 200,
-    body: createAuthResponse(
-      true,
-      toPublicUser(user),
-      token,
-      'Account created successfully'
-    ),
+    return {
+      status: 200,
+      body: createAuthResponse(
+        true,
+        toPublicUser(user),
+        token,
+        'Account created successfully'
+      ),
+    }
+  } catch (error) {
+    console.error('[SIGNUP ERROR]', error)
+    return {
+      status: 500,
+      body: {
+        success: false,
+        error: 'Could not create your account. Please try again.',
+      },
+    }
   }
 }

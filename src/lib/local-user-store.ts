@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
 import path from 'path'
 
 export type LocalUser = {
@@ -18,33 +19,56 @@ type StoreFile = {
   users: LocalUser[]
 }
 
-const storePath = path.join(process.cwd(), 'data', 'local-users.json')
+const memoryStore: StoreFile = { users: [] }
+let memoryLoaded = false
+
+function isServerless() {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY)
+}
+
+function getStorePath() {
+  const directory = isServerless()
+    ? tmpdir()
+    : path.join(process.cwd(), 'data')
+  return path.join(directory, 'krishi-mithr-users.json')
+}
 
 function emptyStore(): StoreFile {
   return { users: [] }
 }
 
-function readStore(): StoreFile {
+function loadStore(): StoreFile {
+  if (memoryLoaded) return memoryStore
+
+  memoryLoaded = true
   try {
-    if (!existsSync(storePath)) return emptyStore()
+    const storePath = getStorePath()
+    if (!existsSync(storePath)) return memoryStore
     const parsed = JSON.parse(readFileSync(storePath, 'utf8')) as StoreFile
-    return { users: Array.isArray(parsed.users) ? parsed.users : [] }
+    memoryStore.users = Array.isArray(parsed.users) ? parsed.users : []
   } catch {
-    return emptyStore()
+    memoryStore.users = emptyStore().users
+  }
+
+  return memoryStore
+}
+
+function persistStore() {
+  try {
+    const storePath = getStorePath()
+    mkdirSync(path.dirname(storePath), { recursive: true })
+    writeFileSync(storePath, JSON.stringify(memoryStore), 'utf8')
+  } catch (error) {
+    console.warn('[auth] Could not persist local users to disk; keeping them in memory', error)
   }
 }
 
-function writeStore(store: StoreFile) {
-  mkdirSync(path.dirname(storePath), { recursive: true })
-  writeFileSync(storePath, JSON.stringify(store, null, 2), 'utf8')
-}
-
 export function findLocalUserByPhone(phone: string): LocalUser | null {
-  return readStore().users.find((user) => user.phone === phone) || null
+  return loadStore().users.find((user) => user.phone === phone) || null
 }
 
 export function findLocalUserById(id: string): LocalUser | null {
-  return readStore().users.find((user) => user.id === id) || null
+  return loadStore().users.find((user) => user.id === id) || null
 }
 
 export function createLocalUser(phone: string, faceImage: string): LocalUser {
@@ -61,8 +85,8 @@ export function createLocalUser(phone: string, faceImage: string): LocalUser {
     agriculturalProfile: null,
   }
 
-  const store = readStore()
+  const store = loadStore()
   store.users.push(user)
-  writeStore(store)
+  persistStore()
   return user
 }

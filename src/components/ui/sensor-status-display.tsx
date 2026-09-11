@@ -214,7 +214,7 @@ export function SensorStatusDisplay({ onConditionDetected }: SensorStatusDisplay
     if (sensorData && onConditionDetected && !hasInitialCheck && !loading) {
       // Wait a bit more to ensure all sensor data is loaded
       const timeout = setTimeout(() => {
-        performConditionCheck()
+        performConditionCheck(sensorData, previousSensorData)
         setHasInitialCheck(true)
       }, 3000)
       

@@ -222,7 +222,7 @@ async function loadMandiPrices(options: {
       return { ...stale.payload, cached: true, message: "Showing cached mandi prices while data.gov.in is busy." }
     }
 
-    const anyFresh = [...cache.values()].find((entry) => entry.expires > Date.now() && entry.payload.data.length)
+    const anyFresh = Array.from(cache.values()).find((entry) => entry.expires > Date.now() && entry.payload.data.length)
     if (anyFresh) {
       return { ...anyFresh.payload, cached: true, message: "Showing cached mandi prices while data.gov.in is busy." }
     }

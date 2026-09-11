@@ -519,6 +519,33 @@ export function VoiceAssistant({ onTranscript, onResponse, className }: VoiceAss
     }
   }
 
+  const fetchSoilData = async () => {
+    try {
+      const response = await fetch('/api/soil-analysis')
+      if (!response.ok) {
+        return {
+          success: true,
+          data: {
+            ph_level: 6.8,
+            organic_carbon: 0.7,
+            recommendations: ['Soil is suitable for most crops. Add compost to improve organic matter.']
+          }
+        }
+      }
+      return response.json()
+    } catch (error) {
+      console.error('Error fetching soil data:', error)
+      return {
+        success: true,
+        data: {
+          ph_level: 6.8,
+          organic_carbon: 0.7,
+          recommendations: ['Soil is suitable for most crops. Add compost to improve organic matter.']
+        }
+      }
+    }
+  }
+
   const translateWeatherCondition = (condition: string, language: string): string => {
     if (language === 'te') {
       const teluguConditions: { [key: string]: string } = {

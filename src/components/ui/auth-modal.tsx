@@ -30,8 +30,9 @@ export function AuthModal({
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const startingRef = useRef(false)
 
-  const stopCamera = () => {
+  const releaseStream = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
@@ -39,8 +40,58 @@ export function AuthModal({
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
+  }
+
+  const stopCamera = () => {
+    startingRef.current = false
+    releaseStream()
     setIsCapturing(false)
     setVideoReady(false)
+  }
+
+  const waitForVideoElement = async () => {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      if (videoRef.current) return videoRef.current
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    return null
+  }
+
+  const attachStreamToVideo = async (stream: MediaStream) => {
+    const video = await waitForVideoElement()
+    if (!video) {
+      stream.getTracks().forEach((track) => track.stop())
+      throw new Error("VIDEO_ELEMENT_MISSING")
+    }
+
+    streamRef.current = stream
+    video.srcObject = stream
+    video.muted = true
+    video.playsInline = true
+    video.setAttribute("playsinline", "true")
+    video.setAttribute("webkit-playsinline", "true")
+
+    await new Promise<void>((resolve, reject) => {
+      const finish = () => {
+        video.removeEventListener("loadedmetadata", finish)
+        video.removeEventListener("playing", finish)
+        resolve()
+      }
+
+      video.addEventListener("loadedmetadata", finish)
+      video.addEventListener("playing", finish)
+
+      video
+        .play()
+        .then(() => {
+          if (video.readyState >= 2) finish()
+        })
+        .catch(reject)
+
+      setTimeout(finish, 1500)
+    })
+
+    setVideoReady(true)
   }
 
   const startCamera = async () => {
@@ -49,43 +100,46 @@ export function AuthModal({
       return
     }
 
+    if (startingRef.current) return
+    startingRef.current = true
+    releaseStream()
     setCameraError(null)
     setVideoReady(false)
     setIsCapturing(true)
 
-    const attachStream = async (constraints: MediaStreamConstraints) => {
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
-      streamRef.current = stream
-
-      const video = videoRef.current
-      if (!video) {
-        throw new Error("Video element not found")
-      }
-
-      video.srcObject = stream
-      video.muted = true
-      await video.play()
-      setVideoReady(video.videoWidth > 0)
-    }
-
     try {
-      await attachStream({
-        video: {
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-      })
-    } catch (err) {
-      console.warn("Front camera failed, retrying with any camera", err)
+      let stream: MediaStream
       try {
-        await attachStream({ video: true })
-      } catch (err2) {
-        console.error("Camera error:", err2)
-        setIsCapturing(false)
-        setVideoReady(false)
-        setCameraError("Allow camera access to capture your face, then try again.")
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: "user" },
+        })
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: true,
+        })
       }
+
+      await attachStreamToVideo(stream)
+    } catch (err) {
+      console.error("Camera error:", err)
+      releaseStream()
+      setIsCapturing(false)
+      setVideoReady(false)
+
+      const name = err instanceof Error ? err.name : ""
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        setCameraError("Allow camera access in the browser address bar, then tap Start camera.")
+      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        setCameraError("No camera was found on this device.")
+      } else if (name === "NotReadableError" || name === "TrackStartError") {
+        setCameraError("Camera is already in use. Close other apps using it, then tap Start camera.")
+      } else {
+        setCameraError(null)
+      }
+    } finally {
+      startingRef.current = false
     }
   }
 
@@ -93,7 +147,7 @@ export function AuthModal({
     const video = videoRef.current
     const canvas = canvasRef.current
     if (!video || !canvas || video.videoWidth === 0) {
-      setCameraError("Camera is not ready yet. Allow camera access and try again.")
+      setCameraError("Camera preview is not ready yet. Tap Start camera and try again.")
       return
     }
 
@@ -118,12 +172,12 @@ export function AuthModal({
     setFaceImage(null)
     setPhone("")
 
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       void startCamera()
-    }, 250)
+    }, 400)
 
     return () => {
-      clearTimeout(timer)
+      window.clearTimeout(timer)
       stopCamera()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,12 +360,10 @@ export function AuthModal({
                   <div className="absolute inset-0 rounded-full bg-[#e1fcad]/40" />
                   <div className="absolute inset-[6px] overflow-hidden rounded-full border border-white/80 bg-[#d9d4c8] shadow-inner">
                     {!faceImage && !videoReady && (
-                      <div className="flex h-full w-full flex-col items-center justify-center px-6 text-center">
+                      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
                         <Camera className="mb-2 h-7 w-7 text-[#122023]/35" />
                         <p className="text-xs leading-relaxed text-[#122023]/55">
-                          {isCapturing
-                            ? "Waiting for camera…"
-                            : "Camera is off"}
+                          {isCapturing ? "Starting camera…" : "Tap Start camera"}
                         </p>
                       </div>
                     )}
@@ -321,10 +373,11 @@ export function AuthModal({
                       autoPlay
                       playsInline
                       muted
-                      onPlaying={() => setVideoReady((videoRef.current?.videoWidth || 0) > 0)}
+                      onLoadedMetadata={() => setVideoReady(true)}
+                      onPlaying={() => setVideoReady(true)}
                       className={cn(
-                        "h-full w-full object-cover",
-                        isCapturing && videoReady ? "block" : "hidden"
+                        "absolute inset-0 h-full w-full object-cover",
+                        isCapturing ? "opacity-100" : "opacity-0"
                       )}
                       style={{ transform: "scaleX(-1)" }}
                     />
@@ -349,7 +402,7 @@ export function AuthModal({
                       className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#122023] px-5 py-3 text-sm font-medium text-[#e1fcad] transition-colors hover:bg-[#1d3337]"
                     >
                       <Camera className="h-4 w-4" />
-                      Enable camera
+                      Start camera
                     </button>
                   )}
 

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import type { AuthUser } from '@/lib/auth'
 import {
   createLocalUser,
   findLocalUserById,
@@ -73,7 +74,19 @@ export async function createUserWithPhoneAndFace(
   return createLocalUser(phone, faceImage)
 }
 
-export function toPublicUser(user: AuthUserRecord | LocalUser) {
-  const { password: _password, faceImage: _face, ...safeUser } = user as AuthUserRecord
-  return safeUser
+export function toPublicUser(user: AuthUserRecord | LocalUser): AuthUser {
+  const createdAt = user.createdAt instanceof Date ? user.createdAt : new Date(user.createdAt)
+  const updatedAt = user.updatedAt instanceof Date
+    ? user.updatedAt
+    : new Date(user.updatedAt || user.createdAt)
+
+  return {
+    id: user.id,
+    email: user.email ?? null,
+    name: user.name ?? null,
+    phone: user.phone ?? null,
+    createdAt,
+    updatedAt,
+    agriculturalProfile: user.agriculturalProfile ?? null,
+  }
 }

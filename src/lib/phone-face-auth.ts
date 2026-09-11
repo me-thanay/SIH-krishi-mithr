@@ -1,4 +1,4 @@
-import { generateToken, createAuthResponse, isValidPhone } from '@/lib/auth'
+import { generateToken, createAuthResponse, isValidPhone, type AuthResponse } from '@/lib/auth'
 import {
   createUserWithPhoneAndFace,
   findUserByPhone,
@@ -7,7 +7,7 @@ import {
 
 type AuthResult = {
   status: number
-  body: Record<string, unknown>
+  body: AuthResponse
 }
 
 function compareFaceImages(image1: string, image2: string): boolean {
@@ -94,7 +94,7 @@ export async function loginWithPhoneAndFace(
     status: 200,
     body: createAuthResponse(
       true,
-      toPublicUser(user) as any,
+      toPublicUser(user),
       token,
       'Login successful'
     ),
@@ -144,7 +144,7 @@ export async function signupWithPhoneAndFace(
     status: 200,
     body: createAuthResponse(
       true,
-      toPublicUser(user) as any,
+      toPublicUser(user),
       token,
       'Account created successfully'
     ),

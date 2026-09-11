@@ -1,19 +1,15 @@
 services:
   - type: web
     name: sih-krishi-mithr-api
-    runtime: python
+    runtime: docker
     plan: free
     region: oregon
-    buildCommand: PIP_REQUIRE_HASHES=0 pip install --no-cache-dir --upgrade pip && PIP_REQUIRE_HASHES=0 pip install --no-cache-dir -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
     healthCheckPath: /health
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.9"
       - key: PYTHONPATH
-        value: "."
-      - key: PIP_REQUIRE_HASHES
-        value: "0"
+        value: /app
       - key: DATABASE_URL
         sync: false
       - key: DATA_GOV_API_KEY

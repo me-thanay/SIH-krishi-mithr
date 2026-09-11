@@ -1,0 +1,16 @@
+.git
+.next
+node_modules
+whatsapp-bot
+src
+pages
+prisma
+*.md
+.env
+.env.*
+__pycache__
+.venv
+venv
+coverage
+dist
+build

@@ -21,11 +21,16 @@ export default function LoginPage() {
 
   return (
     <>
-      <NewNavbar />
-      <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4 pt-16">
-        <p className="text-center text-gray-600">
-          Sign in with your phone number and face photo.
-        </p>
+      <NewNavbar variant="hero" />
+      <main className="relative min-h-screen">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage:
+              "url(https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=2400&q=80)",
+          }}
+        />
+        <div className="absolute inset-0 bg-[#122023]/50" />
       </main>
     </>
   )

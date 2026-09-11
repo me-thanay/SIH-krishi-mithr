@@ -11,10 +11,10 @@ const kantumruy = Kantumruy_Pro({
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <AuthProvider>
-      <div className={kantumruy.variable}>
+    <div className={kantumruy.variable}>
+      <AuthProvider>
         <Component {...pageProps} />
-      </div>
-    </AuthProvider>
+      </AuthProvider>
+    </div>
   )
 }

@@ -32,6 +32,7 @@ model User {
   soilAnalyses       SoilAnalysis[]
   cropAdvisories     CropAdvisory[]
   userCrops          UserCrop[]
+  webauthnCredentials WebAuthnCredential[]
 
   @@map("users")
 }
@@ -190,4 +191,19 @@ model VoiceQuery {
   createdAt   DateTime @default(now())
 
   @@map("voice_queries")
+}
+
+model WebAuthnCredential {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @db.ObjectId
+  credentialId String   @unique
+  publicKey    String
+  counter      Int      @default(0)
+  deviceType   String?
+  backedUp     Boolean  @default(false)
+  transports   String?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("webauthn_credentials")
 }

@@ -41,3 +41,4 @@ build/
 
 /generated/prisma
 /data/local-users.json
+/data/krishi-mithr-users.json

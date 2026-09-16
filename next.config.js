@@ -17,7 +17,7 @@ const nextConfig = {
         headers: [
           {
             key: "Permissions-Policy",
-            value: "camera=(self), microphone=()",
+            value: "camera=(self), microphone=(), publickey-credentials-get=(self), publickey-credentials-create=(self)",
           },
         ],
       },

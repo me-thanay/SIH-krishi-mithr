@@ -9,17 +9,30 @@ export type LocalUser = {
   name: string
   phone: string
   password: null
-  faceImage: string
+  faceImage: string | null
   createdAt: string
   updatedAt: string
   agriculturalProfile: null
 }
 
-type StoreFile = {
-  users: LocalUser[]
+export type LocalWebAuthnCredential = {
+  id: string
+  userId: string
+  credentialId: string
+  publicKey: string
+  counter: number
+  deviceType?: string | null
+  backedUp?: boolean
+  transports?: string | null
+  createdAt: string
 }
 
-const memoryStore: StoreFile = { users: [] }
+type StoreFile = {
+  users: LocalUser[]
+  credentials: LocalWebAuthnCredential[]
+}
+
+const memoryStore: StoreFile = { users: [], credentials: [] }
 let memoryLoaded = false
 
 function isServerless() {
@@ -34,7 +47,7 @@ function getStorePath() {
 }
 
 function emptyStore(): StoreFile {
-  return { users: [] }
+  return { users: [], credentials: [] }
 }
 
 function loadStore(): StoreFile {
@@ -46,8 +59,10 @@ function loadStore(): StoreFile {
     if (!existsSync(storePath)) return memoryStore
     const parsed = JSON.parse(readFileSync(storePath, 'utf8')) as StoreFile
     memoryStore.users = Array.isArray(parsed.users) ? parsed.users : []
+    memoryStore.credentials = Array.isArray(parsed.credentials) ? parsed.credentials : []
   } catch {
     memoryStore.users = emptyStore().users
+    memoryStore.credentials = emptyStore().credentials
   }
 
   return memoryStore
@@ -71,7 +86,7 @@ export function findLocalUserById(id: string): LocalUser | null {
   return loadStore().users.find((user) => user.id === id) || null
 }
 
-export function createLocalUser(phone: string, faceImage: string): LocalUser {
+export function createLocalUser(phone: string, faceImage?: string | null): LocalUser {
   const now = new Date().toISOString()
   const user: LocalUser = {
     id: randomUUID(),
@@ -79,7 +94,7 @@ export function createLocalUser(phone: string, faceImage: string): LocalUser {
     name: `User ${phone.slice(-4)}`,
     phone,
     password: null,
-    faceImage,
+    faceImage: faceImage || null,
     createdAt: now,
     updatedAt: now,
     agriculturalProfile: null,
@@ -89,4 +104,33 @@ export function createLocalUser(phone: string, faceImage: string): LocalUser {
   store.users.push(user)
   persistStore()
   return user
+}
+
+export function findLocalCredentialsByUserId(userId: string): LocalWebAuthnCredential[] {
+  return loadStore().credentials.filter((credential) => credential.userId === userId)
+}
+
+export function findLocalCredentialById(credentialId: string): LocalWebAuthnCredential | null {
+  return loadStore().credentials.find((credential) => credential.credentialId === credentialId) || null
+}
+
+export function saveLocalCredential(credential: Omit<LocalWebAuthnCredential, 'id' | 'createdAt'>): LocalWebAuthnCredential {
+  const stored: LocalWebAuthnCredential = {
+    ...credential,
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+  }
+  const store = loadStore()
+  store.credentials.push(stored)
+  persistStore()
+  return stored
+}
+
+export function updateLocalCredentialCounter(credentialId: string, counter: number) {
+  const store = loadStore()
+  const credential = store.credentials.find((item) => item.credentialId === credentialId)
+  if (credential) {
+    credential.counter = counter
+    persistStore()
+  }
 }

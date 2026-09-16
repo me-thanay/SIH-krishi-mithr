@@ -1,8 +1,13 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
-import { Camera, Phone, RotateCcw, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import React, { useEffect, useState } from "react"
+import { Fingerprint, Phone, ScanFace, X } from "lucide-react"
+import {
+  browserSupportsWebAuthn,
+  platformAuthenticatorIsAvailable,
+  startAuthentication,
+  startRegistration,
+} from "@simplewebauthn/browser"
 import { tokenManager } from "@/lib/auth-client"
 
 interface AuthModalProps {
@@ -20,187 +25,41 @@ export function AuthModal({
 }: AuthModalProps) {
   const [mode, setMode] = useState<"login" | "signup">(defaultMode)
   const [phone, setPhone] = useState("")
-  const [faceImage, setFaceImage] = useState<string | null>(null)
-  const [isCapturing, setIsCapturing] = useState(false)
-  const [videoReady, setVideoReady] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [cameraError, setCameraError] = useState<string | null>(null)
-
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const startingRef = useRef(false)
-
-  const releaseStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-  }
-
-  const stopCamera = () => {
-    startingRef.current = false
-    releaseStream()
-    setIsCapturing(false)
-    setVideoReady(false)
-  }
-
-  const waitForVideoElement = async () => {
-    for (let attempt = 0; attempt < 30; attempt += 1) {
-      if (videoRef.current) return videoRef.current
-      await new Promise((resolve) => setTimeout(resolve, 50))
-    }
-    return null
-  }
-
-  const attachStreamToVideo = async (stream: MediaStream) => {
-    const video = await waitForVideoElement()
-    if (!video) {
-      stream.getTracks().forEach((track) => track.stop())
-      throw new Error("VIDEO_ELEMENT_MISSING")
-    }
-
-    streamRef.current = stream
-    video.srcObject = stream
-    video.muted = true
-    video.playsInline = true
-    video.setAttribute("playsinline", "true")
-    video.setAttribute("webkit-playsinline", "true")
-
-    await new Promise<void>((resolve, reject) => {
-      const finish = () => {
-        video.removeEventListener("loadedmetadata", finish)
-        video.removeEventListener("playing", finish)
-        resolve()
-      }
-
-      video.addEventListener("loadedmetadata", finish)
-      video.addEventListener("playing", finish)
-
-      video
-        .play()
-        .then(() => {
-          if (video.readyState >= 2) finish()
-        })
-        .catch(reject)
-
-      setTimeout(finish, 1500)
-    })
-
-    setVideoReady(true)
-  }
-
-  const startCamera = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("Camera is not supported in this browser.")
-      return
-    }
-
-    if (startingRef.current) return
-    startingRef.current = true
-    releaseStream()
-    setCameraError(null)
-    setVideoReady(false)
-    setIsCapturing(true)
-
-    try {
-      let stream: MediaStream
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode: "user" },
-        })
-      } catch {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: true,
-        })
-      }
-
-      await attachStreamToVideo(stream)
-    } catch (err) {
-      console.error("Camera error:", err)
-      releaseStream()
-      setIsCapturing(false)
-      setVideoReady(false)
-
-      const name = err instanceof Error ? err.name : ""
-      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-        setCameraError("Allow camera access in the browser address bar, then tap Start camera.")
-      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-        setCameraError("No camera was found on this device.")
-      } else if (name === "NotReadableError" || name === "TrackStartError") {
-        setCameraError("Camera is already in use. Close other apps using it, then tap Start camera.")
-      } else {
-        setCameraError(null)
-      }
-    } finally {
-      startingRef.current = false
-    }
-  }
-
-  const captureFace = () => {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (!video || !canvas || video.videoWidth === 0) {
-      setCameraError("Camera preview is not ready yet. Tap Start camera and try again.")
-      return
-    }
-
-    const context = canvas.getContext("2d")
-    canvas.width = video.videoWidth || 640
-    canvas.height = video.videoHeight || 480
-    context?.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-    setFaceImage(canvas.toDataURL("image/jpeg", 0.8))
-    stopCamera()
-  }
+  const [supportsPasskeys, setSupportsPasskeys] = useState(true)
 
   useEffect(() => {
-    if (!isOpen) {
-      stopCamera()
-      return
-    }
-
+    if (!isOpen) return
     setMode(defaultMode)
     setError("")
-    setCameraError(null)
-    setFaceImage(null)
     setPhone("")
 
-    const timer = window.setTimeout(() => {
-      void startCamera()
-    }, 400)
-
-    return () => {
-      window.clearTimeout(timer)
-      stopCamera()
+    const supported = browserSupportsWebAuthn()
+    setSupportsPasskeys(supported)
+    if (supported) {
+      void platformAuthenticatorIsAvailable().then((available) => {
+        setSupportsPasskeys(available)
+      })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, defaultMode])
 
   const handleClose = () => {
     setError("")
-    setFaceImage(null)
     setPhone("")
-    stopCamera()
     onClose()
   }
 
-  const switchMode = (nextMode: "login" | "signup") => {
-    setMode(nextMode)
-    setError("")
-    setFaceImage(null)
-    stopCamera()
-    void startCamera()
+  const finishAuth = (data: { token?: string; user?: unknown }) => {
+    if (data.token) tokenManager.setToken(data.token)
+    if (data.user) {
+      localStorage.setItem("user", JSON.stringify(data.user))
+      onAuthSuccess?.(data.user)
+    }
+    handleClose()
   }
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const handlePasskey = async () => {
     setError("")
 
     if (!/^[6-9]\d{9}$/.test(phone)) {
@@ -208,48 +67,84 @@ export function AuthModal({
       return
     }
 
-    if (!faceImage) {
-      setError("Please capture your face photo")
+    if (!browserSupportsWebAuthn()) {
+      setError("This browser does not support Face ID or fingerprint login.")
       return
     }
 
     setIsLoading(true)
 
     try {
-      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/signup"
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, faceImage }),
-      })
+      if (mode === "signup") {
+        const optionsRes = await fetch("/api/auth/webauthn/register-options", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone }),
+        })
+        const options = await optionsRes.json()
+        if (!optionsRes.ok || options.error) {
+          setError(options.error || "Could not start Face ID registration")
+          return
+        }
 
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok || !data.success) {
-        setError(data.error || data.message || "Something went wrong. Please try again.")
+        const attResp = await startRegistration({ optionsJSON: options })
+        const verifyRes = await fetch("/api/auth/webauthn/register-verify", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, attResp }),
+        })
+        const data = await verifyRes.json()
+        if (!verifyRes.ok || !data.success) {
+          setError(data.error || "Face ID registration failed")
+          return
+        }
+        finishAuth(data)
         return
       }
 
-      if (data.token) {
-        tokenManager.setToken(data.token)
-      }
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user))
-        onAuthSuccess?.(data.user)
+      const optionsRes = await fetch("/api/auth/webauthn/login-options", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      })
+      const options = await optionsRes.json()
+      if (!optionsRes.ok || options.error) {
+        setError(options.error || "Could not start Face ID login")
+        return
       }
 
-      handleClose()
+      const authResp = await startAuthentication({ optionsJSON: options })
+      const verifyRes = await fetch("/api/auth/webauthn/login-verify", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, authResp }),
+      })
+      const data = await verifyRes.json()
+      if (!verifyRes.ok || !data.success) {
+        setError(data.error || "Face ID login failed")
+        return
+      }
+      finishAuth(data)
     } catch (err) {
-      console.error("Auth error:", err)
-      setError("Network error. Please try again.")
+      console.error("WebAuthn error:", err)
+      const name = err instanceof Error ? err.name : ""
+      if (name === "NotAllowedError") {
+        setError("Face ID / fingerprint was cancelled. Try again.")
+      } else if (name === "InvalidStateError") {
+        setError("This device is already registered. Sign in instead.")
+      } else {
+        setError(err instanceof Error ? err.message : "Could not use Face ID / fingerprint. Try again.")
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
   if (!isOpen) return null
-
-  const canSubmit = !isLoading && Boolean(faceImage) && phone.length === 10
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6">
@@ -275,10 +170,10 @@ export function AuthModal({
             </p>
             <div>
               <h2 className="font-kanturmuy text-4xl leading-tight tracking-tight lg:text-5xl">
-                {mode === "login" ? "Welcome back to the field." : "Start your farm profile."}
+                {mode === "login" ? "Unlock like your phone." : "Register this device."}
               </h2>
               <p className="mt-4 max-w-xs text-sm font-light text-white/80">
-                Sign in with your mobile number and a quick face photo. No passwords.
+                Phone number plus Face ID or fingerprint. Same prompt your phone uses to unlock.
               </p>
             </div>
           </div>
@@ -305,7 +200,7 @@ export function AuthModal({
               {mode === "login" ? "Sign in" : "Create account"}
             </h3>
             <p className="mt-1 text-sm text-[#122023]/65">
-              Phone number and face photo only.
+              Phone number and Face ID / fingerprint only.
             </p>
           </div>
 
@@ -315,7 +210,13 @@ export function AuthModal({
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {!supportsPasskeys && (
+            <div className="mb-5 rounded-2xl border border-[#122023]/10 bg-white px-4 py-3 text-sm text-[#122023]/70">
+              This device has no Face ID or fingerprint sensor. Use a phone that can unlock with biometrics.
+            </div>
+          )}
+
+          <div className="space-y-6">
             <div>
               <label className="mb-2 block text-sm font-medium text-[#122023]">
                 Phone number
@@ -337,132 +238,36 @@ export function AuthModal({
               </div>
             </div>
 
-            <div>
-              <div className="mb-3 flex items-end justify-between">
-                <div>
-                  <label className="block text-sm font-medium text-[#122023]">
-                    Face photo
-                  </label>
-                  <p className="mt-0.5 text-xs text-[#122023]/55">
-                    Center your face in the circle, then capture.
-                  </p>
-                </div>
-              </div>
-
-              {cameraError && (
-                <div className="mb-3 rounded-2xl border border-red-200/80 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {cameraError}
-                </div>
-              )}
-
-              <div className="flex flex-col items-center">
-                <div className="relative mb-4 size-52">
-                  <div className="absolute inset-0 rounded-full bg-[#e1fcad]/40" />
-                  <div className="absolute inset-[6px] overflow-hidden rounded-full border border-white/80 bg-[#d9d4c8] shadow-inner">
-                    {!faceImage && !videoReady && (
-                      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
-                        <Camera className="mb-2 h-7 w-7 text-[#122023]/35" />
-                        <p className="text-xs leading-relaxed text-[#122023]/55">
-                          {isCapturing ? "Starting camera…" : "Tap Start camera"}
-                        </p>
-                      </div>
-                    )}
-
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      onLoadedMetadata={() => setVideoReady(true)}
-                      onPlaying={() => setVideoReady(true)}
-                      className={cn(
-                        "absolute inset-0 h-full w-full object-cover",
-                        isCapturing ? "opacity-100" : "opacity-0"
-                      )}
-                      style={{ transform: "scaleX(-1)" }}
-                    />
-
-                    {faceImage && !isCapturing && (
-                      <img
-                        src={faceImage}
-                        alt="Captured face"
-                        className="h-full w-full object-cover"
-                        style={{ transform: "scaleX(-1)" }}
-                      />
-                    )}
-                  </div>
-                  <canvas ref={canvasRef} className="hidden" />
-                </div>
-
-                <div className="flex w-full max-w-sm items-center justify-center gap-2">
-                  {!isCapturing && !faceImage && (
-                    <button
-                      type="button"
-                      onClick={() => void startCamera()}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#122023] px-5 py-3 text-sm font-medium text-[#e1fcad] transition-colors hover:bg-[#1d3337]"
-                    >
-                      <Camera className="h-4 w-4" />
-                      Start camera
-                    </button>
-                  )}
-
-                  {isCapturing && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={captureFace}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#e1fcad] px-5 py-3 text-sm font-medium text-[#122023] transition-colors hover:bg-[#122023] hover:text-[#e1fcad]"
-                      >
-                        <Camera className="h-4 w-4" />
-                        Capture
-                      </button>
-                      <button
-                        type="button"
-                        onClick={stopCamera}
-                        className="rounded-full border border-[#122023]/15 bg-white px-4 py-3 text-sm font-medium text-[#122023]/70 transition-colors hover:bg-[#122023]/5"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  )}
-
-                  {faceImage && !isCapturing && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFaceImage(null)
-                        void startCamera()
-                      }}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[#122023]/15 bg-white px-5 py-3 text-sm font-medium text-[#122023] transition-colors hover:bg-[#122023]/5"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      Retake photo
-                    </button>
-                  )}
-                </div>
-              </div>
+            <div className="flex justify-center gap-6 py-2 text-[#122023]/45">
+              <ScanFace className="h-10 w-10" />
+              <Fingerprint className="h-10 w-10" />
             </div>
 
             <button
-              type="submit"
-              disabled={!canSubmit}
-              className="w-full rounded-full bg-[#e1fcad] py-3.5 text-sm font-medium text-[#122023] transition-colors hover:bg-[#122023] hover:text-[#e1fcad] disabled:cursor-not-allowed disabled:bg-[#d7d3c8] disabled:text-[#122023]/35 disabled:hover:bg-[#d7d3c8] disabled:hover:text-[#122023]/35"
+              type="button"
+              disabled={isLoading || phone.length !== 10}
+              onClick={() => void handlePasskey()}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#e1fcad] py-3.5 text-sm font-medium text-[#122023] transition-colors hover:bg-[#122023] hover:text-[#e1fcad] disabled:cursor-not-allowed disabled:bg-[#d7d3c8] disabled:text-[#122023]/35 disabled:hover:bg-[#d7d3c8] disabled:hover:text-[#122023]/35"
             >
+              <Fingerprint className="h-4 w-4" />
               {isLoading
                 ? mode === "login"
-                  ? "Signing in..."
-                  : "Creating account..."
+                  ? "Waiting for Face ID..."
+                  : "Waiting to register..."
                 : mode === "login"
-                  ? "Sign in"
-                  : "Create account"}
+                  ? "Unlock with Face ID / fingerprint"
+                  : "Register Face ID / fingerprint"}
             </button>
-          </form>
+          </div>
 
           <p className="mt-6 text-center text-sm text-[#122023]/60">
             {mode === "login" ? "New here?" : "Already registered?"}{" "}
             <button
               type="button"
-              onClick={() => switchMode(mode === "login" ? "signup" : "login")}
+              onClick={() => {
+                setMode(mode === "login" ? "signup" : "login")
+                setError("")
+              }}
               className="font-medium text-[#122023] underline decoration-[#e1fcad] decoration-2 underline-offset-4 hover:text-[#1d3337]"
             >
               {mode === "login" ? "Create an account" : "Sign in"}

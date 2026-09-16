@@ -58,13 +58,13 @@ export async function findUserById(id: string): Promise<AuthUserRecord | null> {
 
 export async function createUserWithPhoneAndFace(
   phone: string,
-  faceImage: string
+  faceImage?: string | null
 ): Promise<AuthUserRecord> {
   const created = await withMongo(() =>
     prisma.user.create({
       data: {
         phone,
-        faceImage,
+        faceImage: faceImage || undefined,
         name: `User ${phone.slice(-4)}`,
       },
       include: { agriculturalProfile: true },

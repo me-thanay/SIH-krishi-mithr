@@ -249,6 +249,12 @@ smart-agritech/
 
 The Diagnose page posts **directly** to the Render API (avoids Vercel serverless timeouts).
 
+### ESP32-CAM (extra camera on your existing sensor kit)
+- Flash `hardware/esp32_cam_diagnose/esp32_cam_diagnose.ino` (AI Thinker).
+- It POSTs stills to `/api/pest/device-scan`; sensors stay on MQTT.
+- Dashboard → Operations shows **ESP32-CAM last scan**.
+- Set `DATABASE_URL` on Render so scans are stored; optional `DEVICE_UPLOAD_KEY`.
+
 ## 🤝 Contributing
 
 1. Fork the repository

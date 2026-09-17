@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Form, Header
 from typing import Any, Callable, Dict, List, Optional
+import os
 import threading
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -246,3 +248,101 @@ async def list_pests():
         status_code=503,
         detail=f"Pest identifier unavailable. {pipeline.pest_clf_error or getattr(pipeline, 'pest_det_error', '')}",
     )
+
+
+def _check_device_key(x_device_key: Optional[str]) -> None:
+    expected = (os.getenv("DEVICE_UPLOAD_KEY") or "").strip()
+    if not expected:
+        return
+    if not x_device_key or x_device_key.strip() != expected:
+        raise HTTPException(status_code=401, detail="Invalid or missing X-Device-Key")
+
+
+# ---------------------------------------------------------------------------
+# ESP32-CAM (and other field cameras): diagnose + persist for the dashboard
+# ---------------------------------------------------------------------------
+@router.post("/device-scan")
+async def device_camera_scan(
+    file: UploadFile = File(..., description="JPEG from ESP32-CAM"),
+    device_id: str = Form("esp32-cam"),
+    trigger: str = Form("interval"),
+    top_k: int = Query(3, ge=1, le=10),
+    det_conf: float = Query(0.25, ge=0.05, le=0.9),
+    annotate: bool = Query(True, description="store annotated JPEG for the website"),
+    x_device_key: Optional[str] = Header(None, alias="X-Device-Key"),
+):
+    """Accept a still from field hardware, run locate-then-diagnose, save to Mongo.
+
+    Returns a small JSON body suitable for ESP32 (no huge base64 in the response).
+    """
+    _check_device_key(x_device_key)
+    contents = await _read_image(file)
+    pipeline = _pipeline.get()
+    try:
+        report = pipeline.diagnose(contents, det_conf=det_conf, top_k=top_k, annotate=annotate)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not process image: {exc}")
+
+    best = report["findings"][0]["confidence"] if report["findings"] else 0.0
+    certainty = _certainty(best) if report["findings"] else "none"
+    advice = (
+        None
+        if report["findings"] and certainty != "low"
+        else "Move the camera closer so one leaf (or insect) fills the frame, in daylight."
+    )
+
+    from app.camera_scans import save_camera_scan
+
+    scan_doc = {
+        "device_id": device_id,
+        "trigger": trigger,
+        "summary": report.get("summary"),
+        "certainty": certainty,
+        "advice": advice,
+        "findings": report.get("findings") or [],
+        "leaves": [
+            {
+                "box": leaf.get("box"),
+                "det_confidence": leaf.get("det_confidence"),
+                "diagnosis": leaf.get("diagnosis"),
+                "deficiency": leaf.get("deficiency"),
+            }
+            for leaf in (report.get("leaves") or [])
+        ],
+        "pests": [
+            {
+                "box": pest.get("box"),
+                "species": pest.get("species"),
+                "confidence": pest.get("confidence"),
+                "det_confidence": pest.get("det_confidence"),
+            }
+            for pest in (report.get("pests") or [])
+        ],
+        "annotated_image": report.get("annotated_image") if annotate else None,
+        "image_size": report.get("image_size"),
+        "timestamp": datetime.now(timezone.utc),
+    }
+    scan_id = save_camera_scan(scan_doc)
+
+    return {
+        "ok": True,
+        "saved": scan_id is not None,
+        "scan_id": scan_id,
+        "device_id": device_id,
+        "summary": report.get("summary"),
+        "certainty": certainty,
+        "findings_count": len(report.get("findings") or []),
+        "top_finding": (report.get("findings") or [None])[0],
+        "advice": advice,
+    }
+
+
+@router.get("/device-scan/latest")
+async def latest_device_scan(device_id: Optional[str] = Query(None)):
+    """Latest ESP32-CAM diagnose result (for dashboards / debugging)."""
+    from app.camera_scans import latest_camera_scan
+
+    doc = latest_camera_scan(device_id)
+    if not doc:
+        return {"data": None, "message": "No camera scans yet"}
+    return {"data": doc, "updated": True}

@@ -19,6 +19,7 @@ import { ToastContainer } from "./ui/toast-notification"
 import { CollapsibleBanner } from "./ui/collapsible-banner"
 import { useNotifications } from "@/hooks/useNotifications"
 import { SensorStatusDisplay } from "./ui/sensor-status-display"
+import { CameraScanPanel } from "./ui/camera-scan-panel"
 import { NewNavbar } from './ui/new-navbar'
 import { VoiceChat } from "./ui/ia-siri-chat"
 
@@ -595,6 +596,17 @@ const SmartAgriTechComponent = ({ hideNavbar = false }: { hideNavbar?: boolean }
             <div className="space-y-6">
               {/* Controls */}
               <RelayControls speechLanguage={speechLanguage} />
+
+              <CameraScanPanel
+                onFinding={(notification) => {
+                  addNotification({
+                    title: notification.title,
+                    message: notification.message,
+                    type: notification.type,
+                    duration: notification.type === "danger" ? 8000 : 6000,
+                  })
+                }}
+              />
               
               <CollapsibleBanner
                 dismissible={false}

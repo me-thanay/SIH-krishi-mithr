@@ -23,3 +23,5 @@ services:
         sync: false
       - key: OPENWEATHER_API_KEY
         sync: false
+      - key: DEVICE_UPLOAD_KEY
+        sync: false

@@ -1,0 +1,37 @@
+[
+  {
+    "index": 0,
+    "folder": "Healthy",
+    "name": "none",
+    "plant": null,
+    "disease": null
+  },
+  {
+    "index": 1,
+    "folder": "Magnesium",
+    "name": "Magnesium deficiency",
+    "plant": null,
+    "disease": null
+  },
+  {
+    "index": 2,
+    "folder": "Nitrogen",
+    "name": "Nitrogen deficiency",
+    "plant": null,
+    "disease": null
+  },
+  {
+    "index": 3,
+    "folder": "Phosphorus",
+    "name": "Phosphorus deficiency",
+    "plant": null,
+    "disease": null
+  },
+  {
+    "index": 4,
+    "folder": "Potassium",
+    "name": "Potassium deficiency",
+    "plant": null,
+    "disease": null
+  }
+]

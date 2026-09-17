@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react";
-import { BookOpen, Home, Rss } from "lucide-react";
+import { BookOpen, Bug, Home, Rss } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import {
 
 const navigationMenuItems = [
   { title: "Home", href: "/", icon: Home },
+  { title: "Diagnose", href: "/pest-demo", icon: Bug },
   { title: "Market", href: "/market-prices", icon: Rss },
   { title: "Analyze", href: "/dashboard", icon: BookOpen },
 ];

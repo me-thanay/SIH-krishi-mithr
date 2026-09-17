@@ -39,6 +39,15 @@ build/
 *.swp
 *.swo
 
+# ML datasets (clone PlantDoc-Dataset into ml/datasets/plantdoc)
+/ml/datasets/
+/ml/runs/
+/ml/models/*_training_log.csv
+/ml/models/training_log.csv
+/ml/models/run_*/
+/yolo11s.pt
+/yolo26n.pt
+
 /generated/prisma
 /data/local-users.json
 /data/krishi-mithr-users.json

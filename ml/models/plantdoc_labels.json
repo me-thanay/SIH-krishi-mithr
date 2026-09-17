@@ -1,0 +1,170 @@
+[
+  {
+    "index": 0,
+    "folder": "Apple Scab Leaf",
+    "plant": "Apple",
+    "disease": "Apple scab"
+  },
+  {
+    "index": 1,
+    "folder": "Apple leaf",
+    "plant": "Apple",
+    "disease": "Healthy"
+  },
+  {
+    "index": 2,
+    "folder": "Apple rust leaf",
+    "plant": "Apple",
+    "disease": "Cedar apple rust"
+  },
+  {
+    "index": 3,
+    "folder": "Bell_pepper leaf",
+    "plant": "Bell pepper",
+    "disease": "Healthy"
+  },
+  {
+    "index": 4,
+    "folder": "Bell_pepper leaf spot",
+    "plant": "Bell pepper",
+    "disease": "Bacterial leaf spot"
+  },
+  {
+    "index": 5,
+    "folder": "Blueberry leaf",
+    "plant": "Blueberry",
+    "disease": "Healthy"
+  },
+  {
+    "index": 6,
+    "folder": "Cherry leaf",
+    "plant": "Cherry",
+    "disease": "Healthy"
+  },
+  {
+    "index": 7,
+    "folder": "Corn Gray leaf spot",
+    "plant": "Corn",
+    "disease": "Gray leaf spot"
+  },
+  {
+    "index": 8,
+    "folder": "Corn leaf blight",
+    "plant": "Corn",
+    "disease": "Northern leaf blight"
+  },
+  {
+    "index": 9,
+    "folder": "Corn rust leaf",
+    "plant": "Corn",
+    "disease": "Common rust"
+  },
+  {
+    "index": 10,
+    "folder": "Peach leaf",
+    "plant": "Peach",
+    "disease": "Healthy"
+  },
+  {
+    "index": 11,
+    "folder": "Potato leaf early blight",
+    "plant": "Potato",
+    "disease": "Early blight"
+  },
+  {
+    "index": 12,
+    "folder": "Potato leaf late blight",
+    "plant": "Potato",
+    "disease": "Late blight"
+  },
+  {
+    "index": 13,
+    "folder": "Raspberry leaf",
+    "plant": "Raspberry",
+    "disease": "Healthy"
+  },
+  {
+    "index": 14,
+    "folder": "Soyabean leaf",
+    "plant": "Soybean",
+    "disease": "Healthy"
+  },
+  {
+    "index": 15,
+    "folder": "Squash Powdery mildew leaf",
+    "plant": "Squash",
+    "disease": "Powdery mildew"
+  },
+  {
+    "index": 16,
+    "folder": "Strawberry leaf",
+    "plant": "Strawberry",
+    "disease": "Healthy"
+  },
+  {
+    "index": 17,
+    "folder": "Tomato Early blight leaf",
+    "plant": "Tomato",
+    "disease": "Early blight"
+  },
+  {
+    "index": 18,
+    "folder": "Tomato Septoria leaf spot",
+    "plant": "Tomato",
+    "disease": "Septoria leaf spot"
+  },
+  {
+    "index": 19,
+    "folder": "Tomato leaf",
+    "plant": "Tomato",
+    "disease": "Healthy"
+  },
+  {
+    "index": 20,
+    "folder": "Tomato leaf bacterial spot",
+    "plant": "Tomato",
+    "disease": "Bacterial spot"
+  },
+  {
+    "index": 21,
+    "folder": "Tomato leaf late blight",
+    "plant": "Tomato",
+    "disease": "Late blight"
+  },
+  {
+    "index": 22,
+    "folder": "Tomato leaf mosaic virus",
+    "plant": "Tomato",
+    "disease": "Mosaic virus"
+  },
+  {
+    "index": 23,
+    "folder": "Tomato leaf yellow virus",
+    "plant": "Tomato",
+    "disease": "Yellow leaf curl virus"
+  },
+  {
+    "index": 24,
+    "folder": "Tomato mold leaf",
+    "plant": "Tomato",
+    "disease": "Leaf mold"
+  },
+  {
+    "index": 25,
+    "folder": "Tomato two spotted spider mites leaf",
+    "plant": "Tomato",
+    "disease": "Two-spotted spider mites"
+  },
+  {
+    "index": 26,
+    "folder": "grape leaf",
+    "plant": "Grape",
+    "disease": "Healthy"
+  },
+  {
+    "index": 27,
+    "folder": "grape leaf black rot",
+    "plant": "Grape",
+    "disease": "Black rot"
+  }
+]

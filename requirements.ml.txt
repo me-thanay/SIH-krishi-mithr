@@ -1,0 +1,9 @@
+# Extra dependencies for the leaf-disease classifier (ml/ and /api/pest/disease).
+# Install on top of requirements.txt:  pip install -r requirements.ml.txt
+# For CUDA builds use the index from https://pytorch.org/get-started/locally/
+torch>=2.3
+torchvision>=0.18
+scikit-learn>=1.4
+matplotlib>=3.8
+ultralytics>=8.3
+opencv-python-headless>=4.8

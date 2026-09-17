@@ -1,0 +1,77 @@
+{
+  "val_acc": 0.9710144927536232,
+  "test_acc": 0.9565217391304348,
+  "test_top3": 1.0,
+  "test_macro_f1": 0.9496887379739671,
+  "per_class": {
+    "none": {
+      "precision": 1.0,
+      "recall": 0.8181818181818182,
+      "f1-score": 0.9,
+      "support": 11.0
+    },
+    "Magnesium deficiency": {
+      "precision": 0.9,
+      "recall": 1.0,
+      "f1-score": 0.9473684210526315,
+      "support": 18.0
+    },
+    "Nitrogen deficiency": {
+      "precision": 0.9375,
+      "recall": 1.0,
+      "f1-score": 0.967741935483871,
+      "support": 15.0
+    },
+    "Phosphorus deficiency": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 17.0
+    },
+    "Potassium deficiency": {
+      "precision": 1.0,
+      "recall": 0.875,
+      "f1-score": 0.9333333333333333,
+      "support": 8.0
+    },
+    "accuracy": 0.9565217391304348,
+    "macro avg": {
+      "precision": 0.9675,
+      "recall": 0.9386363636363637,
+      "f1-score": 0.9496887379739671,
+      "support": 69.0
+    },
+    "weighted avg": {
+      "precision": 0.9603260869565218,
+      "recall": 0.9565217391304348,
+      "f1-score": 0.9555859025778565,
+      "support": 69.0
+    }
+  },
+  "args": {
+    "data": "ml\\datasets\\maize_def_cache",
+    "tag": "maize",
+    "class_names": "ml\\datasets\\maize_def_cache\\classes.json",
+    "img_size": "224",
+    "eval_size": "256",
+    "batch_size": "8",
+    "epochs": "25",
+    "head_epochs": "3",
+    "lr": "0.0002",
+    "head_lr": "0.001",
+    "weight_decay": "0.02",
+    "label_smoothing": "0.1",
+    "dropout": "0.3",
+    "stochastic_depth": "0.3",
+    "mixup": "0.2",
+    "cutmix": "0.0",
+    "mix_prob": "0.8",
+    "no_trivial_augment": "False",
+    "val_fraction": "0.15",
+    "patience": "8",
+    "workers": "0",
+    "device": "cpu",
+    "seed": "42",
+    "out": "D:\\Games\\gta\\SIH-krishi-mithr-main\\SIH-krishi-mithr-main\\ml\\models\\maize_efficientnet_v2_s.pt"
+  }
+}

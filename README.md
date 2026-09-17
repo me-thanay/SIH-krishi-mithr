@@ -82,10 +82,17 @@ WEBHOOK_URL=https://your-domain.com/api/webhook/whatsapp
 - `GET /api/weather/forecast?city=mumbai` - 5-day forecast
 - `GET /api/weather/alerts?city=mumbai` - Weather alerts
 
-### Pest Detection
-- `POST /api/pest/detect` - Upload image for pest detection
+### Pest Detection & Plant Diagnosis
+- `POST /api/pest/diagnose?annotate=true` - Locate leaves and pests, then classify disease, pest species, and (for maize) suspected nutrient deficiency
+- `POST /api/pest/detect` - Locate pests with bounding boxes (102 IP102 pest classes)
+- `POST /api/pest/disease` - Classify disease from a single leaf photo
+- `POST /api/pest/deficiency` - Classify maize nutrient deficiency from a leaf photo
+- `GET /api/pest/disease/classes` - Supported plant/disease classes
+- `GET /api/pest/deficiency/classes` - Maize deficiency classes
 - `GET /api/pest/pests` - List all known pests
 - `GET /api/pest/pest/{pest_name}` - Get pest information
+
+Models live in `ml/models/` (`leaf_pest_yolo.pt`, `ip102_yolo.pt`, `plantdoc_efficientnet_v2_s.pt`, `maize_efficientnet_v2_s.pt`). Training/prep scripts are in `ml/`; install `requirements.ml.txt` first.
 
 ### Soil Advisory
 - `POST /api/soil/analyze` - Upload soil image for analysis

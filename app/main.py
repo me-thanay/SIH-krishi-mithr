@@ -88,6 +88,7 @@ async def root():
         "features": [
             "Live Weather Updates",
             "Pest Detection",
+            "Leaf Disease Classification (EfficientNetV2-S / PlantDoc)",
             "Soil Advisory",
             "Market Prices",
             "Dealer Network",

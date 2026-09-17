@@ -99,7 +99,22 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "message": "All services operational"}
+    from pathlib import Path
+
+    models_dir = Path(__file__).resolve().parents[1] / "ml" / "models"
+    required = {
+        "leaf_pest_yolo": models_dir / "leaf_pest_yolo.pt",
+        "ip102_yolo": models_dir / "ip102_yolo.pt",
+        "plantdoc": models_dir / "plantdoc_efficientnet_v2_s.pt",
+        "maize_deficiency": models_dir / "maize_efficientnet_v2_s.pt",
+    }
+    present = {name: path.exists() for name, path in required.items()}
+    return {
+        "status": "healthy" if all(present.values()) else "degraded",
+        "message": "All services operational" if all(present.values()) else "Some ML weights are missing",
+        "inference_device": os.getenv("INFERENCE_DEVICE", "auto"),
+        "models_present": present,
+    }
 
 @app.get("/api/test-cors")
 async def test_cors():

@@ -14,6 +14,8 @@ from typing import Any, Union
 
 from PIL import Image, ImageOps
 
+from .device import inference_device
+
 ML_DIR = Path(__file__).resolve().parent
 MODEL_PATH = ML_DIR / "models" / "ip102_yolo.pt"
 CLASSES_PATH = ML_DIR / "ip102_classes.json"
@@ -41,7 +43,7 @@ class PestDetector:
 
         self.model = YOLO(str(weights))
         self.imgsz = imgsz
-        self.device = device
+        self.device = inference_device(device)
         names = self.model.names
         if CLASSES_PATH.exists():
             classes = json.loads(CLASSES_PATH.read_text())

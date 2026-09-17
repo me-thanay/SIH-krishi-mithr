@@ -229,6 +229,26 @@ smart-agritech/
 └── README.md
 ```
 
+## Deploy: Diagnose (Render API + Vercel frontend)
+
+### Render (FastAPI + ML weights)
+1. Connect this GitHub repo in Render (or use Blueprint `render.yaml`).
+2. Use **Docker** with `Dockerfile.render`.
+3. Set plan to **Standard (2 GB RAM)** — Free/Starter (512 MB) will crash when models load.
+4. Env: `INFERENCE_DEVICE=cpu`, `PYTHONPATH=/app`.
+5. After deploy, check `https://YOUR-API.onrender.com/health` — `models_present` should all be `true`.
+6. First Diagnose call can take 30–90s while models load; later calls are faster.
+
+### Vercel (Next.js)
+1. Import the same GitHub repo in Vercel.
+2. Set Production env:
+   - `NEXT_PUBLIC_API_URL=https://YOUR-API.onrender.com` (no trailing slash)
+   - `NEXT_PUBLIC_BACKEND_URL` same as above (optional)
+   - `JWT_SECRET`, `DATABASE_URL`, WebAuthn vars as needed
+3. Redeploy. Open `/pest-demo` → Camera/Upload → **Diagnose**.
+
+The Diagnose page posts **directly** to the Render API (avoids Vercel serverless timeouts).
+
 ## 🤝 Contributing
 
 1. Fork the repository

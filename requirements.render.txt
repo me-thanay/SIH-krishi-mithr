@@ -1,0 +1,6 @@
+# Production API deps for Render (CPU inference).
+# Installed after the PyTorch CPU wheels in Dockerfile.render.
+-r requirements.txt
+ultralytics>=8.3
+opencv-python-headless>=4.8
+scikit-learn>=1.4

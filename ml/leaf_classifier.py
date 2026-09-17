@@ -19,6 +19,7 @@ from PIL import Image, ImageOps
 from torchvision import transforms
 from torchvision.models import efficientnet_v2_s
 
+from .device import inference_device
 from .plantdoc_common import MODEL_DIR, MODEL_PATH, describe_class
 
 ImageInput = Union[str, Path, bytes, Image.Image]
@@ -44,7 +45,7 @@ class EfficientNetClassifier:
     def __init__(self, checkpoint: Path, device: str | None = None):
         if not Path(checkpoint).exists():
             raise FileNotFoundError(f"Model checkpoint not found at {checkpoint}. Train it with `{self.train_hint}`.")
-        self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+        self.device = torch.device(inference_device(device))
         ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
 
         self.tag: str = ckpt.get("tag", Path(checkpoint).stem)

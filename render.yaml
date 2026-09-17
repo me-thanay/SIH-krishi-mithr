@@ -2,7 +2,8 @@ services:
   - type: web
     name: sih-krishi-mithr-api
     runtime: docker
-    plan: free
+    # ML (torch + YOLO + EfficientNet) needs ~2 GB RAM. Free/Starter (512 MB) will OOM.
+    plan: standard
     region: oregon
     dockerfilePath: ./Dockerfile.render
     dockerContext: .
@@ -10,7 +11,15 @@ services:
     envVars:
       - key: PYTHONPATH
         value: /app
+      - key: INFERENCE_DEVICE
+        value: cpu
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: TORCH_NUM_THREADS
+        value: "1"
       - key: DATABASE_URL
         sync: false
       - key: DATA_GOV_API_KEY
+        sync: false
+      - key: OPENWEATHER_API_KEY
         sync: false

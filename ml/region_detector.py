@@ -14,6 +14,7 @@ from typing import Any
 
 from PIL import Image
 
+from .device import inference_device
 from .leaf_classifier import ImageInput, to_pil
 
 ML_DIR = Path(__file__).resolve().parent
@@ -35,7 +36,7 @@ class RegionDetector:
 
         self.model = YOLO(str(path))
         self.imgsz = imgsz
-        self.device = device
+        self.device = inference_device(device)
         self.names: dict[int, str] = {int(k): str(v) for k, v in self.model.names.items()}
 
     def detect(self, image: ImageInput, conf: float = 0.25, iou: float = 0.5, max_det: int = 30) -> list[dict[str, Any]]:

@@ -111,7 +111,12 @@ export default function PestDetectionDemo() {
     try {
       const body = new FormData()
       body.append("file", file)
-      const response = await fetch("/api/pest/diagnose?annotate=true&top_k=3", {
+      // Prefer the FastAPI URL directly so Vercel is not limited by serverless timeouts.
+      const backend = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/$/, "")
+      const url = backend
+        ? `${backend}/api/pest/diagnose?annotate=true&top_k=3`
+        : "/api/pest/diagnose?annotate=true&top_k=3"
+      const response = await fetch(url, {
         method: "POST",
         body,
       })

@@ -3,6 +3,12 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
+  "functions": {
+    "pages/api/pest/[...slug].ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",

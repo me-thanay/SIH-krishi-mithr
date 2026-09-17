@@ -3,7 +3,11 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 export const config = {
   api: {
     bodyParser: false,
+    responseLimit: false,
+    sizeLimit: "16mb",
   },
+  // Fallback if the browser still hits this proxy instead of Render directly.
+  maxDuration: 60,
 }
 
 const BACKEND_URL =

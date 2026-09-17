@@ -14,7 +14,6 @@ import { RelayControls } from "./ui/relay-controls"
 import { FarmAnalysis } from "./ui/farm-analysis"
 import { ToastContainer } from "./ui/toast-notification"
 import { useNotifications } from "@/hooks/useNotifications"
-import { SensorStatusDisplay } from "./ui/sensor-status-display"
 import { CameraScanPanel } from "./ui/camera-scan-panel"
 import { NewNavbar } from './ui/new-navbar'
 import { VoiceChat } from "./ui/ia-siri-chat"
@@ -472,31 +471,7 @@ const SmartAgriTechComponent = ({ hideNavbar = false }: { hideNavbar?: boolean }
               {/* Controls */}
               <RelayControls speechLanguage={speechLanguage} />
 
-              <CameraScanPanel
-                onFinding={(notification) => {
-                  addNotification({
-                    title: notification.title,
-                    message: notification.message,
-                    type: notification.type,
-                    duration: notification.type === "danger" ? 8000 : 6000,
-                  })
-                }}
-              />
-
-              {/* Hidden sensor display for toast notifications */}
-              <div className="hidden">
-                <SensorStatusDisplay 
-                  onConditionDetected={(notification) => {
-                    addNotification({
-                      title: notification.title,
-                      message: notification.message,
-                      type: notification.type,
-                      icon: notification.icon,
-                      duration: notification.type === "danger" ? 8000 : 6000
-                    })
-                  }}
-                />
-              </div>
+              <CameraScanPanel />
                 </div>
           )}
 

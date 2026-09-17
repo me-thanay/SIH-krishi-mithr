@@ -6,17 +6,13 @@ import {
   Power,
   BarChart3,
   MessageCircle,
-  Bell,
   Mic,
-  Volume2,
-  VolumeX,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Card } from "./ui/card"
 import { RelayControls } from "./ui/relay-controls"
 import { FarmAnalysis } from "./ui/farm-analysis"
 import { ToastContainer } from "./ui/toast-notification"
-import { CollapsibleBanner } from "./ui/collapsible-banner"
 import { useNotifications } from "@/hooks/useNotifications"
 import { SensorStatusDisplay } from "./ui/sensor-status-display"
 import { CameraScanPanel } from "./ui/camera-scan-panel"
@@ -29,7 +25,6 @@ const SmartAgriTechComponent = ({ hideNavbar = false }: { hideNavbar?: boolean }
   const [quickText, setQuickText] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [voiceTranscript, setVoiceTranscript] = useState('')
-  const [isSpeaking, setIsSpeaking] = useState(false)
   const [speechLanguage, setSpeechLanguage] = useState<string>('en-US') // Default to English
   const recognitionRef = useRef<any>(null)
   const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
@@ -41,123 +36,6 @@ const SmartAgriTechComponent = ({ hideNavbar = false }: { hideNavbar?: boolean }
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       speechSynthesisRef.current = window.speechSynthesis
-    }
-  }, [])
-
-  // Function to speak alerts
-  const speakAlerts = useCallback(() => {
-    const synth = speechSynthesisRef.current
-    if (!synth) {
-      addNotification({
-        title: "⚠️ Not Supported",
-        message: "Text-to-speech is not available in your browser.",
-        type: "warning"
-      })
-      return
-    }
-
-    // Stop any ongoing speech
-    if (currentUtteranceRef.current) {
-      synth.cancel()
-    }
-
-    // Combine all notifications (sensor alerts are already in notifications)
-    const allAlerts: Array<{ title: string; message: string }> = []
-    
-    // Add all notifications
-    if (notifications && notifications.length > 0) {
-      notifications.slice().reverse().forEach((notif) => {
-        // Translate notification titles and messages to Hindi if selected
-        const translatedTitle = speechLanguage === 'hi-IN' ? translateNotificationTitle(notif.title) : notif.title
-        const translatedMessage = speechLanguage === 'hi-IN' ? translateNotificationMessage(notif.message) : notif.message
-        
-        allAlerts.push({
-          title: translatedTitle,
-          message: translatedMessage
-        })
-      })
-    }
-
-    // Debug: log alerts
-    console.log('Speaking alerts:', {
-      notificationsCount: notifications?.length || 0,
-      totalAlerts: allAlerts.length
-    })
-
-    // Check if we have any alerts (sensor or notifications)
-    if (allAlerts.length === 0) {
-      const noAlertsMessage = speechLanguage === 'hi-IN' 
-        ? "अभी कोई अलर्ट नहीं है। सब कुछ ठीक लग रहा है!"
-        : "No alerts right now. Everything looks good!"
-      
-      const utterance = new SpeechSynthesisUtterance(noAlertsMessage)
-      utterance.lang = speechLanguage
-      utterance.rate = 0.9
-      utterance.pitch = 1
-      synth.speak(utterance)
-      setIsSpeaking(true)
-      
-      utterance.onend = () => {
-        setIsSpeaking(false)
-        currentUtteranceRef.current = null
-      }
-      currentUtteranceRef.current = utterance
-      return
-    }
-
-    // Speak all alerts
-    let currentIndex = 0
-
-    const speakNext = () => {
-      if (currentIndex >= allAlerts.length) {
-        setIsSpeaking(false)
-        currentUtteranceRef.current = null
-        return
-      }
-
-      const alert = allAlerts[currentIndex]
-      // For sensor alerts (no title), just say the message. For notifications, include title.
-      let text = alert.title 
-        ? (speechLanguage === 'hi-IN' 
-            ? `अलर्ट ${currentIndex + 1}. ${alert.title}. ${alert.message}`
-            : `Alert ${currentIndex + 1}. ${alert.title}. ${alert.message}`)
-        : (speechLanguage === 'hi-IN'
-            ? `अलर्ट ${currentIndex + 1}. ${alert.message}`
-            : `Alert ${currentIndex + 1}. ${alert.message}`)
-      
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = speechLanguage
-      utterance.rate = 0.85 // Slower for farmers to understand
-      utterance.pitch = 1
-      utterance.volume = 1
-
-      utterance.onend = () => {
-        currentIndex++
-        // Small pause between alerts
-        setTimeout(() => {
-          speakNext()
-        }, 500)
-      }
-
-      utterance.onerror = () => {
-        setIsSpeaking(false)
-        currentUtteranceRef.current = null
-      }
-
-      currentUtteranceRef.current = utterance
-      synth.speak(utterance)
-    }
-
-    setIsSpeaking(true)
-    speakNext()
-  }, [notifications, speechLanguage, addNotification])
-
-  // Function to stop speaking
-  const stopSpeaking = useCallback(() => {
-    if (speechSynthesisRef.current && currentUtteranceRef.current) {
-      speechSynthesisRef.current.cancel()
-      setIsSpeaking(false)
-      currentUtteranceRef.current = null
     }
   }, [])
 
@@ -184,17 +62,14 @@ const SmartAgriTechComponent = ({ hideNavbar = false }: { hideNavbar?: boolean }
     utterance.volume = 1
 
     utterance.onend = () => {
-      setIsSpeaking(false)
       currentUtteranceRef.current = null
     }
 
     utterance.onerror = () => {
-      setIsSpeaking(false)
       currentUtteranceRef.current = null
     }
 
     currentUtteranceRef.current = utterance
-    setIsSpeaking(true)
     synth.speak(utterance)
   }, [speechLanguage])
 
@@ -607,78 +482,8 @@ const SmartAgriTechComponent = ({ hideNavbar = false }: { hideNavbar?: boolean }
                   })
                 }}
               />
-              
-              <CollapsibleBanner
-                dismissible={false}
-                className="w-full"
-                icon={<Bell className="h-4 w-4" />}
-                title={
-                  notifications.length > 0
-                    ? `Recent Alerts (${notifications.length})`
-                    : "Recent Alerts"
-                }
-                description={
-                  notifications.length === 0
-                    ? "No alerts right now. Everything looks good!"
-                    : undefined
-                }
-                action={
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={speechLanguage}
-                      onChange={(e) => setSpeechLanguage(e.target.value)}
-                      disabled={isSpeaking}
-                      className="h-7 rounded-[7px] border border-stone-200 bg-stone-50 px-2.5 text-[11.5px] font-medium text-stone-700 disabled:opacity-50"
-                    >
-                      <option value="en-US">English</option>
-                      <option value="hi-IN">हिंदी (Hindi)</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={isSpeaking ? stopSpeaking : speakAlerts}
-                      className="inline-flex h-7 items-center gap-1.5 rounded-[7px] border border-stone-200 bg-stone-50 px-2.5 text-[11.5px] font-medium text-stone-700 transition-colors duration-150 hover:bg-stone-100"
-                    >
-                      {isSpeaking ? (
-                        <>
-                          <VolumeX className="h-3.5 w-3.5" />
-                          Stop Speaking
-                        </>
-                      ) : (
-                        <>
-                          <Volume2 className="h-3.5 w-3.5" />
-                          {notifications.length > 0 ? "Listen to Alerts" : "Listen to Status"}
-                        </>
-                      )}
-                    </button>
-                  </div>
-                }
-              >
-                {notifications.length > 0 ? (
-                  <div className="mt-2 space-y-2">
-                    {notifications.slice().reverse().map((notif) => {
-                      const displayTitle = speechLanguage === 'hi-IN' ? translateNotificationTitle(notif.title) : notif.title
-                      const displayMessage = speechLanguage === 'hi-IN' ? translateNotificationMessage(notif.message) : notif.message
 
-                      return (
-                        <div
-                          key={notif.id}
-                          className={`rounded-lg border p-3 ${
-                            notif.type === 'danger' ? 'bg-red-50 border-red-200' :
-                            notif.type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
-                            notif.type === 'success' ? 'bg-green-50 border-green-200' :
-                            'bg-blue-50 border-blue-200'
-                          }`}
-                        >
-                          <h3 className="mb-0.5 text-[13px] font-semibold text-stone-800">{displayTitle}</h3>
-                          <p className="text-[12.5px] leading-relaxed text-stone-600">{displayMessage}</p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : null}
-              </CollapsibleBanner>
-
-              {/* Hidden sensor display for notifications */}
+              {/* Hidden sensor display for toast notifications */}
               <div className="hidden">
                 <SensorStatusDisplay 
                   onConditionDetected={(notification) => {

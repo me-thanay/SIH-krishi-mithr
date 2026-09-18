@@ -56,6 +56,39 @@ type Report = {
   detail?: string
 }
 
+async function openCameraStream(): Promise<MediaStream> {
+  if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Camera API is not available in this browser.")
+  }
+  // Secure context required (https or localhost)
+  if (!window.isSecureContext) {
+    throw new Error("Camera needs HTTPS (or localhost). Open the site over https and try again.")
+  }
+
+  const attempts: MediaStreamConstraints[] = [
+    { video: { facingMode: { ideal: "environment" } }, audio: false },
+    { video: { facingMode: { ideal: "user" } }, audio: false },
+    { video: true, audio: false },
+  ]
+
+  let lastError: unknown
+  for (const constraints of attempts) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints)
+    } catch (err) {
+      lastError = err
+    }
+  }
+  const name = lastError instanceof DOMException ? lastError.name : ""
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+    throw new Error("Camera permission was denied. Allow camera access or use Upload.")
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    throw new Error("No camera was found on this device. Use Upload instead.")
+  }
+  throw new Error("Could not start the camera. Try Upload, or another browser/device.")
+}
+
 export default function PestDetectionDemo() {
   const [preview, setPreview] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -63,56 +96,127 @@ export default function PestDetectionDemo() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [cameraOn, setCameraOn] = useState(false)
+  const [cameraStarting, setCameraStarting] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const previewUrlRef = useRef<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    return () => stopCamera()
-  }, [])
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
     setCameraOn(false)
+    setCameraStarting(false)
+  }
+
+  useEffect(() => {
+    return () => {
+      stopCamera()
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Attach stream AFTER the <video> element is mounted (cameraOn flip).
+  useEffect(() => {
+    const video = videoRef.current
+    const stream = streamRef.current
+    if (!cameraOn || !video || !stream) return
+
+    video.srcObject = stream
+    const play = async () => {
+      try {
+        await video.play()
+      } catch {
+        // Autoplay can fail until a user gesture; Capture still works once frames arrive.
+      }
+    }
+    void play()
+  }, [cameraOn])
+
+  const clearPhoto = () => {
+    stopCamera()
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = null
+    }
+    setPreview(null)
+    setFile(null)
+    setReport(null)
+    setError("")
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   const setImageFile = (next: File) => {
+    stopCamera()
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current)
+    }
+    const url = URL.createObjectURL(next)
+    previewUrlRef.current = url
     setFile(next)
     setReport(null)
     setError("")
-    setPreview(URL.createObjectURL(next))
+    setPreview(url)
   }
 
   const startCamera = async () => {
     setError("")
+    setCameraStarting(true)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-      })
-      streamRef.current = stream
-      setCameraOn(true)
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
+      // Replace any previous stream / preview
+      stopCamera()
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+        previewUrlRef.current = null
       }
-    } catch {
-      setError("Camera permission was denied. Upload a photo instead.")
+      setPreview(null)
+      setFile(null)
+      setReport(null)
+
+      const stream = await openCameraStream()
+      streamRef.current = stream
+      setCameraOn(true) // mounts <video>; effect attaches stream
+    } catch (err) {
+      stopCamera()
+      setError(err instanceof Error ? err.message : "Could not start the camera. Use Upload instead.")
+    } finally {
+      setCameraStarting(false)
     }
   }
 
   const capture = () => {
     const video = videoRef.current
-    if (!video) return
+    if (!video) {
+      setError("Camera preview is not ready yet. Wait a second and tap Capture again.")
+      return
+    }
+    const width = video.videoWidth
+    const height = video.videoHeight
+    if (!width || !height) {
+      setError("Camera is still starting. Wait until you see the live preview, then Capture.")
+      return
+    }
     const canvas = document.createElement("canvas")
-    canvas.width = video.videoWidth || 1280
-    canvas.height = video.videoHeight || 720
+    canvas.width = width
+    canvas.height = height
     canvas.getContext("2d")?.drawImage(video, 0, 0)
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      setImageFile(new File([blob], "camera.jpg", { type: "image/jpeg" }))
-      stopCamera()
-    }, "image/jpeg", 0.92)
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          setError("Could not capture a frame. Try again or use Upload.")
+          return
+        }
+        setImageFile(new File([blob], "camera.jpg", { type: "image/jpeg" }))
+      },
+      "image/jpeg",
+      0.92
+    )
   }
 
   const diagnose = async () => {
@@ -125,16 +229,25 @@ export default function PestDetectionDemo() {
     try {
       const body = new FormData()
       body.append("file", file)
-      // Prefer the FastAPI URL directly so Vercel is not limited by serverless timeouts.
-      const backend = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/$/, "")
+      const backend = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(
+        /\/$/,
+        ""
+      )
       const url = backend
         ? `${backend}/api/pest/diagnose?annotate=true&top_k=3`
         : "/api/pest/diagnose?annotate=true&top_k=3"
-      const response = await fetch(url, {
-        method: "POST",
-        body,
-      })
-      const data = (await response.json()) as Report
+      const response = await fetch(url, { method: "POST", body })
+      const text = await response.text()
+      let data: Report
+      try {
+        data = JSON.parse(text) as Report
+      } catch {
+        throw new Error(
+          response.status === 404 || text.toLowerCase().includes("not found")
+            ? "Diagnosis API not found. Set NEXT_PUBLIC_API_URL to your Render URL and redeploy."
+            : `Bad response from server (${response.status}).`
+        )
+      }
       if (!response.ok) {
         setError(data.detail || data.error || "Diagnosis failed")
         return
@@ -178,29 +291,36 @@ export default function PestDetectionDemo() {
           <section className="overflow-hidden rounded-[2rem] bg-white shadow-[0_20px_50px_rgba(18,32,35,0.08)]">
             <div className="relative aspect-[4/3] bg-[#122023]">
               {cameraOn ? (
-                <video ref={videoRef} className="h-full w-full object-cover" playsInline muted autoPlay />
+                <video
+                  ref={videoRef}
+                  className="h-full w-full object-cover"
+                  playsInline
+                  muted
+                  autoPlay
+                />
               ) : annotatedSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={annotatedSrc} alt="Leaf photo" className="h-full w-full object-contain bg-[#122023]" />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-3 text-white/70">
-                  <ScanSearch className="h-12 w-12" />
-                  <p className="text-sm">Camera or upload a leaf photo</p>
+                  <Camera className="h-12 w-12" />
+                  <p className="text-sm">Tap Camera for a live preview, or Upload a leaf photo</p>
                 </div>
               )}
               {(preview || cameraOn) && (
                 <button
                   type="button"
-                  onClick={() => {
-                    stopCamera()
-                    setPreview(null)
-                    setFile(null)
-                    setReport(null)
-                  }}
+                  onClick={clearPhoto}
                   className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-white"
                   aria-label="Clear photo"
                 >
                   <X className="h-4 w-4" />
                 </button>
+              )}
+              {cameraOn && (
+                <p className="absolute bottom-3 left-3 rounded-full bg-black/50 px-3 py-1 text-xs text-white">
+                  Live camera — tap Capture when ready
+                </p>
               )}
             </div>
 
@@ -236,11 +356,12 @@ export default function PestDetectionDemo() {
               ) : (
                 <button
                   type="button"
+                  disabled={cameraStarting}
                   onClick={() => void startCamera()}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#122023]/15 px-4 py-2.5 text-sm"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#122023]/15 px-4 py-2.5 text-sm disabled:opacity-50"
                 >
-                  <Camera className="h-4 w-4" />
-                  Camera
+                  {cameraStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  {cameraStarting ? "Starting..." : "Camera"}
                 </button>
               )}
               <button

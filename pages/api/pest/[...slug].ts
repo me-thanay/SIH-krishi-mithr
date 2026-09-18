@@ -19,7 +19,7 @@ function backendBase(): string {
   let url = raw.replace(/\/$/, '')
   if (
     url.startsWith('http://') &&
-    /(onrender\.com|ngrok|trycloudflare\.com|cloudflaretunnel)/i.test(url)
+    /(onrender\.com|ngrok|trycloudflare\.com|cloudflaretunnel|loca\.lt)/i.test(url)
   ) {
     url = url.replace(/^http:\/\//, 'https://')
   }
@@ -47,6 +47,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (/ngrok/i.test(base)) {
     headers['ngrok-skip-browser-warning'] = 'true'
+  }
+  if (/loca\.lt/i.test(base)) {
+    headers['bypass-tunnel-reminder'] = 'true'
   }
 
   try {

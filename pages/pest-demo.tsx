@@ -60,7 +60,7 @@ function renderApiBase(): string {
   const raw = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").trim()
   if (!raw) return ""
   let url = raw.replace(/\/$/, "")
-  if (url.startsWith("http://") && /(onrender\.com|ngrok|trycloudflare\.com|cloudflaretunnel)/i.test(url)) {
+  if (url.startsWith("http://") && /(onrender\.com|ngrok|trycloudflare\.com|cloudflaretunnel|loca\.lt)/i.test(url)) {
     url = url.replace(/^http:\/\//i, "https://")
   }
   return url
@@ -70,12 +70,15 @@ function isTunnelHost(url: string): boolean {
   return /(ngrok|trycloudflare\.com|cloudflaretunnel|loca\.lt)/i.test(url)
 }
 
-/** Headers needed for free ngrok interstitial + JSON APIs. */
+/** Headers needed for free tunnel interstitials (ngrok / localtunnel). */
 function apiFetchHeaders(extra?: HeadersInit): HeadersInit {
   const backend = renderApiBase()
   const headers: Record<string, string> = { accept: "application/json" }
   if (backend && /ngrok/i.test(backend)) {
     headers["ngrok-skip-browser-warning"] = "true"
+  }
+  if (backend && /loca\.lt/i.test(backend)) {
+    headers["bypass-tunnel-reminder"] = "true"
   }
   return { ...headers, ...(extra as Record<string, string> | undefined) }
 }

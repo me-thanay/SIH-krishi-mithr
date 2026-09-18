@@ -1,0 +1,6 @@
+{
+  "provider": "localtunnel",
+  "subdomain": "krishi-mithr-api",
+  "public_url": "https://krishi-mithr-api.loca.lt",
+  "local_url": "http://127.0.0.1:8000"
+}

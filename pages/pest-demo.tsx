@@ -142,10 +142,11 @@ export default function PestDetectionDemo() {
       <NewNavbar variant="solid" />
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-24 sm:px-6">
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#122023]/50">Krishi Mithr</p>
-        <h1 className="mt-2 font-kanturmuy text-4xl tracking-tight sm:text-5xl">Locate, then diagnose</h1>
+        <h1 className="mt-2 font-kanturmuy text-4xl tracking-tight sm:text-5xl">Camera: YOLO then EfficientNet</h1>
         <p className="mt-3 max-w-2xl text-sm text-[#122023]/70 sm:text-base">
-          YOLO finds leaves and insects in the photo. The leaf classifier then names the plant and disease
-          on each crop. Use a clear camera shot of one leaf filling the frame.
+          YOLO finds leaves and insects. EfficientNetV2-S names the disease (and maize deficiency) on each leaf
+          crop, and the pest species on each insect box. Sensors and XGBoost stay on the dashboard — this page
+          is camera vision only. Use a clear shot of one leaf or insect filling the frame.
         </p>
 
         {error && (

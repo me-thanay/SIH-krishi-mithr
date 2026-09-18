@@ -102,7 +102,9 @@ No API key required (Open-Meteo free tier). Frontend proxy: `/api/weather?type=c
 - `GET /api/pest/pests` - List all known pests
 - `GET /api/pest/pest/{pest_name}` - Get pest information
 
-Models live in `ml/models/` (`leaf_pest_yolo.pt`, `ip102_yolo.pt`, `plantdoc_efficientnet_v2_s.pt`, `maize_efficientnet_v2_s.pt`). Training/prep scripts are in `ml/`; install `requirements.ml.txt` first.
+Models live in `ml/models/` (`leaf_pest_yolo.pt`, `ip102_yolo.pt`, `plantdoc_efficientnet_v2_s.pt`, `maize_efficientnet_v2_s.pt`, optional `ip102_efficientnet_v2_s.pt`). Training/prep scripts are in `ml/`; install `requirements.ml.txt` first.
+
+**Camera vision path:** YOLO locates leaves/pests → EfficientNetV2-S classifies disease / maize deficiency / pest species on each crop. Sensors and XGBoost advisory are separate.
 
 ### Soil Advisory
 - `POST /api/soil/analyze` - Upload soil image for analysis

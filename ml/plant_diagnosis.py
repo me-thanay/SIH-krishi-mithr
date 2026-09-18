@@ -1,10 +1,10 @@
-"""Two-stage plant diagnosis: locate first, diagnose second.
+"""Two-stage plant diagnosis for camera photos: YOLO locates, EfficientNet names.
 
-Stage 1  YOLO (`leaf` / `pest`, trained on PlantDoc-OD + IP102) finds leaves and insect pests.
-Stage 2  Each leaf crop  -> EfficientNetV2-S PlantDoc classifier  (plant + disease)
-         Each pest crop  -> EfficientNetV2-S IP102 classifier     (pest species)
-Fallback If no leaf is detected, a colour-based leaf locator is tried, then the whole frame is
-         classified and flagged as unreliable ("followed by the leaf classifier if needed").
+Stage 1  YOLO (`leaf` / `pest`) finds leaves and insect pests in the frame.
+Stage 2  EfficientNetV2-S on each crop:
+           leaf  -> PlantDoc disease (+ maize deficiency when Corn/Maize)
+           pest  -> IP102 species (falls back to IP102 YOLO only if pest EfficientNet missing)
+This path is camera-only — sensors / XGBoost are separate.
 
     from ml.plant_diagnosis import PlantDiagnosisPipeline
     pipe = PlantDiagnosisPipeline()
@@ -47,6 +47,7 @@ class PlantDiagnosisPipeline:
         self.detector, self.detector_error = (detector, None) if detector else _load(RegionDetector)
         self.leaf_clf, self.leaf_clf_error = (leaf_classifier, None) if leaf_classifier else _load(LeafClassifier)
         self.pest_clf, self.pest_clf_error = (pest_classifier, None) if pest_classifier else _load(PestClassifier)
+        # Prefer EfficientNet for pest species on YOLO pest boxes. IP102 YOLO is fallback only.
         if pest_detector is not None:
             self.pest_det, self.pest_det_error = pest_detector, None
         elif self.pest_clf is None:

@@ -88,6 +88,7 @@ export function CameraScanPanel({
               {scan?.timestamp
                 ? ` · ${new Date(scan.timestamp).toLocaleString()}`
                 : " · waiting for first upload"}
+              {" · YOLO locate + EfficientNet classify"}
             </p>
           </div>
         </div>

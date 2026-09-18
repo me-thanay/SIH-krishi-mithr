@@ -173,27 +173,53 @@ export const LocationWeatherWidget = ({
   }
 
   const fetchWeatherData = async (city: string) => {
-    // Weather API is disabled - use mock data directly
     setIsLoading(true)
     setError(null)
-    
-    // Use mock data directly (no API call)
-    setWeatherData({
-      current: {
-        temperature: 28,
-        humidity: 65,
-        condition: 'Clear',
-        farming_conditions: {
-          irrigation_needed: false,
-          good_growing: true,
-          planting_suitable: true
+
+    try {
+      const params = new URLSearchParams({ type: "forecast", city, days: "5" })
+      if (userLocation?.latitude != null && userLocation?.longitude != null) {
+        const sameCity = city.toLowerCase() === (selectedCity || "").toLowerCase()
+        if (sameCity || city.toLowerCase() === userLocation.city?.toLowerCase()) {
+          params.set("lat", String(userLocation.latitude))
+          params.set("lon", String(userLocation.longitude))
         }
-      },
-      forecast: [],
-      source: 'Mock Data',
-      location: city
-    })
-    setIsLoading(false)
+      }
+      const response = await fetch(`/api/weather?${params.toString()}`)
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.detail || payload.error || "Weather request failed")
+      }
+      const data = payload.data || payload
+      const current = data.current || {}
+      setWeatherData({
+        current: {
+          temperature: current.temperature ?? 0,
+          humidity: current.humidity ?? 0,
+          condition: current.description || current.condition || "Unknown",
+          farming_conditions: current.farming_conditions || {
+            irrigation_needed: false,
+            good_growing: true,
+            planting_suitable: true,
+          },
+        },
+        forecast: (data.forecast || []).map((day: any) => ({
+          date: day.date,
+          temperature: day.temperature,
+          condition: day.condition || day.description,
+          max_temp: day.max_temp,
+          min_temp: day.min_temp,
+          precipitation: day.precipitation,
+        })),
+        source: data.source || payload.source || "Open-Meteo",
+        location: data.city || city,
+      })
+    } catch (err: any) {
+      setError(err?.message || "Could not load weather")
+      setWeatherData(null)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleCityChange = (city: string) => {

@@ -19,7 +19,6 @@ import { Card } from "./card"
 import { Button } from "./button"
 import { LocationDetector } from "./location-detector"
 import { cn } from "@/lib/utils"
-import { controllers } from "chart.js"
 
 interface WeatherData {
   city: string
@@ -65,27 +64,41 @@ export const WeatherWidget = ({
   const [showLocationDetector, setShowLocationDetector] = useState(false)
 
   const fetchWeather = async (targetCity?: string) => {
-    // Weather API is disabled - use mock data directly
     setLoading(true)
     setError(null)
-    
+
     const cityToUse = targetCity || currentCity
-    
-    // Use mock data directly (no API call)
-    setWeather({
-      city: cityToUse,
-      temperature: 28,
-      humidity: 65,
-      wind_speed: 12,
-      description: "Partly cloudy",
-      recommendation: "Good conditions for crop growth. Consider light irrigation.",
-      feels_like: 30,
-      pressure: 1013,
-      visibility: 10,
-      uv_index: 6
-    })
-    setLastUpdated(new Date())
-    setLoading(false)
+    try {
+      const params = new URLSearchParams({ type: "current", city: cityToUse })
+      if (location?.latitude != null && location?.longitude != null && !targetCity) {
+        params.set("lat", String(location.latitude))
+        params.set("lon", String(location.longitude))
+      }
+      const response = await fetch(`/api/weather?${params.toString()}`)
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || "Weather request failed")
+      }
+      setWeather({
+        city: data.city || cityToUse,
+        temperature: data.temperature ?? data.data?.current?.temperature?.current ?? 0,
+        humidity: data.humidity ?? data.data?.current?.humidity ?? 0,
+        wind_speed: data.wind_speed ?? 0,
+        description: data.description || data.data?.current?.condition || "Unknown",
+        recommendation:
+          data.recommendation ||
+          "Check soil sensors and irrigate based on crop need.",
+        feels_like: data.feels_like,
+        pressure: data.pressure,
+        visibility: data.visibility,
+        uv_index: data.uv_index,
+      })
+      setLastUpdated(new Date())
+    } catch (err: any) {
+      setError(err?.message || "Could not load weather")
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleLocationDetected = (locationData: LocationData) => {

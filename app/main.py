@@ -86,7 +86,7 @@ async def root():
         "version": "1.0.0",
         "status": "active",
         "features": [
-            "Live Weather Updates",
+            "Live Weather Updates (Open-Meteo)",
             "Pest Detection",
             "Leaf Disease Classification (EfficientNetV2-S / PlantDoc)",
             "Soil Advisory",

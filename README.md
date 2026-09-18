@@ -77,10 +77,15 @@ WEBHOOK_URL=https://your-domain.com/api/webhook/whatsapp
 
 ## 🔌 API Endpoints
 
-### Weather Service
-- `GET /api/weather/current?city=mumbai` - Current weather
-- `GET /api/weather/forecast?city=mumbai` - 5-day forecast
-- `GET /api/weather/alerts?city=mumbai` - Weather alerts
+### Weather Service (Open-Meteo)
+- `GET /api/weather/current?city=mumbai` — current conditions + farming advice
+- `GET /api/weather/current?lat=17.38&lon=78.48` — by coordinates
+- `GET /api/weather/forecast?city=hyderabad&days=5` — daily forecast
+- `GET /api/weather/hourly?city=pune&hours=48` — hourly incl. soil moisture / ET0
+- `GET /api/weather/soil?city=delhi` — model soil temp/moisture (ESP sensors remain ground truth)
+- `GET /api/weather/alerts?city=mumbai` — rain / heat / wind alerts
+
+No API key required (Open-Meteo free tier). Frontend proxy: `/api/weather?type=current&city=...`
 
 ### Pest Detection & Plant Diagnosis
 - `POST /api/pest/diagnose?annotate=true` - Locate leaves and pests, then classify disease, pest species, and (for maize) suspected nutrient deficiency

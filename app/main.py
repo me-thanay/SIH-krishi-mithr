@@ -10,7 +10,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 
-from app.routers import weather, pest_detection, soil_advisory, market_prices, dealer_network, farming_tools, whatsapp_webhook, voice_chat, mqtt_control
+from app.routers import weather, pest_detection, soil_advisory, market_prices, dealer_network, farming_tools, whatsapp_webhook, voice_chat, mqtt_control, advisory
 
 load_dotenv()
 
@@ -78,6 +78,7 @@ app.include_router(farming_tools.router, prefix="/api/tools", tags=["farming-too
 app.include_router(whatsapp_webhook.router, prefix="/api/webhook", tags=["whatsapp"])
 app.include_router(voice_chat.router, prefix="/api/voice", tags=["voice-chat"])
 app.include_router(mqtt_control.router, prefix="/api/mqtt", tags=["mqtt-control"])
+app.include_router(advisory.router, prefix="/api/advisory", tags=["xgboost-advisory"])
 
 @app.get("/")
 async def root():
@@ -89,6 +90,7 @@ async def root():
             "Live Weather Updates (Open-Meteo)",
             "Pest Detection",
             "Leaf Disease Classification (EfficientNetV2-S / PlantDoc)",
+            "XGBoost Farm Advisory (irrigation, stress, disease climate, motor, yield, price)",
             "Soil Advisory",
             "Market Prices",
             "Dealer Network",

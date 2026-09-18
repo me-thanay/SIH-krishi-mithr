@@ -15,6 +15,7 @@ import { FarmAnalysis } from "./ui/farm-analysis"
 import { ToastContainer } from "./ui/toast-notification"
 import { useNotifications } from "@/hooks/useNotifications"
 import { CameraScanPanel } from "./ui/camera-scan-panel"
+import { XgboostAdvisoryPanel } from "./ui/xgboost-advisory-panel"
 import { NewNavbar } from './ui/new-navbar'
 import { VoiceChat } from "./ui/ia-siri-chat"
 
@@ -470,6 +471,8 @@ const SmartAgriTechComponent = ({ hideNavbar = false }: { hideNavbar?: boolean }
             <div className="space-y-6">
               {/* Controls */}
               <RelayControls speechLanguage={speechLanguage} />
+
+              <XgboostAdvisoryPanel city="Hyderabad" />
 
               <CameraScanPanel />
                 </div>

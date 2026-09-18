@@ -87,6 +87,11 @@ WEBHOOK_URL=https://your-domain.com/api/webhook/whatsapp
 
 No API key required (Open-Meteo free tier). Frontend proxy: `/api/weather?type=current&city=...`
 
+### XGBoost farm advisory
+- `GET /api/advisory/predict?city=hyderabad` — irrigation, stress, disease climate, motor, yield score, price trend from ESP sensors + Open-Meteo
+- `POST /api/advisory/predict` — same with optional sensor overrides
+- Models in `ml/models/xgboost/` (train with `python ml/train_xgboost_advisory.py`)
+
 ### Pest Detection & Plant Diagnosis
 - `POST /api/pest/diagnose?annotate=true` - Locate leaves and pests, then classify disease, pest species, and (for maize) suspected nutrient deficiency
 - `POST /api/pest/detect` - Locate pests with bounding boxes (102 IP102 pest classes)

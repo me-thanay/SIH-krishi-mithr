@@ -1,0 +1,81 @@
+{
+  "features": [
+    "temperature",
+    "humidity",
+    "soil_moisture",
+    "tds",
+    "co2_ppm",
+    "nh3_ppm",
+    "benzene_ppm",
+    "smoke_ppm",
+    "light",
+    "motion",
+    "weather_temp",
+    "weather_humidity",
+    "precipitation",
+    "precip_probability",
+    "wind_speed",
+    "et0",
+    "uv_index",
+    "soil_moisture_model",
+    "soil_temp_model",
+    "hour",
+    "month"
+  ],
+  "models": {
+    "irrigate": {
+      "accuracy": 0.996875,
+      "macro_f1": 0.9939221856166841,
+      "path": "irrigate.joblib",
+      "labels": [
+        "skip",
+        "light",
+        "full"
+      ]
+    },
+    "stress_risk": {
+      "accuracy": 0.99875,
+      "macro_f1": 0.998355984234676,
+      "path": "stress_risk.joblib",
+      "labels": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "disease_climate_risk": {
+      "accuracy": 0.9975,
+      "macro_f1": 0.994473644366578,
+      "path": "disease_climate_risk.joblib",
+      "labels": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "motor_on": {
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "path": "motor_on.joblib",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    "price_trend": {
+      "accuracy": 0.99625,
+      "macro_f1": 0.9957719310912424,
+      "path": "price_trend.joblib",
+      "labels": [
+        "down",
+        "stable",
+        "up"
+      ]
+    },
+    "yield_score": {
+      "mae": 0.9057392218772188,
+      "r2": 0.9946874247555868,
+      "path": "yield_score.joblib"
+    }
+  }
+}

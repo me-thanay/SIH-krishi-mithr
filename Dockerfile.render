@@ -33,6 +33,7 @@ COPY ml/models/plantdoc_efficientnet_v2_s.pt \
      ml/models/maize_metrics.json \
      ml/models/ip102_yolo_metrics.json \
      ml/models/
+COPY ml/models/xgboost/ ml/models/xgboost/
 
 ENV PYTHONPATH=/app
 ENV INFERENCE_DEVICE=cpu

@@ -12,3 +12,7 @@ beautifulsoup4==4.12.3
 aiofiles==23.2.1
 paho-mqtt==1.6.1
 pymongo==4.6.1
+xgboost>=2.0
+scikit-learn>=1.4
+pandas>=2.1
+joblib>=1.3

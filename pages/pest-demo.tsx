@@ -229,32 +229,51 @@ export default function PestDetectionDemo() {
     try {
       const body = new FormData()
       body.append("file", file)
-      const backend = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(
-        /\/$/,
-        ""
-      )
-      const url = backend
-        ? `${backend}/api/pest/diagnose?annotate=true&top_k=3`
-        : "/api/pest/diagnose?annotate=true&top_k=3"
-      const response = await fetch(url, { method: "POST", body })
+      // Always use same-origin Next proxy to avoid browser CORS / mixed-content "Failed to fetch".
+      // The proxy forwards to Render using NEXT_PUBLIC_API_URL on the server.
+      const url = "/api/pest/diagnose?annotate=true&top_k=3"
+      const controller = new AbortController()
+      const timeout = window.setTimeout(() => controller.abort(), 120_000)
+      let response: Response
+      try {
+        response = await fetch(url, { method: "POST", body, signal: controller.signal })
+      } finally {
+        window.clearTimeout(timeout)
+      }
       const text = await response.text()
       let data: Report
       try {
         data = JSON.parse(text) as Report
       } catch {
         throw new Error(
-          response.status === 404 || text.toLowerCase().includes("not found")
-            ? "Diagnosis API not found. Set NEXT_PUBLIC_API_URL to your Render URL and redeploy."
-            : `Bad response from server (${response.status}).`
+          response.status === 404 || /not found/i.test(text)
+            ? "Diagnosis API not found. Redeploy Vercel/Render and set NEXT_PUBLIC_API_URL to https://your-api.onrender.com"
+            : `Bad response from server (${response.status}). Is NEXT_PUBLIC_API_URL set to your Render HTTPS URL?`
         )
       }
       if (!response.ok) {
-        setError(data.detail || data.error || "Diagnosis failed")
+        const detail =
+          typeof data.detail === "string"
+            ? data.detail
+            : data.error || (data as { success?: boolean }).success === false
+              ? (data as { error?: string }).error
+              : "Diagnosis failed"
+        setError(detail || "Diagnosis failed")
         return
       }
       setReport(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not reach the diagnosis service")
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError(
+          "Diagnosis timed out (2 min). Render may be cold-starting — wait a minute and tap Diagnose again."
+        )
+      } else {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not reach the diagnosis service. Check NEXT_PUBLIC_API_URL and that Render is awake."
+        )
+      }
     } finally {
       setLoading(false)
     }

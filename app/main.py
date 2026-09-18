@@ -111,10 +111,27 @@ async def health_check():
         "maize_deficiency": models_dir / "maize_efficientnet_v2_s.pt",
     }
     present = {name: path.exists() for name, path in required.items()}
+    torch_ok = False
+    torch_version = None
+    try:
+        import torch
+
+        torch_ok = True
+        torch_version = getattr(torch, "__version__", "unknown")
+    except Exception as exc:  # noqa: BLE001 — report any import failure
+        torch_version = f"{type(exc).__name__}: {exc}"
+
+    ml_ready = torch_ok and all(present.values())
     return {
-        "status": "healthy" if all(present.values()) else "degraded",
-        "message": "All services operational" if all(present.values()) else "Some ML weights are missing",
+        "status": "healthy" if ml_ready else "degraded",
+        "message": (
+            "All services operational"
+            if ml_ready
+            else ("PyTorch missing — redeploy with CPU torch install" if not torch_ok else "Some ML weights are missing")
+        ),
         "inference_device": os.getenv("INFERENCE_DEVICE", "auto"),
+        "torch_available": torch_ok,
+        "torch_version": torch_version,
         "models_present": present,
     }
 

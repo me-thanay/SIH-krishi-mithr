@@ -1,32 +1,32 @@
-"""Camera vision pipeline: YOLO locates, EfficientNet classifies.
+"""Camera vision pipeline: locate leaf, then EfficientNet disease classify.
 
-Stage 1  YOLO (`leaf` / `pest`) finds boxes in the phone or ESP32-CAM frame.
-Stage 2  Each leaf crop  -> EfficientNetV2-S PlantDoc (plant + disease)
-         Maize leaves    -> EfficientNetV2-S deficiency head when plant is corn/maize
-         Each pest crop  -> EfficientNet IP102 if trained, else IP102 YOLO species
-This path is camera-only (no sensors / XGBoost).
+Render (≤2 GB) cannot keep YOLO + EfficientNet in one process. YOLO runs in a
+child process (OOM kills the child, not the API), then EfficientNet runs in-process.
 """
 
 from __future__ import annotations
 
 import base64
+import gc
 import io
 import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .leaf_classifier import DeficiencyClassifier, LeafClassifier, PestClassifier, to_pil
+from .leaf_classifier import DeficiencyClassifier, LeafClassifier, to_pil
 from .leaf_locator import locate_leaf
-from .region_detector import RegionDetector, crop_with_margin
+from .region_detector import crop_with_margin
 
-MAX_LEAVES = 3            # diagnose at most this many leaf regions (largest first)
-MAX_PESTS = 6
+MAX_LEAVES = 2
+MAX_PESTS = 4
 DISEASE_CONF_FINDING = 0.45
 PEST_CONF_FINDING = 0.40
 DEFICIENCY_CONF_FINDING = 0.45
 MAIZE_PLANTS = {"corn", "maize"}
-MIN_LEAF_AREA = 0.03      # leaf boxes smaller than this fraction of the frame are too small to diagnose
+MIN_LEAF_AREA = 0.03
 
 GREEN, RED, GREY, AMBER, BLUE = (46, 160, 67), (220, 38, 38), (120, 120, 120), (217, 119, 6), (37, 99, 235)
 
@@ -34,75 +34,71 @@ GREEN, RED, GREY, AMBER, BLUE = (46, 160, 67), (220, 38, 38), (120, 120, 120), (
 def _load(factory):
     try:
         return factory(), None
-    except Exception as exc:  # missing weights / dependency
+    except Exception as exc:
         return None, f"{type(exc).__name__}: {exc}"
 
 
-def _light_mode() -> bool:
-    """Render CPU instances OOM if we load 2 YOLOs + 2 EfficientNets at once."""
-    return os.getenv("DIAGNOSE_LIGHT", "1").strip().lower() not in {"0", "false", "no"}
+def _skip_yolo() -> bool:
+    return os.getenv("DIAGNOSE_SKIP_YOLO", "0").strip().lower() in {"1", "true", "yes"}
+
+
+def _free(*objs) -> None:
+    for obj in objs:
+        try:
+            del obj
+        except Exception:
+            pass
+    gc.collect()
+
+
+def _yolo_worker(image_path: str, det_conf: float, out: Queue) -> None:
+    """Child process: load YOLO, detect, put results, exit (frees RAM)."""
+    try:
+        from ml.region_detector import RegionDetector
+
+        det = RegionDetector()
+        regions = det.detect(image_path, conf=det_conf)
+        out.put({"ok": True, "regions": regions})
+    except Exception as exc:  # noqa: BLE001
+        out.put({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+
+
+def _detect_yolo_subprocess(img: Image.Image, det_conf: float) -> tuple[list[dict], str | None]:
+    """Run YOLO in a subprocess so an OOM cannot kill the API worker."""
+    from multiprocessing import get_context
+
+    fd, path = tempfile.mkstemp(suffix=".jpg")
+    os.close(fd)
+    try:
+        img.save(path, format="JPEG", quality=85)
+        ctx = get_context("spawn")
+        queue = ctx.Queue(1)
+        proc = ctx.Process(target=_yolo_worker, args=(path, det_conf, queue), daemon=True)
+        proc.start()
+        proc.join(timeout=float(os.getenv("YOLO_SUBPROCESS_TIMEOUT", "75")))
+        if proc.is_alive():
+            proc.terminate()
+            proc.join(5)
+            return [], "YOLO timed out in subprocess"
+        if queue.empty():
+            return [], "YOLO subprocess exited with no result (often OOM)"
+        payload = queue.get_nowait()
+        if not payload.get("ok"):
+            return [], payload.get("error") or "YOLO failed"
+        return payload.get("regions") or [], None
+    finally:
+        try:
+            Path(path).unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 class PlantDiagnosisPipeline:
-    def __init__(self, detector: RegionDetector | None = None, leaf_classifier: LeafClassifier | None = None,
-                 pest_classifier: PestClassifier | None = None, pest_detector=None):
-        # Eager: only the camera core path (YOLO leaf/pest boxes + PlantDoc EfficientNet).
-        self.detector, self.detector_error = (detector, None) if detector else _load(RegionDetector)
-        self.leaf_clf, self.leaf_clf_error = (leaf_classifier, None) if leaf_classifier else _load(LeafClassifier)
-
-        # Lazy / optional extras — second YOLO (IP102) is the usual OOM trigger on 2 GB Render.
-        self._pest_clf = pest_classifier if pest_classifier is not None else None
-        self._pest_clf_loaded = pest_classifier is not None
-        self.pest_clf_error = None
-
-        self._pest_det = pest_detector
-        self._pest_det_loaded = pest_detector is not None
-        self.pest_det_error = None
-
-        self._def_clf = None
-        self._def_clf_loaded = False
+    def __init__(self, detector=None, leaf_classifier=None, pest_classifier=None, pest_detector=None):
+        self._inject_leaf = leaf_classifier
+        self.detector_error = None
+        self.leaf_clf_error = None
         self.def_clf_error = None
-
-        if self.detector is None and self.leaf_clf is None:
-            raise RuntimeError(
-                f"No models available. detector: {self.detector_error}; leaf classifier: {self.leaf_clf_error}"
-            )
-
-    @property
-    def pest_clf(self):
-        if self._pest_clf_loaded:
-            return self._pest_clf
-        self._pest_clf_loaded = True
-        if _light_mode():
-            self.pest_clf_error = "skipped (DIAGNOSE_LIGHT=1)"
-            self._pest_clf = None
-            return None
-        self._pest_clf, self.pest_clf_error = _load(PestClassifier)
-        return self._pest_clf
-
-    @property
-    def pest_det(self):
-        if self._pest_det_loaded:
-            return self._pest_det
-        self._pest_det_loaded = True
-        # Never load a second YOLO unless explicitly enabled — keeps Diagnose under ~2 GB RAM.
-        if _light_mode() or os.getenv("ENABLE_IP102_YOLO", "0").strip().lower() not in {"1", "true", "yes"}:
-            self.pest_det_error = "skipped (light mode / ENABLE_IP102_YOLO!=1)"
-            self._pest_det = None
-            return None
-        from .pest_detector import PestDetector
-        self._pest_det, self.pest_det_error = _load(PestDetector)
-        return self._pest_det
-
-    @property
-    def def_clf(self):
-        if self._def_clf_loaded:
-            return self._def_clf
-        self._def_clf_loaded = True
-        self._def_clf, self.def_clf_error = _load(DeficiencyClassifier)
-        return self._def_clf
-
-    # ------------------------------------------------------------------ drawing
 
     @staticmethod
     def _annotate(img: Image.Image, leaves: list[dict], pests: list[dict], fallback: dict | None) -> str:
@@ -141,26 +137,51 @@ class PlantDiagnosisPipeline:
             label((pest["box"][0], pest["box"][1]), f"{name} {pest['confidence']:.0%}", RED)
         if fallback and fallback.get("box"):
             draw.rectangle(fallback["box"], outline=GREY, width=stroke)
-            label((fallback["box"][0], fallback["box"][1]), f"leaf (colour fallback)", GREY)
+            label((fallback["box"][0], fallback["box"][1]), "leaf (colour fallback)", GREY)
         if not leaves and not pests and not (fallback and fallback.get("box")):
             label((4, 24), "no leaf or pest located", GREY)
 
         buf = io.BytesIO()
-        canvas.save(buf, "JPEG", quality=85)
+        canvas.save(buf, "JPEG", quality=80)
         return base64.b64encode(buf.getvalue()).decode("ascii")
-
-    # ------------------------------------------------------------------ main
 
     def diagnose(self, image, det_conf: float = 0.25, top_k: int = 3, annotate: bool = False) -> dict[str, Any]:
         img = to_pil(image)
+        max_side = int(os.getenv("DIAGNOSE_MAX_SIDE", "1024"))
+        w0, h0 = img.size
+        if max(w0, h0) > max_side:
+            scale = max_side / float(max(w0, h0))
+            img = img.resize((max(1, int(w0 * scale)), max(1, int(h0 * scale))))
         w, h = img.size
 
-        # Stage 1: locate.
-        regions: list[dict] = self.detector.detect(img, conf=det_conf) if self.detector else []
-        leaf_regions = sorted((r for r in regions if r["type"] == "leaf"), key=lambda r: -r["area_fraction"])
-        pest_regions = [r for r in regions if r["type"] == "pest"]
+        regions: list[dict] = []
+        if _skip_yolo():
+            self.detector_error = "skipped (DIAGNOSE_SKIP_YOLO=1)"
+        else:
+            regions, self.detector_error = _detect_yolo_subprocess(img, det_conf)
 
-        # Stage 2a: diagnose each leaf crop.
+        leaf_regions = sorted((r for r in regions if r.get("type") == "leaf"), key=lambda r: -r.get("area_fraction", 0))
+        pest_regions = [r for r in regions if r.get("type") == "pest"]
+
+        if not leaf_regions:
+            located = locate_leaf(img)
+            if located:
+                leaf_regions = [{
+                    "type": "leaf",
+                    "confidence": 0.55,
+                    "box": located["box"],
+                    "area_fraction": located["coverage"],
+                    "located_by": "colour_locator",
+                }]
+
+        leaf_clf = self._inject_leaf
+        if leaf_clf is None:
+            leaf_clf, self.leaf_clf_error = _load(LeafClassifier)
+        if leaf_clf is None:
+            raise RuntimeError(
+                f"Leaf classifier unavailable. {self.leaf_clf_error}; detector: {self.detector_error}"
+            )
+
         leaves: list[dict] = []
         for r in leaf_regions[:MAX_LEAVES]:
             entry = {
@@ -170,24 +191,27 @@ class PlantDiagnosisPipeline:
                 "too_small": r["area_fraction"] < MIN_LEAF_AREA,
                 "diagnosis": None,
                 "deficiency": None,
-                "located_by": "yolo",
+                "located_by": r.get("located_by", "yolo"),
                 "classified_by": None,
             }
             crop = crop_with_margin(img, r["box"])
-            if self.leaf_clf and not entry["too_small"]:
-                entry["diagnosis"] = self.leaf_clf.predict(crop, top_k=top_k)
-                entry["classified_by"] = "efficientnet_v2_s-plantdoc"
             if not entry["too_small"]:
+                entry["diagnosis"] = leaf_clf.predict(crop, top_k=top_k, tta=False)
+                entry["classified_by"] = "efficientnet_v2_s-plantdoc"
                 plant = ((entry["diagnosis"] or {}).get("plant") or "").lower()
-                if plant in MAIZE_PLANTS and self.def_clf:
-                    entry["deficiency"] = self.def_clf.predict(crop, top_k=top_k)
-                    entry["deficiency_by"] = "efficientnet_v2_s-maize-deficiency"
+                if plant in MAIZE_PLANTS:
+                    def_clf, self.def_clf_error = _load(DeficiencyClassifier)
+                    if def_clf:
+                        try:
+                            entry["deficiency"] = def_clf.predict(crop, top_k=top_k, tta=False)
+                            entry["deficiency_by"] = "efficientnet_v2_s-maize-deficiency"
+                        finally:
+                            _free(def_clf)
             leaves.append(entry)
 
-        # Stage 2b: identify each pest crop.
         pests: list[dict] = []
         for r in pest_regions[:MAX_PESTS]:
-            entry = {
+            pests.append({
                 "box": r["box"],
                 "det_confidence": r["confidence"],
                 "area_fraction": r["area_fraction"],
@@ -196,75 +220,73 @@ class PlantDiagnosisPipeline:
                 "top_k": [],
                 "located_by": "yolo",
                 "classified_by": None,
-            }
-            if self.pest_clf:
-                sp = self.pest_clf.predict(crop_with_margin(img, r["box"], margin=0.15), top_k=top_k)
-                entry.update(
-                    species=sp["species"],
-                    confidence=round(r["confidence"] * sp["confidence"], 4),
-                    species_confidence=sp["confidence"],
-                    top_k=sp["top_k"],
-                    classified_by="efficientnet_v2_s-ip102",
-                )
-            elif self.pest_det:
-                hits = self.pest_det.detect(crop_with_margin(img, r["box"], margin=0.15), conf=max(0.12, det_conf * 0.5))
-                if hits:
-                    best = hits[0]
-                    entry.update(
-                        species=best["pest"],
-                        confidence=round(r["confidence"] * best["confidence"], 4),
-                        species_confidence=best["confidence"],
-                        top_k=[{"species": h["pest"], "label": h["pest"], "confidence": h["confidence"]} for h in hits[:top_k]],
-                        classified_by="yolo11s-ip102",
-                    )
-            pests.append(entry)
+            })
 
-        # Fallback: no leaf located by YOLO -> colour locator -> whole frame (unreliable).
         fallback: dict | None = None
-        if not leaves and self.leaf_clf:
+        if not leaves:
             located = locate_leaf(img)
             region = img.crop(located["box"]) if located else img
             fallback = {
                 "box": located["box"] if located else None,
                 "source": "colour_locator" if located else "full_image",
-                "diagnosis": self.leaf_clf.predict(region, top_k=top_k),
+                "diagnosis": leaf_clf.predict(region, top_k=top_k, tta=False),
                 "reliable": False,
             }
 
-        # Findings.
+        if self._inject_leaf is None:
+            _free(leaf_clf)
+
         findings: list[dict] = []
         for leaf in leaves:
             d = leaf["diagnosis"]
             if d and not d["healthy"] and d["confidence"] >= DISEASE_CONF_FINDING:
-                findings.append({"type": "disease", "name": f"{d['plant']} - {d['disease']}",
-                                 "confidence": d["confidence"], "box": leaf["box"]})
+                findings.append({
+                    "type": "disease",
+                    "name": f"{d['plant']} - {d['disease']}",
+                    "confidence": d["confidence"],
+                    "box": leaf["box"],
+                })
             defn = leaf.get("deficiency")
             if defn and defn.get("suspected_deficiency") and defn["confidence"] >= DEFICIENCY_CONF_FINDING:
-                findings.append({"type": "deficiency", "name": f"{defn['crop']} - {defn['suspected_deficiency']}",
-                                 "confidence": defn["confidence"], "box": leaf["box"],
-                                 "suspected_deficiency": defn["suspected_deficiency"]})
+                findings.append({
+                    "type": "deficiency",
+                    "name": f"{defn['crop']} - {defn['suspected_deficiency']}",
+                    "confidence": defn["confidence"],
+                    "box": leaf["box"],
+                    "suspected_deficiency": defn["suspected_deficiency"],
+                })
         for pest in pests:
-            if pest["confidence"] >= PEST_CONF_FINDING or (pest["species"] is None and pest["det_confidence"] >= 0.5):
-                findings.append({"type": "pest", "name": pest["species"] or "insect pest",
-                                 "confidence": pest["confidence"], "box": pest["box"]})
+            if pest["confidence"] >= PEST_CONF_FINDING or pest["det_confidence"] >= 0.5:
+                findings.append({
+                    "type": "pest",
+                    "name": pest["species"] or "insect pest",
+                    "confidence": pest["confidence"],
+                    "box": pest["box"],
+                })
         findings.sort(key=lambda f: -f["confidence"])
 
-        healthy_leaves = [l for l in leaves if l["diagnosis"] and l["diagnosis"]["healthy"]
-                          and l["diagnosis"]["confidence"] >= DISEASE_CONF_FINDING]
+        healthy_leaves = [
+            leaf for leaf in leaves
+            if leaf["diagnosis"] and leaf["diagnosis"]["healthy"]
+            and leaf["diagnosis"]["confidence"] >= DISEASE_CONF_FINDING
+        ]
         if findings:
             summary = "; ".join(f"{f['name']} ({f['confidence']:.0%})" for f in findings)
         elif healthy_leaves:
             d = healthy_leaves[0]["diagnosis"]
             summary = f"{d['plant']} leaf looks healthy ({d['confidence']:.0%}); no pests located"
-        elif leaves and all(l["too_small"] for l in leaves):
+        elif leaves and all(leaf["too_small"] for leaf in leaves):
             summary = "Leaf is too small in the frame; move closer so one leaf fills most of the photo"
         elif fallback:
             d = fallback["diagnosis"]
-            summary = (f"No leaf located by the detector; whole-image guess {d['plant']} - {d['disease']} "
-                       f"({d['confidence']:.0%}) is unreliable. Retake with one leaf filling the frame")
+            summary = (
+                f"No leaf located by the detector; whole-image guess {d['plant']} - {d['disease']} "
+                f"({d['confidence']:.0%}) is unreliable. Retake with one leaf filling the frame"
+            )
         else:
             summary = "No confident disease or pest finding; retake with one leaf filling the frame in daylight"
 
+        yolo_ok = bool(regions) and not self.detector_error
         report: dict[str, Any] = {
             "image_size": [w, h],
             "regions": regions,
@@ -274,61 +296,33 @@ class PlantDiagnosisPipeline:
             "findings": findings,
             "summary": summary,
             "pipeline": {
-                "mode": "camera_vision",
-                "description": "YOLO locates leaves/pests; EfficientNetV2-S classifies each leaf crop (disease / maize deficiency).",
+                "mode": "camera_vision_subprocess_yolo",
+                "description": "YOLO in child process (OOM-safe), then EfficientNetV2-S in API process.",
                 "stages": [
                     {
                         "id": "yolo_locate",
                         "name": "YOLO locate",
-                        "role": "Find leaf and pest boxes in the camera frame",
-                        "model": "yolo11s-leaf-pest" if self.detector else None,
+                        "role": "Find leaf/pest boxes in a subprocess",
+                        "model": "yolo11s-leaf-pest" if yolo_ok else ("colour_locator" if leaf_regions else None),
                         "leaf_boxes": len(leaf_regions),
                         "pest_boxes": len(pest_regions),
+                        "error": self.detector_error,
                     },
                     {
                         "id": "efficientnet_classify",
                         "name": "EfficientNet classify",
-                        "role": "Name plant disease (and maize deficiency) on each YOLO leaf crop",
-                        "model": "efficientnet_v2_s-plantdoc" if self.leaf_clf else None,
-                        "deficiency_model": (
-                            "efficientnet_v2_s-maize-deficiency"
-                            if self._def_clf_loaded and self._def_clf
-                            else None
-                        ),
+                        "role": "Name plant disease on each leaf crop",
+                        "model": "efficientnet_v2_s-plantdoc",
                         "leaves_classified": sum(1 for leaf in leaves if leaf.get("diagnosis")),
-                        "deficiencies_classified": sum(
-                            1 for leaf in leaves if leaf.get("deficiency") and leaf["deficiency"].get("suspected_deficiency")
-                        ),
-                    },
-                    {
-                        "id": "pest_identify",
-                        "name": "Pest identify",
-                        "role": "Name insect species on each YOLO pest crop",
-                        "model": (
-                            "efficientnet_v2_s-ip102" if self._pest_clf_loaded and self._pest_clf
-                            else ("yolo11s-ip102" if self._pest_det_loaded and self._pest_det else None)
-                        ),
-                        "pests_identified": sum(1 for pest in pests if pest.get("species")),
                     },
                 ],
             },
             "models": {
-                "detector": "yolo11s-leaf-pest" if self.detector else None,
-                "leaf_classifier": "efficientnet_v2_s-plantdoc" if self.leaf_clf else None,
-                "deficiency_classifier": (
-                    "efficientnet_v2_s-maize-deficiency"
-                    if self._def_clf_loaded and self._def_clf
-                    else None
-                ),
-                "pest_classifier": (
-                    "efficientnet_v2_s-ip102" if self._pest_clf_loaded and self._pest_clf
-                    else ("yolo11s-ip102" if self._pest_det_loaded and self._pest_det else None)
-                ),
+                "detector": "yolo11s-leaf-pest" if yolo_ok else None,
+                "leaf_classifier": "efficientnet_v2_s-plantdoc",
                 "errors": {k: v for k, v in (
                     ("detector", self.detector_error),
                     ("leaf_classifier", self.leaf_clf_error),
-                    ("pest_classifier", self.pest_clf_error),
-                    ("pest_detector", self.pest_det_error),
                     ("deficiency_classifier", self.def_clf_error),
                 ) if v},
             },

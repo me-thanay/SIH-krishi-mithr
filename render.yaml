@@ -19,6 +19,12 @@ services:
         value: cpu
       - key: DIAGNOSE_LIGHT
         value: "1"
+      - key: DIAGNOSE_SKIP_YOLO
+        value: "1"
+      - key: DIAGNOSE_MAX_SIDE
+        value: "1024"
+      - key: YOLO_SUBPROCESS_TIMEOUT
+        value: "75"
       - key: ENABLE_IP102_YOLO
         value: "0"
       - key: OMP_NUM_THREADS

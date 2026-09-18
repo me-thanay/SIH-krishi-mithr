@@ -49,6 +49,28 @@ function Pill({
   )
 }
 
+function advisoryUrl(city: string) {
+  const backend = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/$/, "")
+  const qs = `city=${encodeURIComponent(city)}`
+  // Prefer Render directly (same pattern as Diagnose) so Vercel routing cannot 404 the proxy.
+  return backend ? `${backend}/api/advisory/predict?${qs}` : `/api/advisory/predict?${qs}`
+}
+
+async function parseJsonSafe(response: Response) {
+  const text = await response.text()
+  if (!text) throw new Error(`Empty response (${response.status})`)
+  try {
+    return JSON.parse(text)
+  } catch {
+    if (text.trim().toLowerCase().startsWith("not found") || response.status === 404) {
+      throw new Error(
+        "Advisory API not found. Redeploy Render with latest main and set NEXT_PUBLIC_API_URL on Vercel to that Render URL."
+      )
+    }
+    throw new Error(`Bad response (${response.status}): ${text.slice(0, 120)}`)
+  }
+}
+
 export function XgboostAdvisoryPanel({ city = "Hyderabad" }: { city?: string }) {
   const [data, setData] = useState<Advisory | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,9 +80,15 @@ export function XgboostAdvisoryPanel({ city = "Hyderabad" }: { city?: string }) 
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`/api/advisory/predict?city=${encodeURIComponent(city)}`)
-      const json = await response.json()
-      if (!response.ok) throw new Error(json.detail || json.error || "Advisory failed")
+      const response = await fetch(advisoryUrl(city))
+      const json = await parseJsonSafe(response)
+      if (!response.ok) {
+        throw new Error(
+          typeof json.detail === "string"
+            ? json.detail
+            : json.error || `Advisory failed (${response.status})`
+        )
+      }
       setData(json)
     } catch (err: any) {
       setError(err?.message || "Could not load XGBoost advisory")
@@ -98,7 +126,14 @@ export function XgboostAdvisoryPanel({ city = "Hyderabad" }: { city?: string }) 
         </button>
       </div>
 
-      {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && (
+        <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p>{error}</p>
+          <p className="mt-1 text-xs text-red-600/80">
+            Backend must expose /api/advisory/predict. Set NEXT_PUBLIC_API_URL to your Render URL, then redeploy Vercel.
+          </p>
+        </div>
+      )}
       {data?.summary && <p className="mb-4 text-sm leading-relaxed text-stone-700">{data.summary}</p>}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -15,17 +15,19 @@ async function readBody(response: Response): Promise<any> {
     return {
       error:
         response.status === 404
-          ? `Advisory route missing on backend (${BACKEND_URL}). Redeploy Render.`
+          ? `Advisory API not found on ${BACKEND_URL}. Redeploy Render with latest main (needs /api/advisory/predict).`
           : `Backend returned non-JSON (${response.status}): ${text.slice(0, 160)}`,
+      detail: text.slice(0, 300),
     }
   }
 }
 
-/** Fallback proxy: /api/advisory/[path] -> FastAPI /api/advisory/{path} */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const path = typeof req.query.path === 'string' ? req.query.path : 'predict'
-  const url = new URL(`${BACKEND_URL}/api/advisory/${path}`)
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
 
+  const url = new URL(`${BACKEND_URL}/api/advisory/predict`)
   if (req.method === 'GET') {
     for (const key of ['city', 'lat', 'lon'] as const) {
       const value = req.query[key]
@@ -37,20 +39,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const response = await fetch(url.toString(), {
       method: req.method,
       headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: req.method === 'GET' || req.method === 'HEAD' ? undefined : JSON.stringify(req.body || {}),
+      body: req.method === 'POST' ? JSON.stringify(req.body || {}) : undefined,
     })
     const data = await readBody(response)
-    if (!response.ok) {
-      return res.status(response.status === 404 ? 502 : response.status).json({
-        error: data.error || data.detail || `Advisory failed (${response.status})`,
-        backend: BACKEND_URL,
-      })
-    }
-    return res.status(200).json(data)
+    return res.status(response.ok ? 200 : response.status === 404 ? 502 : response.status).json(
+      response.ok
+        ? data
+        : {
+            error: data.error || data.detail || `Advisory request failed (${response.status})`,
+            detail: data.detail || data.error,
+            backend: BACKEND_URL,
+          }
+    )
   } catch (error: any) {
     return res.status(502).json({
       error: error?.message || 'Advisory backend unreachable',
       backend: BACKEND_URL,
+      hint: 'Start FastAPI locally or set NEXT_PUBLIC_API_URL to your Render URL, then redeploy Vercel.',
     })
   }
 }

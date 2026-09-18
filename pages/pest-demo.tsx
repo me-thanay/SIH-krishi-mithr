@@ -66,16 +66,15 @@ function renderApiBase(): string {
   return url
 }
 
-/** Prefer direct Render for diagnose — Vercel serverless caps at ~60s and cold ML loads often 504. */
-function diagnoseUrl(): string {
+/** Same-origin proxy first (reliable); direct Render if proxy 504/502 during long ML loads. */
+function diagnoseCandidates(): string[] {
   const backend = renderApiBase()
-  if (backend) return `${backend}/api/pest/diagnose?annotate=true&top_k=3`
-  return "/api/pest/diagnose?annotate=true&top_k=3"
+  const proxy = "/api/pest/diagnose?annotate=true&top_k=3"
+  const direct = backend ? `${backend}/api/pest/diagnose?annotate=true&top_k=3` : ""
+  return direct ? [proxy, direct] : [proxy]
 }
 
 function warmupUrl(): string {
-  const backend = renderApiBase()
-  if (backend) return `${backend}/api/pest/warmup`
   return "/api/pest/warmup"
 }
 
@@ -258,32 +257,50 @@ export default function PestDetectionDemo() {
     setLoading(true)
     setError("")
     try {
-      const body = new FormData()
-      body.append("file", file)
-      const url = diagnoseUrl()
-      const controller = new AbortController()
-      // First load after sleep can take 1–3 min on CPU; Vercel proxy cannot wait that long.
-      const timeout = window.setTimeout(() => controller.abort(), 180_000)
-      let response: Response
-      try {
-        response = await fetch(url, { method: "POST", body, signal: controller.signal })
-      } finally {
-        window.clearTimeout(timeout)
+      const urls = diagnoseCandidates()
+      let response: Response | null = null
+      let text = ""
+      let lastNetworkError: Error | null = null
+
+      for (const url of urls) {
+        const body = new FormData()
+        body.append("file", file)
+        const controller = new AbortController()
+        const timeout = window.setTimeout(() => controller.abort(), 180_000)
+        try {
+          response = await fetch(url, { method: "POST", body, signal: controller.signal })
+          text = await response.text()
+          // Retry on gateway death (Render OOM / Vercel timeout) via the other URL.
+          if (response.status === 502 || response.status === 504) {
+            lastNetworkError = new Error(`Gateway ${response.status} from ${url}`)
+            continue
+          }
+          break
+        } catch (err) {
+          lastNetworkError = err instanceof Error ? err : new Error(String(err))
+          response = null
+        } finally {
+          window.clearTimeout(timeout)
+        }
       }
-      const text = await response.text()
+
+      if (!response) {
+        throw lastNetworkError || new Error("Could not reach diagnosis service")
+      }
+
       let data: Report
       try {
         data = JSON.parse(text) as Report
       } catch {
-        if (response.status === 504) {
+        if (response.status === 502 || response.status === 504) {
           throw new Error(
-            "Diagnosis timed out (504). Open https://sih-krishi-mithr.onrender.com/health once, wait ~30s for models to load, then tap Diagnose again."
+            "Diagnose crashed or timed out on Render (usually RAM). Confirm Standard ≥2 GB plan, Manual Deploy latest main, open /health, wait 30s, retry."
           )
         }
         throw new Error(
           response.status === 404 || /not found/i.test(text)
             ? "Diagnosis API not found. Redeploy Vercel/Render and set NEXT_PUBLIC_API_URL to https://sih-krishi-mithr.onrender.com"
-            : `Bad response from server (${response.status}). Set NEXT_PUBLIC_API_URL to https://sih-krishi-mithr.onrender.com and redeploy Vercel.`
+            : `Bad response from server (${response.status}). Redeploy Render with latest main, then retry.`
         )
       }
       if (!response.ok) {
@@ -300,7 +317,11 @@ export default function PestDetectionDemo() {
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError(
-          "Diagnosis timed out (3 min). Open the Render /health URL once to wake it, wait for models, then Diagnose again."
+          "Diagnosis timed out (3 min). Open https://sih-krishi-mithr.onrender.com/health, wait for models, then Diagnose again."
+        )
+      } else if (err instanceof TypeError || (err instanceof Error && /failed to fetch/i.test(err.message))) {
+        setError(
+          "Failed to reach Render (connection dropped — often OOM while loading models). Manual Deploy latest main on Render (Standard 2GB), open /health, wait 1 min, retry Diagnose."
         )
       } else {
         setError(

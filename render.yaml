@@ -17,6 +17,10 @@ services:
         value: "."
       - key: INFERENCE_DEVICE
         value: cpu
+      - key: DIAGNOSE_LIGHT
+        value: "1"
+      - key: ENABLE_IP102_YOLO
+        value: "0"
       - key: OMP_NUM_THREADS
         value: "1"
       - key: TORCH_NUM_THREADS

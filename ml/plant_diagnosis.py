@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import io
+import os
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
@@ -37,24 +38,69 @@ def _load(factory):
         return None, f"{type(exc).__name__}: {exc}"
 
 
+def _light_mode() -> bool:
+    """Render CPU instances OOM if we load 2 YOLOs + 2 EfficientNets at once."""
+    return os.getenv("DIAGNOSE_LIGHT", "1").strip().lower() not in {"0", "false", "no"}
+
+
 class PlantDiagnosisPipeline:
     def __init__(self, detector: RegionDetector | None = None, leaf_classifier: LeafClassifier | None = None,
                  pest_classifier: PestClassifier | None = None, pest_detector=None):
+        # Eager: only the camera core path (YOLO leaf/pest boxes + PlantDoc EfficientNet).
         self.detector, self.detector_error = (detector, None) if detector else _load(RegionDetector)
         self.leaf_clf, self.leaf_clf_error = (leaf_classifier, None) if leaf_classifier else _load(LeafClassifier)
-        self.pest_clf, self.pest_clf_error = (pest_classifier, None) if pest_classifier else _load(PestClassifier)
-        if pest_detector is not None:
-            self.pest_det, self.pest_det_error = pest_detector, None
-        elif self.pest_clf is None:
-            from .pest_detector import PestDetector
-            self.pest_det, self.pest_det_error = _load(PestDetector)
-        else:
-            self.pest_det, self.pest_det_error = None, None
-        self.def_clf, self.def_clf_error = _load(DeficiencyClassifier)
+
+        # Lazy / optional extras — second YOLO (IP102) is the usual OOM trigger on 2 GB Render.
+        self._pest_clf = pest_classifier if pest_classifier is not None else None
+        self._pest_clf_loaded = pest_classifier is not None
+        self.pest_clf_error = None
+
+        self._pest_det = pest_detector
+        self._pest_det_loaded = pest_detector is not None
+        self.pest_det_error = None
+
+        self._def_clf = None
+        self._def_clf_loaded = False
+        self.def_clf_error = None
+
         if self.detector is None and self.leaf_clf is None:
             raise RuntimeError(
                 f"No models available. detector: {self.detector_error}; leaf classifier: {self.leaf_clf_error}"
             )
+
+    @property
+    def pest_clf(self):
+        if self._pest_clf_loaded:
+            return self._pest_clf
+        self._pest_clf_loaded = True
+        if _light_mode():
+            self.pest_clf_error = "skipped (DIAGNOSE_LIGHT=1)"
+            self._pest_clf = None
+            return None
+        self._pest_clf, self.pest_clf_error = _load(PestClassifier)
+        return self._pest_clf
+
+    @property
+    def pest_det(self):
+        if self._pest_det_loaded:
+            return self._pest_det
+        self._pest_det_loaded = True
+        # Never load a second YOLO unless explicitly enabled — keeps Diagnose under ~2 GB RAM.
+        if _light_mode() or os.getenv("ENABLE_IP102_YOLO", "0").strip().lower() not in {"1", "true", "yes"}:
+            self.pest_det_error = "skipped (light mode / ENABLE_IP102_YOLO!=1)"
+            self._pest_det = None
+            return None
+        from .pest_detector import PestDetector
+        self._pest_det, self.pest_det_error = _load(PestDetector)
+        return self._pest_det
+
+    @property
+    def def_clf(self):
+        if self._def_clf_loaded:
+            return self._def_clf
+        self._def_clf_loaded = True
+        self._def_clf, self.def_clf_error = _load(DeficiencyClassifier)
+        return self._def_clf
 
     # ------------------------------------------------------------------ drawing
 
@@ -131,9 +177,9 @@ class PlantDiagnosisPipeline:
             if self.leaf_clf and not entry["too_small"]:
                 entry["diagnosis"] = self.leaf_clf.predict(crop, top_k=top_k)
                 entry["classified_by"] = "efficientnet_v2_s-plantdoc"
-            if self.def_clf and not entry["too_small"]:
+            if not entry["too_small"]:
                 plant = ((entry["diagnosis"] or {}).get("plant") or "").lower()
-                if plant in MAIZE_PLANTS:
+                if plant in MAIZE_PLANTS and self.def_clf:
                     entry["deficiency"] = self.def_clf.predict(crop, top_k=top_k)
                     entry["deficiency_by"] = "efficientnet_v2_s-maize-deficiency"
             leaves.append(entry)
@@ -244,7 +290,11 @@ class PlantDiagnosisPipeline:
                         "name": "EfficientNet classify",
                         "role": "Name plant disease (and maize deficiency) on each YOLO leaf crop",
                         "model": "efficientnet_v2_s-plantdoc" if self.leaf_clf else None,
-                        "deficiency_model": "efficientnet_v2_s-maize-deficiency" if self.def_clf else None,
+                        "deficiency_model": (
+                            "efficientnet_v2_s-maize-deficiency"
+                            if self._def_clf_loaded and self._def_clf
+                            else None
+                        ),
                         "leaves_classified": sum(1 for leaf in leaves if leaf.get("diagnosis")),
                         "deficiencies_classified": sum(
                             1 for leaf in leaves if leaf.get("deficiency") and leaf["deficiency"].get("suspected_deficiency")
@@ -255,8 +305,8 @@ class PlantDiagnosisPipeline:
                         "name": "Pest identify",
                         "role": "Name insect species on each YOLO pest crop",
                         "model": (
-                            "efficientnet_v2_s-ip102" if self.pest_clf
-                            else ("yolo11s-ip102" if self.pest_det else None)
+                            "efficientnet_v2_s-ip102" if self._pest_clf_loaded and self._pest_clf
+                            else ("yolo11s-ip102" if self._pest_det_loaded and self._pest_det else None)
                         ),
                         "pests_identified": sum(1 for pest in pests if pest.get("species")),
                     },
@@ -265,17 +315,21 @@ class PlantDiagnosisPipeline:
             "models": {
                 "detector": "yolo11s-leaf-pest" if self.detector else None,
                 "leaf_classifier": "efficientnet_v2_s-plantdoc" if self.leaf_clf else None,
-                "deficiency_classifier": "efficientnet_v2_s-maize-deficiency" if self.def_clf else None,
+                "deficiency_classifier": (
+                    "efficientnet_v2_s-maize-deficiency"
+                    if self._def_clf_loaded and self._def_clf
+                    else None
+                ),
                 "pest_classifier": (
-                    "efficientnet_v2_s-ip102" if self.pest_clf
-                    else ("yolo11s-ip102" if self.pest_det else None)
+                    "efficientnet_v2_s-ip102" if self._pest_clf_loaded and self._pest_clf
+                    else ("yolo11s-ip102" if self._pest_det_loaded and self._pest_det else None)
                 ),
                 "errors": {k: v for k, v in (
                     ("detector", self.detector_error),
                     ("leaf_classifier", self.leaf_clf_error),
                     ("pest_classifier", self.pest_clf_error),
-                    ("pest_detector", getattr(self, "pest_det_error", None)),
-                    ("deficiency_classifier", getattr(self, "def_clf_error", None)),
+                    ("pest_detector", self.pest_det_error),
+                    ("deficiency_classifier", self.def_clf_error),
                 ) if v},
             },
         }

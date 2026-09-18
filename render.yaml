@@ -1,13 +1,13 @@
 services:
   - type: web
     name: sih-krishi-mithr-api
-    # Native Python: Dashboard must use this buildCommand (torch is not in requirements.txt alone).
-    # Alternative: switch Language to Docker and use Dockerfile.render (also installs CPU torch).
+    # Native Python: Build Command must install requirements (torch is now in requirements.txt).
+    # Or switch Language to Docker and use Dockerfile.render.
     runtime: python
     # ML (torch + YOLO + EfficientNet) needs ~2 GB RAM. Free/Starter (512 MB) will OOM.
     plan: standard
     region: oregon
-    buildCommand: PIP_REQUIRE_HASHES=0 pip install --no-cache-dir --upgrade pip && PIP_REQUIRE_HASHES=0 pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && PIP_REQUIRE_HASHES=0 pip install --no-cache-dir -r requirements.render.txt
+    buildCommand: PIP_REQUIRE_HASHES=0 pip install --no-cache-dir --upgrade pip && PIP_REQUIRE_HASHES=0 pip install --no-cache-dir -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:

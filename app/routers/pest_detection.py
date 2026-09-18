@@ -20,7 +20,7 @@ MAX_IMAGE_BYTES = 15 * 1024 * 1024
 
 
 class _Lazy:
-    """Thread-safe lazy singleton that remembers a load failure instead of retrying forever."""
+    """Thread-safe lazy singleton. Retries after a failed load (e.g. torch installed mid-life)."""
 
     def __init__(self, name: str, factory: Callable[[], Any]):
         self.name, self._factory = name, factory
@@ -31,14 +31,20 @@ class _Lazy:
         if self._obj is not None:
             return self._obj
         with self._lock:
-            if self._obj is None and self._error is None:
-                try:
-                    self._obj = self._factory()
-                except Exception as exc:  # torch missing, weights missing, etc.
-                    self._error = f"{type(exc).__name__}: {exc}"
-        if self._obj is None:
-            raise HTTPException(status_code=503, detail=f"{self.name} unavailable. {self._error}")
+            if self._obj is not None:
+                return self._obj
+            try:
+                self._obj = self._factory()
+                self._error = None
+            except Exception as exc:  # torch missing, weights missing, etc.
+                self._error = f"{type(exc).__name__}: {exc}"
+                # Do not sticky-cache forever — next request retries after a redeploy.
+                raise HTTPException(status_code=503, detail=f"{self.name} unavailable. {self._error}")
         return self._obj
+
+    def reset(self) -> None:
+        with self._lock:
+            self._obj, self._error = None, None
 
     @property
     def status(self) -> Dict[str, Any]:
@@ -126,6 +132,7 @@ async def model_status():
 @router.api_route("/warmup", methods=["GET", "POST"])
 async def warmup_models():
     """Load YOLO + EfficientNet into memory so the next /diagnose is fast."""
+    _pipeline.reset()
     try:
         _pipeline.get()
     except HTTPException as exc:

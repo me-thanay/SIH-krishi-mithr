@@ -92,19 +92,19 @@ No API key required (Open-Meteo free tier). Frontend proxy: `/api/weather?type=c
 - `POST /api/advisory/predict` — same with optional sensor overrides
 - Models in `ml/models/xgboost/` (train with `python ml/train_xgboost_advisory.py`)
 
-### Pest Detection & Plant Diagnosis
-- `POST /api/pest/diagnose?annotate=true` - Locate leaves and pests, then classify disease, pest species, and (for maize) suspected nutrient deficiency
-- `POST /api/pest/detect` - Locate pests with bounding boxes (102 IP102 pest classes)
-- `POST /api/pest/disease` - Classify disease from a single leaf photo
-- `POST /api/pest/deficiency` - Classify maize nutrient deficiency from a leaf photo
-- `GET /api/pest/disease/classes` - Supported plant/disease classes
-- `GET /api/pest/deficiency/classes` - Maize deficiency classes
-- `GET /api/pest/pests` - List all known pests
-- `GET /api/pest/pest/{pest_name}` - Get pest information
+### Pest Detection & Plant Diagnosis (camera vision)
+- Camera path only: **YOLO locates** leaf/pest boxes, then **EfficientNetV2-S** classifies each leaf crop (PlantDoc disease + maize deficiency). Sensors/XGBoost are separate.
+- `POST /api/pest/diagnose?annotate=true` — full YOLO → EfficientNet pipeline (phone or ESP32-CAM)
+- `POST /api/pest/device-scan` — ESP32-CAM still upload + Mongo `camera_scans`
+- `POST /api/pest/detect` — Locate pests with bounding boxes (102 IP102 pest classes)
+- `POST /api/pest/disease` — Classify disease from a single leaf photo (EfficientNet only, no YOLO)
+- `POST /api/pest/deficiency` — Classify maize nutrient deficiency from a leaf photo
+- `GET /api/pest/disease/classes` — Supported plant/disease classes
+- `GET /api/pest/deficiency/classes` — Maize deficiency classes
+- `GET /api/pest/pests` — List all known pests
+- `GET /api/pest/pest/{pest_name}` — Get pest information
 
-Models live in `ml/models/` (`leaf_pest_yolo.pt`, `ip102_yolo.pt`, `plantdoc_efficientnet_v2_s.pt`, `maize_efficientnet_v2_s.pt`, optional `ip102_efficientnet_v2_s.pt`). Training/prep scripts are in `ml/`; install `requirements.ml.txt` first.
-
-**Camera vision path:** YOLO locates leaves/pests → EfficientNetV2-S classifies disease / maize deficiency / pest species on each crop. Sensors and XGBoost advisory are separate.
+Models live in `ml/models/` (`leaf_pest_yolo.pt`, `ip102_yolo.pt`, `plantdoc_efficientnet_v2_s.pt`, `maize_efficientnet_v2_s.pt`). Training/prep scripts are in `ml/`; install `requirements.ml.txt` first.
 
 ### Soil Advisory
 - `POST /api/soil/analyze` - Upload soil image for analysis

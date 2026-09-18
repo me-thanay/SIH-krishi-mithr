@@ -15,6 +15,10 @@ type Scan = {
   findings?: Finding[]
   annotated_image?: string | null
   timestamp?: string
+  pipeline?: {
+    description?: string
+    stages?: { id: string; name: string; role: string; model?: string | null; leaf_boxes?: number; leaves_classified?: number }[]
+  }
 }
 
 export function CameraScanPanel({
@@ -82,13 +86,12 @@ export function CameraScanPanel({
         <div className="flex items-center gap-2">
           <Camera className="h-4 w-4 text-green-700" />
           <div>
-            <h2 className="text-sm font-semibold text-stone-800">ESP32-CAM last scan</h2>
+            <h2 className="text-sm font-semibold text-stone-800">ESP32-CAM · YOLO + EfficientNet</h2>
             <p className="text-[11px] text-stone-500">
               {scan?.device_id || "esp32-cam"}
               {scan?.timestamp
                 ? ` · ${new Date(scan.timestamp).toLocaleString()}`
                 : " · waiting for first upload"}
-              {" · YOLO locate + EfficientNet classify"}
             </p>
           </div>
         </div>
@@ -114,7 +117,7 @@ export function CameraScanPanel({
             <div className="flex h-full flex-col items-center justify-center gap-2 text-white/60">
               <Camera className="h-10 w-10" />
               <p className="px-4 text-center text-xs">
-                Flash the ESP32-CAM sketch. It will POST stills to the diagnose API; results appear here.
+                ESP32-CAM stills go through YOLO locate, then EfficientNet leaf classify.
               </p>
             </div>
           )}
@@ -123,7 +126,16 @@ export function CameraScanPanel({
         <div className="space-y-3 text-sm">
           {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-red-700">{error}</p>}
           {!scan && !loading && !error && (
-            <p className="text-stone-500">No scans stored yet. Sensors keep working over MQTT as before.</p>
+            <p className="text-stone-500">No camera scans yet. Sensors and XGBoost stay on their own panels.</p>
+          )}
+          {scan?.pipeline?.stages && (
+            <div className="space-y-1.5 text-xs text-stone-500">
+              {scan.pipeline.stages.slice(0, 2).map((stage) => (
+                <p key={stage.id}>
+                  <span className="font-medium text-stone-700">{stage.name}:</span> {stage.role}
+                </p>
+              ))}
+            </div>
           )}
           {scan?.summary && (
             <div>

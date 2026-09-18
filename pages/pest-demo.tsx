@@ -37,6 +37,20 @@ type Report = {
   pests?: PestRegion[]
   fallback?: { source?: string; diagnosis?: Diagnosis } | null
   annotated_image?: string
+  pipeline?: {
+    mode?: string
+    description?: string
+    stages?: {
+      id: string
+      name: string
+      role: string
+      model?: string | null
+      leaf_boxes?: number
+      pest_boxes?: number
+      leaves_classified?: number
+      pests_identified?: number
+    }[]
+  }
   models?: { detector?: string | null; leaf_classifier?: string | null; pest_classifier?: string | null }
   error?: string
   detail?: string
@@ -141,13 +155,18 @@ export default function PestDetectionDemo() {
     <div className="min-h-screen bg-[#f6f4ee] text-[#122023]">
       <NewNavbar variant="solid" />
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-24 sm:px-6">
-        <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#122023]/50">Krishi Mithr</p>
-        <h1 className="mt-2 font-kanturmuy text-4xl tracking-tight sm:text-5xl">Camera: YOLO then EfficientNet</h1>
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#122023]/50">Camera vision only</p>
+        <h1 className="mt-2 font-kanturmuy text-4xl tracking-tight sm:text-5xl">YOLO finds it. EfficientNet names it.</h1>
         <p className="mt-3 max-w-2xl text-sm text-[#122023]/70 sm:text-base">
-          YOLO finds leaves and insects. EfficientNetV2-S names the disease (and maize deficiency) on each leaf
-          crop, and the pest species on each insect box. Sensors and XGBoost stay on the dashboard — this page
-          is camera vision only. Use a clear shot of one leaf or insect filling the frame.
+          Phone or ESP32-CAM photo only — no sensors here. YOLO draws leaf and insect boxes; EfficientNetV2-S
+          classifies each leaf crop for plant disease (and maize deficiency). Keep one leaf filling the frame.
         </p>
+
+        <ol className="mt-6 flex flex-wrap gap-3 text-xs text-[#122023]/70">
+          <li className="rounded-full bg-white px-3 py-1.5 shadow-sm">1. Camera capture</li>
+          <li className="rounded-full bg-white px-3 py-1.5 shadow-sm">2. YOLO locate boxes</li>
+          <li className="rounded-full bg-white px-3 py-1.5 shadow-sm">3. EfficientNet classify leaf</li>
+        </ol>
 
         {error && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -231,18 +250,40 @@ export default function PestDetectionDemo() {
                 className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#122023] px-5 py-2.5 text-sm font-medium text-[#e1fcad] disabled:cursor-not-allowed disabled:bg-[#d7d3c8] disabled:text-[#122023]/40"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanSearch className="h-4 w-4" />}
-                {loading ? "Locating regions..." : "Diagnose"}
+                {loading ? "YOLO locating, then EfficientNet..." : "Diagnose"}
               </button>
             </div>
           </section>
 
           <section className="rounded-[2rem] bg-white p-6 shadow-[0_20px_50px_rgba(18,32,35,0.08)]">
             {!report ? (
-              <div className="flex h-full min-h-[280px] flex-col justify-center text-[#122023]/60">
-                <p className="text-sm">Results appear here after YOLO boxes the leaf or insect.</p>
+              <div className="flex h-full min-h-[280px] flex-col justify-center gap-3 text-[#122023]/60">
+                <p className="text-sm">Take or upload a leaf photo, then Diagnose.</p>
+                <p className="text-xs">Stage 1: YOLO boxes · Stage 2: EfficientNet disease / deficiency</p>
               </div>
             ) : (
               <div className="space-y-5">
+                {report.pipeline?.stages && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#122023]/45">Camera pipeline</p>
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {report.pipeline.stages.map((stage) => (
+                        <li key={stage.id} className="rounded-2xl bg-[#f6f4ee] px-3 py-2">
+                          <p className="font-medium">{stage.name}</p>
+                          <p className="text-xs text-[#122023]/55">{stage.role}</p>
+                          <p className="mt-1 text-xs text-[#122023]/45">
+                            {stage.model || "unavailable"}
+                            {stage.leaf_boxes != null ? ` · ${stage.leaf_boxes} leaf box(es)` : ""}
+                            {stage.pest_boxes != null ? ` · ${stage.pest_boxes} pest box(es)` : ""}
+                            {stage.leaves_classified != null ? ` · ${stage.leaves_classified} classified` : ""}
+                            {stage.pests_identified != null ? ` · ${stage.pests_identified} named` : ""}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div>
                   <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#122023]/45">Summary</p>
                   <p className="mt-2 text-lg leading-snug">{report.summary}</p>
@@ -282,12 +323,12 @@ export default function PestDetectionDemo() {
                         <li key={index}>
                           Leaf {index + 1} ({(leaf.det_confidence * 100).toFixed(0)}% box)
                           {leaf.diagnosis
-                            ? ` — ${leaf.diagnosis.plant} / ${leaf.diagnosis.disease} (${((leaf.diagnosis.confidence || 0) * 100).toFixed(0)}%)`
+                            ? ` — EfficientNet: ${leaf.diagnosis.plant} / ${leaf.diagnosis.disease} (${((leaf.diagnosis.confidence || 0) * 100).toFixed(0)}%)`
                             : leaf.too_small
-                              ? " — too small to diagnose"
+                              ? " — too small for EfficientNet"
                               : ""}
                           {leaf.deficiency?.suspected_deficiency
-                            ? ` — suspected ${leaf.deficiency.suspected_deficiency} (${((leaf.deficiency.confidence || 0) * 100).toFixed(0)}%)`
+                            ? ` — EfficientNet deficiency: ${leaf.deficiency.suspected_deficiency} (${((leaf.deficiency.confidence || 0) * 100).toFixed(0)}%)`
                             : ""}
                         </li>
                       ))}

@@ -300,12 +300,15 @@ async def device_camera_scan(
         "certainty": certainty,
         "advice": advice,
         "findings": report.get("findings") or [],
+        "pipeline": report.get("pipeline"),
         "leaves": [
             {
                 "box": leaf.get("box"),
                 "det_confidence": leaf.get("det_confidence"),
                 "diagnosis": leaf.get("diagnosis"),
                 "deficiency": leaf.get("deficiency"),
+                "located_by": leaf.get("located_by"),
+                "classified_by": leaf.get("classified_by"),
             }
             for leaf in (report.get("leaves") or [])
         ],
@@ -315,6 +318,8 @@ async def device_camera_scan(
                 "species": pest.get("species"),
                 "confidence": pest.get("confidence"),
                 "det_confidence": pest.get("det_confidence"),
+                "located_by": pest.get("located_by"),
+                "classified_by": pest.get("classified_by"),
             }
             for pest in (report.get("pests") or [])
         ],

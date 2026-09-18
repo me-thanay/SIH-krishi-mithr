@@ -1,14 +1,10 @@
-"""Two-stage plant diagnosis for camera photos: YOLO locates, EfficientNet names.
+"""Camera vision pipeline: YOLO locates, EfficientNet classifies.
 
-Stage 1  YOLO (`leaf` / `pest`) finds leaves and insect pests in the frame.
-Stage 2  EfficientNetV2-S on each crop:
-           leaf  -> PlantDoc disease (+ maize deficiency when Corn/Maize)
-           pest  -> IP102 species (falls back to IP102 YOLO only if pest EfficientNet missing)
-This path is camera-only — sensors / XGBoost are separate.
-
-    from ml.plant_diagnosis import PlantDiagnosisPipeline
-    pipe = PlantDiagnosisPipeline()
-    report = pipe.diagnose(image_bytes, annotate=True)
+Stage 1  YOLO (`leaf` / `pest`) finds boxes in the phone or ESP32-CAM frame.
+Stage 2  Each leaf crop  -> EfficientNetV2-S PlantDoc (plant + disease)
+         Maize leaves    -> EfficientNetV2-S deficiency head when plant is corn/maize
+         Each pest crop  -> EfficientNet IP102 if trained, else IP102 YOLO species
+This path is camera-only (no sensors / XGBoost).
 """
 
 from __future__ import annotations
@@ -47,7 +43,6 @@ class PlantDiagnosisPipeline:
         self.detector, self.detector_error = (detector, None) if detector else _load(RegionDetector)
         self.leaf_clf, self.leaf_clf_error = (leaf_classifier, None) if leaf_classifier else _load(LeafClassifier)
         self.pest_clf, self.pest_clf_error = (pest_classifier, None) if pest_classifier else _load(PestClassifier)
-        # Prefer EfficientNet for pest species on YOLO pest boxes. IP102 YOLO is fallback only.
         if pest_detector is not None:
             self.pest_det, self.pest_det_error = pest_detector, None
         elif self.pest_clf is None:
@@ -122,26 +117,49 @@ class PlantDiagnosisPipeline:
         # Stage 2a: diagnose each leaf crop.
         leaves: list[dict] = []
         for r in leaf_regions[:MAX_LEAVES]:
-            entry = {"box": r["box"], "det_confidence": r["confidence"], "area_fraction": r["area_fraction"],
-                     "too_small": r["area_fraction"] < MIN_LEAF_AREA, "diagnosis": None, "deficiency": None}
+            entry = {
+                "box": r["box"],
+                "det_confidence": r["confidence"],
+                "area_fraction": r["area_fraction"],
+                "too_small": r["area_fraction"] < MIN_LEAF_AREA,
+                "diagnosis": None,
+                "deficiency": None,
+                "located_by": "yolo",
+                "classified_by": None,
+            }
             crop = crop_with_margin(img, r["box"])
             if self.leaf_clf and not entry["too_small"]:
                 entry["diagnosis"] = self.leaf_clf.predict(crop, top_k=top_k)
+                entry["classified_by"] = "efficientnet_v2_s-plantdoc"
             if self.def_clf and not entry["too_small"]:
                 plant = ((entry["diagnosis"] or {}).get("plant") or "").lower()
                 if plant in MAIZE_PLANTS:
                     entry["deficiency"] = self.def_clf.predict(crop, top_k=top_k)
+                    entry["deficiency_by"] = "efficientnet_v2_s-maize-deficiency"
             leaves.append(entry)
 
         # Stage 2b: identify each pest crop.
         pests: list[dict] = []
         for r in pest_regions[:MAX_PESTS]:
-            entry = {"box": r["box"], "det_confidence": r["confidence"], "area_fraction": r["area_fraction"],
-                     "species": None, "confidence": r["confidence"], "top_k": []}
+            entry = {
+                "box": r["box"],
+                "det_confidence": r["confidence"],
+                "area_fraction": r["area_fraction"],
+                "species": None,
+                "confidence": r["confidence"],
+                "top_k": [],
+                "located_by": "yolo",
+                "classified_by": None,
+            }
             if self.pest_clf:
                 sp = self.pest_clf.predict(crop_with_margin(img, r["box"], margin=0.15), top_k=top_k)
-                entry.update(species=sp["species"], confidence=round(r["confidence"] * sp["confidence"], 4),
-                             species_confidence=sp["confidence"], top_k=sp["top_k"])
+                entry.update(
+                    species=sp["species"],
+                    confidence=round(r["confidence"] * sp["confidence"], 4),
+                    species_confidence=sp["confidence"],
+                    top_k=sp["top_k"],
+                    classified_by="efficientnet_v2_s-ip102",
+                )
             elif self.pest_det:
                 hits = self.pest_det.detect(crop_with_margin(img, r["box"], margin=0.15), conf=max(0.12, det_conf * 0.5))
                 if hits:
@@ -151,6 +169,7 @@ class PlantDiagnosisPipeline:
                         confidence=round(r["confidence"] * best["confidence"], 4),
                         species_confidence=best["confidence"],
                         top_k=[{"species": h["pest"], "label": h["pest"], "confidence": h["confidence"]} for h in hits[:top_k]],
+                        classified_by="yolo11s-ip102",
                     )
             pests.append(entry)
 
@@ -208,6 +227,41 @@ class PlantDiagnosisPipeline:
             "fallback": fallback,
             "findings": findings,
             "summary": summary,
+            "pipeline": {
+                "mode": "camera_vision",
+                "description": "YOLO locates leaves/pests; EfficientNetV2-S classifies each leaf crop (disease / maize deficiency).",
+                "stages": [
+                    {
+                        "id": "yolo_locate",
+                        "name": "YOLO locate",
+                        "role": "Find leaf and pest boxes in the camera frame",
+                        "model": "yolo11s-leaf-pest" if self.detector else None,
+                        "leaf_boxes": len(leaf_regions),
+                        "pest_boxes": len(pest_regions),
+                    },
+                    {
+                        "id": "efficientnet_classify",
+                        "name": "EfficientNet classify",
+                        "role": "Name plant disease (and maize deficiency) on each YOLO leaf crop",
+                        "model": "efficientnet_v2_s-plantdoc" if self.leaf_clf else None,
+                        "deficiency_model": "efficientnet_v2_s-maize-deficiency" if self.def_clf else None,
+                        "leaves_classified": sum(1 for leaf in leaves if leaf.get("diagnosis")),
+                        "deficiencies_classified": sum(
+                            1 for leaf in leaves if leaf.get("deficiency") and leaf["deficiency"].get("suspected_deficiency")
+                        ),
+                    },
+                    {
+                        "id": "pest_identify",
+                        "name": "Pest identify",
+                        "role": "Name insect species on each YOLO pest crop",
+                        "model": (
+                            "efficientnet_v2_s-ip102" if self.pest_clf
+                            else ("yolo11s-ip102" if self.pest_det else None)
+                        ),
+                        "pests_identified": sum(1 for pest in pests if pest.get("species")),
+                    },
+                ],
+            },
             "models": {
                 "detector": "yolo11s-leaf-pest" if self.detector else None,
                 "leaf_classifier": "efficientnet_v2_s-plantdoc" if self.leaf_clf else None,

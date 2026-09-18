@@ -6,7 +6,7 @@ export const config = {
     responseLimit: false,
     sizeLimit: '16mb',
   },
-  // Pro/Enterprise only beyond 60s; diagnose prefers direct Render from the browser.
+  // Pro/Enterprise only beyond 60s; browser often calls the tunnel/Render URL directly.
   maxDuration: 300,
 }
 
@@ -17,8 +17,10 @@ function backendBase(): string {
     'http://localhost:8000'
   ).trim()
   let url = raw.replace(/\/$/, '')
-  // Avoid mixed-content / broken localhost in production builds
-  if (url.startsWith('http://') && url.includes('onrender.com')) {
+  if (
+    url.startsWith('http://') &&
+    /(onrender\.com|ngrok|trycloudflare\.com|cloudflaretunnel)/i.test(url)
+  ) {
     url = url.replace(/^http:\/\//, 'https://')
   }
   return url
@@ -37,13 +39,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
   }
 
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+  }
+  if (req.headers['content-type']) {
+    headers['content-type'] = String(req.headers['content-type'])
+  }
+  if (/ngrok/i.test(base)) {
+    headers['ngrok-skip-browser-warning'] = 'true'
+  }
+
   try {
     const response = await fetch(url, {
       method: req.method,
-      headers: {
-        ...(req.headers['content-type'] ? { 'content-type': String(req.headers['content-type']) } : {}),
-        accept: 'application/json',
-      },
+      headers,
       body: req.method === 'GET' || req.method === 'HEAD' ? undefined : Buffer.concat(chunks),
     })
     const buffer = Buffer.from(await response.arrayBuffer())
@@ -55,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(502).json({
       success: false,
       error: message,
-      detail: `Could not reach ${base}. Wake/redeploy Render and set NEXT_PUBLIC_API_URL to that HTTPS URL on Vercel.`,
+      detail: `Could not reach ${base}. Start scripts/run_local_gpu.ps1 + a tunnel (or Render), set NEXT_PUBLIC_API_URL to that HTTPS URL on Vercel.`,
       backend: base,
     })
   }

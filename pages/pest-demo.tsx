@@ -60,21 +60,42 @@ function renderApiBase(): string {
   const raw = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").trim()
   if (!raw) return ""
   let url = raw.replace(/\/$/, "")
-  if (url.startsWith("http://") && /onrender\.com/i.test(url)) {
+  if (url.startsWith("http://") && /(onrender\.com|ngrok|trycloudflare\.com|cloudflaretunnel)/i.test(url)) {
     url = url.replace(/^http:\/\//i, "https://")
   }
   return url
 }
 
-/** Same-origin proxy first (reliable); direct Render if proxy 504/502 during long ML loads. */
+function isTunnelHost(url: string): boolean {
+  return /(ngrok|trycloudflare\.com|cloudflaretunnel|loca\.lt)/i.test(url)
+}
+
+/** Headers needed for free ngrok interstitial + JSON APIs. */
+function apiFetchHeaders(extra?: HeadersInit): HeadersInit {
+  const backend = renderApiBase()
+  const headers: Record<string, string> = { accept: "application/json" }
+  if (backend && /ngrok/i.test(backend)) {
+    headers["ngrok-skip-browser-warning"] = "true"
+  }
+  return { ...headers, ...(extra as Record<string, string> | undefined) }
+}
+
+/**
+ * Prefer direct backend (Render or PC tunnel) so Vercel 60s limits don't kill GPU diagnose.
+ * Same-origin proxy is the fallback.
+ */
 function diagnoseCandidates(): string[] {
   const backend = renderApiBase()
   const proxy = "/api/pest/diagnose?annotate=true&top_k=3"
   const direct = backend ? `${backend}/api/pest/diagnose?annotate=true&top_k=3` : ""
-  return direct ? [proxy, direct] : [proxy]
+  if (direct && isTunnelHost(direct)) return [direct, proxy]
+  if (direct) return [direct, proxy]
+  return [proxy]
 }
 
 function warmupUrl(): string {
+  const backend = renderApiBase()
+  if (backend) return `${backend}/api/pest/warmup`
   return "/api/pest/warmup"
 }
 
@@ -241,11 +262,11 @@ export default function PestDetectionDemo() {
     )
   }
 
-  // Wake Render and preload YOLO/EfficientNet while the user frames the leaf.
+  // Wake GPU/tunnel backend and preload models while the user frames the leaf.
   useEffect(() => {
     const url = warmupUrl()
     const controller = new AbortController()
-    void fetch(url, { method: "GET", signal: controller.signal }).catch(() => {})
+    void fetch(url, { method: "GET", headers: apiFetchHeaders(), signal: controller.signal }).catch(() => {})
     return () => controller.abort()
   }, [])
 
@@ -268,9 +289,13 @@ export default function PestDetectionDemo() {
         const controller = new AbortController()
         const timeout = window.setTimeout(() => controller.abort(), 180_000)
         try {
-          response = await fetch(url, { method: "POST", body, signal: controller.signal })
+          response = await fetch(url, {
+            method: "POST",
+            body,
+            headers: apiFetchHeaders(),
+            signal: controller.signal,
+          })
           text = await response.text()
-          // Retry on gateway death (Render OOM / Vercel timeout) via the other URL.
           if (response.status === 502 || response.status === 504) {
             lastNetworkError = new Error(`Gateway ${response.status} from ${url}`)
             continue
@@ -294,13 +319,13 @@ export default function PestDetectionDemo() {
       } catch {
         if (response.status === 502 || response.status === 504) {
           throw new Error(
-            "Diagnose crashed or timed out on Render (usually RAM). Confirm Standard ≥2 GB plan, Manual Deploy latest main, open /health, wait 30s, retry."
+            "Diagnose gateway timed out. If using your PC: keep run_local_gpu.ps1 + tunnel open, set NEXT_PUBLIC_API_URL to the tunnel HTTPS URL, redeploy Vercel."
           )
         }
         throw new Error(
           response.status === 404 || /not found/i.test(text)
-            ? "Diagnosis API not found. Redeploy Vercel/Render and set NEXT_PUBLIC_API_URL to https://sih-krishi-mithr.onrender.com"
-            : `Bad response from server (${response.status}). Redeploy Render with latest main, then retry.`
+            ? "Diagnosis API not found. Set NEXT_PUBLIC_API_URL to your tunnel or Render HTTPS URL and redeploy Vercel."
+            : `Bad response from server (${response.status}). Check tunnel /health and Vercel NEXT_PUBLIC_API_URL.`
         )
       }
       if (!response.ok) {
@@ -317,17 +342,17 @@ export default function PestDetectionDemo() {
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError(
-          "Diagnosis timed out (3 min). Open https://sih-krishi-mithr.onrender.com/health, wait for models, then Diagnose again."
+          "Diagnosis timed out (3 min). Keep scripts/run_local_gpu.ps1 and the tunnel running, open /health, retry."
         )
       } else if (err instanceof TypeError || (err instanceof Error && /failed to fetch/i.test(err.message))) {
         setError(
-          "Failed to reach Render (connection dropped — often OOM while loading models). Manual Deploy latest main on Render (Standard 2GB), open /health, wait 1 min, retry Diagnose."
+          "Cannot reach the API. Start scripts/run_local_gpu.ps1 + a tunnel, set Vercel NEXT_PUBLIC_API_URL to that https URL, redeploy."
         )
       } else {
         setError(
           err instanceof Error
             ? err.message
-            : "Could not reach the diagnosis service. Check NEXT_PUBLIC_API_URL and that Render is awake."
+            : "Could not reach the diagnosis service. Check NEXT_PUBLIC_API_URL and that the tunnel is up."
         )
       }
     } finally {

@@ -6,7 +6,8 @@ export const config = {
     responseLimit: false,
     sizeLimit: '16mb',
   },
-  maxDuration: 60,
+  // Pro/Enterprise only beyond 60s; diagnose prefers direct Render from the browser.
+  maxDuration: 300,
 }
 
 function backendBase(): string {

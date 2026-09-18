@@ -20,6 +20,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+@app.on_event("startup")
+async def preload_vision_models() -> None:
+    """Warm YOLO + EfficientNet in a background thread so first Diagnose is not a cold load."""
+    import threading
+
+    def _load() -> None:
+        try:
+            pest_detection._pipeline.get()
+            print("Vision pipeline preloaded")
+        except Exception as exc:  # noqa: BLE001
+            print(f"Vision pipeline preload deferred: {exc}")
+
+    threading.Thread(target=_load, daemon=True, name="ml-preload").start()
+
 # Custom CORS middleware to ensure headers are always present
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):

@@ -56,6 +56,29 @@ type Report = {
   detail?: string
 }
 
+function renderApiBase(): string {
+  const raw = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").trim()
+  if (!raw) return ""
+  let url = raw.replace(/\/$/, "")
+  if (url.startsWith("http://") && /onrender\.com/i.test(url)) {
+    url = url.replace(/^http:\/\//i, "https://")
+  }
+  return url
+}
+
+/** Prefer direct Render for diagnose — Vercel serverless caps at ~60s and cold ML loads often 504. */
+function diagnoseUrl(): string {
+  const backend = renderApiBase()
+  if (backend) return `${backend}/api/pest/diagnose?annotate=true&top_k=3`
+  return "/api/pest/diagnose?annotate=true&top_k=3"
+}
+
+function warmupUrl(): string {
+  const backend = renderApiBase()
+  if (backend) return `${backend}/api/pest/warmup`
+  return "/api/pest/warmup"
+}
+
 async function openCameraStream(): Promise<MediaStream> {
   if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
     throw new Error("Camera API is not available in this browser.")
@@ -219,6 +242,14 @@ export default function PestDetectionDemo() {
     )
   }
 
+  // Wake Render and preload YOLO/EfficientNet while the user frames the leaf.
+  useEffect(() => {
+    const url = warmupUrl()
+    const controller = new AbortController()
+    void fetch(url, { method: "GET", signal: controller.signal }).catch(() => {})
+    return () => controller.abort()
+  }, [])
+
   const diagnose = async () => {
     if (!file) {
       setError("Take or upload a photo of a leaf first.")
@@ -229,11 +260,10 @@ export default function PestDetectionDemo() {
     try {
       const body = new FormData()
       body.append("file", file)
-      // Always use same-origin Next proxy to avoid browser CORS / mixed-content "Failed to fetch".
-      // The proxy forwards to Render using NEXT_PUBLIC_API_URL on the server.
-      const url = "/api/pest/diagnose?annotate=true&top_k=3"
+      const url = diagnoseUrl()
       const controller = new AbortController()
-      const timeout = window.setTimeout(() => controller.abort(), 120_000)
+      // First load after sleep can take 1–3 min on CPU; Vercel proxy cannot wait that long.
+      const timeout = window.setTimeout(() => controller.abort(), 180_000)
       let response: Response
       try {
         response = await fetch(url, { method: "POST", body, signal: controller.signal })
@@ -245,10 +275,15 @@ export default function PestDetectionDemo() {
       try {
         data = JSON.parse(text) as Report
       } catch {
+        if (response.status === 504) {
+          throw new Error(
+            "Diagnosis timed out (504). Open https://sih-krishi-mithr.onrender.com/health once, wait ~30s for models to load, then tap Diagnose again."
+          )
+        }
         throw new Error(
           response.status === 404 || /not found/i.test(text)
-            ? "Diagnosis API not found. Redeploy Vercel/Render and set NEXT_PUBLIC_API_URL to https://your-api.onrender.com"
-            : `Bad response from server (${response.status}). Is NEXT_PUBLIC_API_URL set to your Render HTTPS URL?`
+            ? "Diagnosis API not found. Redeploy Vercel/Render and set NEXT_PUBLIC_API_URL to https://sih-krishi-mithr.onrender.com"
+            : `Bad response from server (${response.status}). Set NEXT_PUBLIC_API_URL to https://sih-krishi-mithr.onrender.com and redeploy Vercel.`
         )
       }
       if (!response.ok) {
@@ -265,7 +300,7 @@ export default function PestDetectionDemo() {
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError(
-          "Diagnosis timed out (2 min). Render may be cold-starting — wait a minute and tap Diagnose again."
+          "Diagnosis timed out (3 min). Open the Render /health URL once to wake it, wait for models, then Diagnose again."
         )
       } else {
         setError(

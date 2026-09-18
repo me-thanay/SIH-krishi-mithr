@@ -123,6 +123,16 @@ async def model_status():
     }
 
 
+@router.api_route("/warmup", methods=["GET", "POST"])
+async def warmup_models():
+    """Load YOLO + EfficientNet into memory so the next /diagnose is fast."""
+    try:
+        _pipeline.get()
+    except HTTPException as exc:
+        return {"ok": False, "detail": exc.detail, "diagnosis_pipeline": _pipeline.status}
+    return {"ok": True, "diagnosis_pipeline": _pipeline.status}
+
+
 # ---------------------------------------------------------------------------
 # Single-leaf disease classifier (no localisation)
 # ---------------------------------------------------------------------------

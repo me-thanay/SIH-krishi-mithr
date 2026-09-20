@@ -11,8 +11,8 @@ type SensorRow = {
   soilMoisture?: number
   TDS?: number
   tds_ppm?: number
-  motor?: boolean
-  motor_on?: boolean
+  motor?: boolean | number | string | null
+  motor_on?: boolean | number | string | null
   timestamp?: string
 }
 
@@ -64,8 +64,9 @@ export function GoaSensorStrip() {
   const soil = data?.soil_moisture ?? data?.soilMoisture
   const tds = data?.TDS ?? data?.tds_ppm
   const motorOn = (() => {
-    const raw = data?.motor_on ?? data?.motor
+    const raw: unknown = data?.motor_on ?? data?.motor
     if (raw === true || raw === 1) return true
+    if (raw === false || raw === 0 || raw == null) return false
     if (typeof raw === "string") {
       const s = raw.trim().toLowerCase()
       if (["true", "1", "on", "yes"].includes(s)) return true

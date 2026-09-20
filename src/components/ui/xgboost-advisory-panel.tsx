@@ -50,10 +50,17 @@ function Pill({
 }
 
 function advisoryUrl(city: string) {
-  const backend = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/$/, "")
   const qs = `city=${encodeURIComponent(city)}`
-  // Prefer Render directly (same pattern as Diagnose) so Vercel routing cannot 404 the proxy.
-  return backend ? `${backend}/api/advisory/predict?${qs}` : `/api/advisory/predict?${qs}`
+  // Same-origin proxy avoids localtunnel/ngrok browser interstitial pages (511 HTML).
+  return `/api/advisory/predict?${qs}`
+}
+
+function tunnelHeaders(): HeadersInit {
+  const backend = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/$/, "")
+  const headers: Record<string, string> = { accept: "application/json" }
+  if (/ngrok/i.test(backend)) headers["ngrok-skip-browser-warning"] = "true"
+  if (/loca\.lt/i.test(backend)) headers["bypass-tunnel-reminder"] = "true"
+  return headers
 }
 
 async function parseJsonSafe(response: Response) {
@@ -64,7 +71,12 @@ async function parseJsonSafe(response: Response) {
   } catch {
     if (text.trim().toLowerCase().startsWith("not found") || response.status === 404) {
       throw new Error(
-        "Advisory API not found. Redeploy Render with latest main and set NEXT_PUBLIC_API_URL on Vercel to that Render URL."
+        "Advisory API not found. Keep run_local_gpu.ps1 + named tunnel running, and set NEXT_PUBLIC_API_URL to https://krishi-mithr-api.loca.lt"
+      )
+    }
+    if (/tunnel website ahead|loca\.lt|ngrok/i.test(text) || response.status === 511) {
+      throw new Error(
+        "Tunnel warning page blocked the request. Redeploy Vercel with latest main (proxy bypass), and keep the named tunnel running."
       )
     }
     throw new Error(`Bad response (${response.status}): ${text.slice(0, 120)}`)
@@ -80,7 +92,7 @@ export function XgboostAdvisoryPanel({ city = "Hyderabad" }: { city?: string }) 
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(advisoryUrl(city))
+      const response = await fetch(advisoryUrl(city), { headers: tunnelHeaders() })
       const json = await parseJsonSafe(response)
       if (!response.ok) {
         throw new Error(
@@ -130,7 +142,8 @@ export function XgboostAdvisoryPanel({ city = "Hyderabad" }: { city?: string }) 
         <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           <p>{error}</p>
           <p className="mt-1 text-xs text-red-600/80">
-            Backend must expose /api/advisory/predict. Set NEXT_PUBLIC_API_URL to your Render URL, then redeploy Vercel.
+            Needs FastAPI /api/advisory/predict. Keep GPU API + named tunnel up; NEXT_PUBLIC_API_URL =
+            https://krishi-mithr-api.loca.lt
           </p>
         </div>
       )}

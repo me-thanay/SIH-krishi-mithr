@@ -1,9 +1,15 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { Sprout, RefreshCw, Loader2, AlertTriangle, CloudSun, Pencil } from "lucide-react"
+import { Sprout, RefreshCw, Loader2, AlertTriangle, CloudSun, Pencil, HelpCircle } from "lucide-react"
 import { Card } from "./card"
 import Link from "next/link"
+import { ScrollReveal } from "./scroll-reveal"
+
+const reveal = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0 },
+}
 
 type Brief = {
   headline?: string
@@ -111,14 +117,21 @@ export function FieldDecisionPanel() {
       </div>
 
       {error && (
-        <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {error}{" "}
-          {!profile && (
-            <Link href="/my-farm?setup=1" className="underline">
-              Open farm setup
-            </Link>
-          )}
-        </p>
+        <ScrollReveal
+          once
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          variants={reveal}
+          viewOptions={{ amount: 0.4 }}
+        >
+          <div className="mb-4 rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {error}{" "}
+            {!profile && (
+              <Link href="/my-farm?setup=1" className="font-medium underline underline-offset-2">
+                Open farm setup
+              </Link>
+            )}
+          </div>
+        </ScrollReveal>
       )}
 
       {band && (
@@ -159,29 +172,49 @@ export function FieldDecisionPanel() {
       {brief?.headline && <p className="mb-2 text-base font-medium text-stone-800">{brief.headline}</p>}
       {brief?.today && <p className="mb-3 text-sm leading-relaxed text-stone-700">{brief.today}</p>}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl bg-amber-50 px-3 py-3">
-          <p className="flex items-center gap-1 text-xs font-semibold text-amber-800">
-            <AlertTriangle className="h-3.5 w-3.5" /> Needs attention
-          </p>
-          <ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-amber-900">
-            {(brief?.attention || []).length ? brief!.attention!.map((t, i) => <li key={i}>{t}</li>) : <li>None yet — waiting for hourly readings.</li>}
-          </ul>
-        </div>
-        <div className="rounded-2xl bg-emerald-50 px-3 py-3">
-          <p className="flex items-center gap-1 text-xs font-semibold text-emerald-800">
-            <CloudSun className="h-3.5 w-3.5" /> Tomorrow
-          </p>
-          <ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-emerald-900">
-            {(brief?.tomorrow || []).length ? brief!.tomorrow!.map((t, i) => <li key={i}>{t}</li>) : <li>Refresh after sensors have logged a day.</li>}
-          </ul>
-        </div>
-        <div className="rounded-2xl bg-stone-50 px-3 py-3">
-          <p className="text-xs font-semibold text-stone-600">Missing</p>
-          <ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-stone-700">
-            {(brief?.missing || []).length ? brief!.missing!.map((t, i) => <li key={i}>{t}</li>) : <li>No gaps called out.</li>}
-          </ul>
-        </div>
+      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
+        {(
+          [
+            {
+              title: "Needs attention",
+              icon: <AlertTriangle className="h-5 w-5 text-amber-600" />,
+              items: brief?.attention?.length ? brief.attention : ["None yet — waiting for hourly readings."],
+              tone: "text-amber-950",
+            },
+            {
+              title: "Tomorrow",
+              icon: <CloudSun className="h-5 w-5 text-emerald-600" />,
+              items: brief?.tomorrow?.length ? brief.tomorrow : ["Refresh after sensors have logged a day."],
+              tone: "text-emerald-950",
+            },
+            {
+              title: "Missing",
+              icon: <HelpCircle className="h-5 w-5 text-stone-500" />,
+              items: brief?.missing?.length ? brief.missing : ["No gaps called out."],
+              tone: "text-stone-800",
+            },
+          ] as const
+        ).map((card, i) => (
+          <ScrollReveal
+            key={card.title}
+            once
+            transition={{ delay: i * 0.12, duration: 0.5, ease: "easeOut" }}
+            variants={reveal}
+            viewOptions={{ amount: 0.3 }}
+          >
+            <div className="h-full rounded-xl border border-border bg-card p-5">
+              <p className="mb-2">{card.icon}</p>
+              <h3 className="font-semibold text-foreground">{card.title}</h3>
+              <ul className={`mt-2 space-y-1.5 text-sm text-muted-foreground ${card.tone}`}>
+                {card.items.map((t, idx) => (
+                  <li key={idx} className="leading-relaxed">
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </ScrollReveal>
+        ))}
       </div>
     </Card>
   )

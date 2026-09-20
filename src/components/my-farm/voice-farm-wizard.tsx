@@ -34,8 +34,18 @@ interface LogLine {
 interface ReviewIntent {
   action: "confirm" | "edit" | "cancel" | "unclear" | string
   field_id: string | null
+  has_new_value?: boolean
   new_value_transcript: string | null
   message: string
+}
+
+/** Only trust a spoken replacement value when the model flagged it and it is a proper sub-part of what was heard. */
+function usableNewValue(intent: ReviewIntent, heard: string): string | null {
+  const v = (intent.new_value_transcript || "").trim()
+  if (!intent.has_new_value || !v) return null
+  const norm = (s: string) => s.replace(/[\s.,!?।]+/g, " ").trim().toLowerCase()
+  if (norm(v) === norm(heard)) return null
+  return v
 }
 
 interface SavedField {
@@ -306,16 +316,18 @@ export function VoiceFarmWizard() {
     return questionsRef.current[id] || q.question
   }
 
-  const askQuestion = async (id: string, overrideTranscript?: string): Promise<void> => {
+  const askQuestion = async (id: string, overrideTranscript?: string, promptText?: string): Promise<void> => {
     const q = FARM_QUESTIONS.find((x) => x.id === id)!
     setCurrentId(id)
     const history: { role: "assistant" | "farmer"; text: string }[] = []
     let transcript: string | null = overrideTranscript ?? null
     if (!transcript) {
-      const text = await questionText(id)
-      if (q.kind === "location" && detectedRef.current?.lat) pushLog("system", promptsRef.current.location_found)
+      const text = promptText || (await questionText(id))
+      if (!promptText && q.kind === "location" && detectedRef.current?.lat) pushLog("system", promptsRef.current.location_found)
       await say(text)
       history.push({ role: "assistant", text })
+    } else if (promptText) {
+      history.push({ role: "assistant", text: promptText })
     }
 
     // Optional fields get one clarification, required fields two; then we accept what we have.
@@ -375,18 +387,26 @@ export function VoiceFarmWizard() {
     }
   }
 
-  const review = async (): Promise<"saved" | "cancelled"> => {
+  const review = async (changedField: string | null = null): Promise<"saved" | "cancelled"> => {
+    let lastChanged: string | null = changedField
     for (let loops = 0; loops < 6; loops++) {
       setCurrentId(null)
       setPhase("review")
       const s = await think(
-        llm<{ summary: string; question: string }>({ mode: "summary", language: langRef.current, answers: answersRef.current })
+        llm<{ summary: string; question: string }>({
+          mode: "summary",
+          language: langRef.current,
+          answers: answersRef.current,
+          changedField: lastChanged,
+        })
       )
-      await say(promptsRef.current.review_intro)
+      if (!lastChanged) await say(promptsRef.current.review_intro)
       await say(s.summary)
       await say(s.question || promptsRef.current.confirm_ask)
+      lastChanged = null
 
       let intent: ReviewIntent | null = null
+      let heardIntent = ""
       for (let tries = 0; tries < 3 && !intent; tries++) {
         const heard = await hear(12_000)
         if (!heard) {
@@ -396,8 +416,10 @@ export function VoiceFarmWizard() {
         const out = await think(
           llm<ReviewIntent>({ mode: "review_intent", language: langRef.current, transcript: heard, answers: answersRef.current })
         )
-        if (out && out.action !== "unclear") intent = out
-        else if (out?.message) await say(out.message)
+        if (out && out.action !== "unclear") {
+          intent = out
+          heardIntent = heard
+        } else if (out?.message) await say(out.message)
       }
       if (!intent) {
         setPhase("review")
@@ -412,9 +434,10 @@ export function VoiceFarmWizard() {
         return "cancelled"
       }
       // edit
-      if (intent.message) await say(intent.message)
       const chosen: ReviewIntent = intent
       let fieldId = chosen.field_id && FARM_QUESTIONS.some((q) => q.id === chosen.field_id) ? chosen.field_id : null
+      let newValue = usableNewValue(chosen, heardIntent)
+      let followUp = chosen.message || ""
       if (!fieldId) {
         await say(promptsRef.current.edit_which)
         const heard = await hear()
@@ -423,12 +446,22 @@ export function VoiceFarmWizard() {
             llm<ReviewIntent>({ mode: "review_intent", language: langRef.current, transcript: heard, answers: answersRef.current })
           )
           fieldId = out?.field_id && FARM_QUESTIONS.some((q) => q.id === out.field_id) ? out.field_id : null
-          if (fieldId && out?.new_value_transcript) chosen.new_value_transcript = out.new_value_transcript
+          if (fieldId) {
+            newValue = usableNewValue(out, heard)
+            followUp = out.message || ""
+          }
         }
       }
-      if (fieldId) {
-        await askQuestion(fieldId, chosen.new_value_transcript || undefined)
+      if (!fieldId) continue
+      if (newValue) {
+        // Farmer already said the replacement ("change crop to cotton"): acknowledge and apply.
+        if (followUp) await say(followUp)
+        await askQuestion(fieldId, newValue, followUp || undefined)
+      } else {
+        // Farmer only named the field: ask for the new value (model's question, else the original question) and listen.
+        await askQuestion(fieldId, undefined, followUp || undefined)
       }
+      lastChanged = fieldId
     }
     return "cancelled"
   }
@@ -565,7 +598,7 @@ export function VoiceFarmWizard() {
     setError(null)
     try {
       await askQuestion(id)
-      const result = await review()
+      const result = await review(id)
       if (result === "cancelled") setPhase("review")
     } catch (e) {
       handleRunError(e)

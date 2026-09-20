@@ -220,8 +220,11 @@ Speech recognition is noisy: choose the most plausible reading rather than rejec
 and never ask the same clarification twice.`,
           `Field: ${q.id} (${q.label}). Guidance: ${q.hint}
 Rules for this field: ${kindRules[q.kind] || ''}${q.allowUnknown ? ' The farmer may say they do not know; that is a valid answer (unknown=true, ok=true).' : ''}
+${answers?.[q.id]?.value ? `This field currently holds "${answers[q.id].value}" and the farmer is CHANGING it — the new reply replaces the old value; never return the old value.` : ''}
 ${gps}
-Known answers to earlier fields: ${answersContext(answers)}
+Known answers to other fields (context only): ${answersContext(
+            answers ? Object.fromEntries(Object.entries(answers).filter(([k]) => k !== q.id)) : undefined
+          )}
 
 Conversation for THIS field so far (oldest first):
 ${historyText}
@@ -243,10 +246,24 @@ Return {"ok": true|false, "unknown": true|false, "value": "<string or null>", "d
       case 'summary': {
         const language = String(body.language || 'en-IN')
         const answers = body.answers as Answers
+        const changed = typeof body.changedField === 'string' ? body.changedField : null
         const lines = FARM_QUESTIONS.map((q) => {
           const a = answers?.[q.id]
           return `- ${q.id} (${q.label}): ${a ? (a.unknown ? 'not known' : a.display || a.value || '') : 'not answered'}`
         }).join('\n')
+        if (changed && answers?.[changed]) {
+          const q = questionById(changed)
+          const a = answers[changed]
+          const out = await chatJson(
+            `${BASE_SYSTEM}\n${languageInstruction(language)}`,
+            `The farmer just corrected one detail. Confirm ONLY that detail in one short sentence, then ask whether anything else should change or whether to save.
+Changed field: ${q.label} -> ${a.unknown ? 'not known' : a.display || a.value}
+Return {"summary": "<one sentence confirming the change>", "question": "<anything else to change, or shall I save?>"}`,
+            0.2,
+            400
+          )
+          return res.status(200).json(out)
+        }
         const out = await chatJson(
           `${BASE_SYSTEM}\n${languageInstruction(language)}`,
           `Read these field details back to the farmer so they can check them. One short sentence per item, in order, then ask if everything is correct or what to change.
@@ -271,11 +288,15 @@ Fields: ${ids}
 Current answers: ${answersContext(answers)}
 
 Classify:
-- "confirm" if they agree / say save.
-- "edit" if they want to change something. Set field_id to the field they mean. If they also said the new value in the same sentence, put the exact spoken part in new_value_transcript, otherwise null.
+- "confirm" if they agree / say save / everything is right.
+- "edit" if they want to change something. Set field_id to the field they mean.
+  * has_new_value=true ONLY if the sentence itself contains the replacement value (e.g. "change the crop to cotton", "the area is 5 acres, not 8"). Then new_value_transcript = just the value part ("cotton", "5 acres").
+  * If they only name the field ("change the name", "the crop is wrong", "area is not correct") set has_new_value=false and new_value_transcript=null.
 - "cancel" if they want to stop without saving.
 - "unclear" otherwise.
-Return {"action": "confirm|edit|cancel|unclear", "field_id": "<id or null>", "new_value_transcript": "<string or null>", "message": "<one short sentence to speak back in the farmer's language>"}`,
+message rules: for edit with has_new_value=false, message MUST be a short question asking for the new value of that field
+(e.g. "Okay, what should the field name be?"). For edit with has_new_value=true, a short acknowledgement. For confirm/cancel/unclear, one short sentence.
+Return {"action": "confirm|edit|cancel|unclear", "field_id": "<id or null>", "has_new_value": true|false, "new_value_transcript": "<string or null>", "message": "<spoken sentence in the farmer's language>"}`,
           0.1
         )
         return res.status(200).json(out)

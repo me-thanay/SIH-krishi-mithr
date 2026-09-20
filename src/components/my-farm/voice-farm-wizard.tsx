@@ -728,14 +728,14 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
         aria-label={busy ? "Stop" : "Start farm setup"}
       >
         <span className="[&_canvas]:!size-[4.5rem] sm:[&_canvas]:!size-20">
-          <ThinkingOrb state={orb.state} size={64} theme="dark" />
+          <ThinkingOrb state={orb.state} size={64} theme="light" />
         </span>
         <span
           className="inline-flex h-[52px] items-center rounded-full px-6 text-base tracking-wide sm:h-[58px] sm:text-lg"
           style={{
-            color: "rgba(251,251,251,0.55)",
-            background: "rgba(29,29,29,0.42)",
-            boxShadow: "inset 0 0 0 1px rgba(44,47,54,0.31), inset 0 0 50px 0 rgba(255,255,255,0.012)",
+            color: "rgba(28,25,23,0.55)",
+            background: "rgba(245,245,244,0.95)",
+            boxShadow: "inset 0 0 0 1px rgba(28,25,23,0.08), 0 8px 28px rgba(28,25,23,0.06)",
           }}
         >
           {orb.label}
@@ -749,7 +749,7 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
               key={l.code}
               type="button"
               onClick={() => void pickLanguageManually(l.code)}
-              className="rounded-full px-3 py-1 text-xs text-white/35 transition hover:bg-white/5 hover:text-white/70"
+              className="rounded-full px-3 py-1 text-xs text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
             >
               {l.native}
             </button>
@@ -759,7 +759,7 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
 
       <div className="mt-10 flex min-h-[7.5rem] w-full max-w-xl flex-col items-center justify-end">
         {visible.length === 0 && phase === "idle" && (
-          <p className="text-center text-sm text-white/25">Speak after the orb. Nothing else is shown.</p>
+          <p className="text-center text-sm text-stone-400">Speak after the orb. Nothing else is shown.</p>
         )}
         {visible.map((line, i) => {
           const fromEnd = visible.length - 1 - i
@@ -772,7 +772,7 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
               style={{
                 opacity,
                 transform: `scale(${scale}) translateY(${fromEnd * -4}px)`,
-                color: line.who === "farmer" ? "rgba(251,251,251,0.92)" : "rgba(251,251,251,0.48)",
+                color: line.who === "farmer" ? "rgba(28,25,23,0.92)" : "rgba(87,83,78,0.72)",
                 fontSize: fromEnd === 0 ? "1.125rem" : "0.95rem",
               }}
             >
@@ -784,13 +784,13 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
       </div>
 
       {error && (
-        <div className="mt-6 max-w-md text-center text-sm text-red-300/90">
+        <div className="mt-6 max-w-md text-center text-sm text-red-600">
           <p>{error}</p>
           {(micStatus === "denied" || micStatus === "error" || micStatus === "unavailable") && (
             <button
               type="button"
               onClick={() => void retryMic()}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/80 hover:bg-white/15"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-200"
             >
               <Mic className="h-3.5 w-3.5" /> Retry microphone
             </button>
@@ -802,7 +802,7 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
         <button
           type="button"
           onClick={() => void saveNow()}
-          className="mt-6 text-xs text-white/30 hover:text-white/60"
+          className="mt-6 text-xs text-stone-400 hover:text-stone-700"
         >
           Save
         </button>

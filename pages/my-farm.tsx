@@ -21,11 +21,11 @@ export default function MyFarmPage() {
   }, [isAuthenticated, isLoading, setup, showAuthModal])
 
   return (
-    <div className="min-h-screen bg-[#070707] text-white">
+    <div className="min-h-screen bg-white text-stone-800">
       <Head>
         <title>{setup ? "Farm setup" : "My Farm"} · Krishi Mithr</title>
       </Head>
-      <NewNavbar variant="hero" />
+      <NewNavbar variant="solid" />
       <main className="pt-16">
         <VoiceFarmWizard mode={setup && !edit ? "setup" : "settings"} />
       </main>

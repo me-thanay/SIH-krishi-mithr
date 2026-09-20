@@ -71,7 +71,7 @@ async function parseJsonSafe(response: Response) {
   } catch {
     if (text.trim().toLowerCase().startsWith("not found") || response.status === 404) {
       throw new Error(
-        "Advisory API not found. Keep run_local_gpu.ps1 + named tunnel running, and set NEXT_PUBLIC_API_URL to https://krishi-mithr-api.loca.lt"
+        "Advisory API not found. Keep run_local_gpu.ps1 + Cloudflare tunnel running, and set NEXT_PUBLIC_API_URL to the current https://….trycloudflare.com URL."
       )
     }
     if (/tunnel website ahead|loca\.lt|ngrok/i.test(text) || response.status === 511) {
@@ -142,8 +142,8 @@ export function XgboostAdvisoryPanel({ city = "Hyderabad" }: { city?: string }) 
         <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           <p>{error}</p>
           <p className="mt-1 text-xs text-red-600/80">
-            Needs FastAPI /api/advisory/predict. Keep GPU API + named tunnel up; NEXT_PUBLIC_API_URL =
-            https://krishi-mithr-api.loca.lt
+            Keep GPU API + Cloudflare tunnel running. Set NEXT_PUBLIC_API_URL to the live
+            trycloudflare.com URL, then Redeploy.
           </p>
         </div>
       )}

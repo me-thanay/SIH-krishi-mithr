@@ -1,6 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+function backendBase(): string {
+  const raw = (
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'http://localhost:8000'
+  ).trim()
+  let url = raw.replace(/\/$/, '')
+  if (url.startsWith('http://') && /(onrender\.com|ngrok|trycloudflare\.com|loca\.lt)/i.test(url)) {
+    url = url.replace(/^http:\/\//, 'https://')
+  }
+  return url
+}
+
+const BACKEND_URL = backendBase()
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {

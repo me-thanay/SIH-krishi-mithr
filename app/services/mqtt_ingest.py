@@ -59,11 +59,11 @@ def _save_mongo(doc: Dict[str, Any]) -> None:
             "water_quality": doc.get("waterStatus"),
             "light": doc.get("light"),
             "motor_state": str(doc.get("motor")),
-            "motor_on": bool(doc.get("motor")),
+            "motor_on": doc.get("motor_on"),
             "hv_state": str(doc.get("hv")),
-            "hv_on": bool(doc.get("hv")),
+            "hv_on": doc.get("hv_on"),
             "hv_auto_state": str(doc.get("hv_auto")),
-            "hv_auto_on": bool(doc.get("hv_auto")),
+            "hv_auto_on": doc.get("hv_auto_on"),
             "source": "goa_esp32_mqtt",
         }
         db["sensor_readings"].update_one(

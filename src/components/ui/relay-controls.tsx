@@ -1,7 +1,18 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { StatsBento, type FarmControlId, type FarmControlState } from "./stats-bento"
+
+function parseOnFlag(value: unknown): boolean | null {
+  if (value === true || value === 1) return true
+  if (value === false || value === 0) return false
+  if (typeof value === "string") {
+    const s = value.trim().toLowerCase()
+    if (["true", "1", "on", "yes"].includes(s)) return true
+    if (["false", "0", "off", "no", ""].includes(s)) return false
+  }
+  return null
+}
 
 // Function to speak motor status in selected language
 const speakMotorStatus = (controlId: string, isOn: boolean, lang: string) => {
@@ -48,6 +59,34 @@ export function RelayControls({ className, speechLanguage = 'en-US' }: RelayCont
     hv: false,
     hv_auto: false,
   })
+  const [busyUntil, setBusyUntil] = useState(0)
+
+  const syncFromEsp = async () => {
+    if (Date.now() < busyUntil) return
+    try {
+      const response = await fetch("/api/sensor-data/latest")
+      const json = await response.json()
+      const row = json?.data
+      if (!row) return
+      const motor = parseOnFlag(row.motor_on) ?? parseOnFlag(row.motor)
+      const hv = parseOnFlag(row.hv_on) ?? parseOnFlag(row.hv)
+      const hvAuto = parseOnFlag(row.hv_auto_on) ?? parseOnFlag(row.hv_auto)
+      setControlStates((prev) => ({
+        motor: motor ?? prev.motor,
+        hv: hv ?? prev.hv,
+        hv_auto: hvAuto ?? prev.hv_auto,
+      }))
+    } catch {
+      /* keep last known command state */
+    }
+  }
+
+  useEffect(() => {
+    void syncFromEsp()
+    const timer = setInterval(() => void syncFromEsp(), 5000)
+    return () => clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busyUntil])
 
   const sendRelayCommand = async (command: string, controlId: string) => {
     setLoading(command)
@@ -80,9 +119,10 @@ export function RelayControls({ className, speechLanguage = 'en-US' }: RelayCont
       }
       
       if (data.success) {
-        // Update state based on command
+        // Optimistic, then ESP MQTT `motor` field is the source of truth.
         const isOn = command.includes(':on')
         setControlStates(prev => ({ ...prev, [controlId]: isOn }))
+        setBusyUntil(Date.now() + 8000)
         setLastCommand(`✅ ${data.message || `Command '${command}' sent successfully`}`)
         
         // Voice feedback based on language

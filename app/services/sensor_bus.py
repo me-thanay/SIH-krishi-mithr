@@ -10,6 +10,22 @@ _lock = threading.Lock()
 _latest: Dict[str, Any] = {}
 
 
+def parse_on_flag(value: Any) -> Optional[bool]:
+    """True/false from ESP JSON. Never treat the string 'false' as on."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    s = str(value).strip().lower()
+    if s in {"true", "1", "on", "yes"}:
+        return True
+    if s in {"false", "0", "off", "no", ""}:
+        return False
+    return None
+
+
 def normalize_goa_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     """Map Goa ESP32 JSON keys onto SIH sensor_readings / XGBoost names."""
     out = dict(data or {})
@@ -21,6 +37,24 @@ def normalize_goa_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     if "motion_detected" not in out and out.get("motion") is not None:
         m = out["motion"]
         out["motion_detected"] = m in (1, "1", True, "true", "HIGH")
+    motor = parse_on_flag(out.get("motor_on"))
+    if motor is None:
+        motor = parse_on_flag(out.get("motor"))
+    if motor is not None:
+        out["motor"] = motor
+        out["motor_on"] = motor
+    hv = parse_on_flag(out.get("hv_on"))
+    if hv is None:
+        hv = parse_on_flag(out.get("hv"))
+    if hv is not None:
+        out["hv"] = hv
+        out["hv_on"] = hv
+    hv_auto = parse_on_flag(out.get("hv_auto_on"))
+    if hv_auto is None:
+        hv_auto = parse_on_flag(out.get("hv_auto"))
+    if hv_auto is not None:
+        out["hv_auto"] = hv_auto
+        out["hv_auto_on"] = hv_auto
     out.setdefault("device_id", "esp32_goa")
     out.setdefault("location", "farm_field_1")
     out["timestamp"] = datetime.now(timezone.utc)

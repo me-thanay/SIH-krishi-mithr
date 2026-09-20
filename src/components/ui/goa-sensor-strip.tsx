@@ -63,7 +63,16 @@ export function GoaSensorStrip() {
 
   const soil = data?.soil_moisture ?? data?.soilMoisture
   const tds = data?.TDS ?? data?.tds_ppm
-  const motorOn = data?.motor_on ?? data?.motor
+  const motorOn = (() => {
+    const raw = data?.motor_on ?? data?.motor
+    if (raw === true || raw === 1) return true
+    if (typeof raw === "string") {
+      const s = raw.trim().toLowerCase()
+      if (["true", "1", "on", "yes"].includes(s)) return true
+      if (["false", "0", "off", "no", ""].includes(s)) return false
+    }
+    return Boolean(raw)
+  })()
 
   return (
     <Card className="border border-stone-200 bg-white p-4">

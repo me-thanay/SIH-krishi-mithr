@@ -119,9 +119,11 @@ class XGBoostAdvisor:
             "hide_confidence": True,
         }
 
-        motor_flag = sensor.get("motor_on")
+        from app.services.sensor_bus import parse_on_flag
+
+        motor_flag = parse_on_flag(sensor.get("motor_on"))
         if motor_flag is None:
-            motor_flag = sensor.get("motor")
+            motor_flag = parse_on_flag(sensor.get("motor"))
         ts = sensor.get("timestamp")
         ts_s = ts.isoformat() if hasattr(ts, "isoformat") else (str(ts) if ts else None)
         if motor_flag is None:
@@ -133,7 +135,7 @@ class XGBoostAdvisor:
                 "hide_confidence": True,
             }
         else:
-            on = str(motor_flag).lower() in {"true", "1", "on", "yes"}
+            on = motor_flag
             motor_out = {
                 "label": "on" if on else "off",
                 "display": f"Reported motor state: {'ON' if on else 'OFF'}",

@@ -309,32 +309,40 @@ export function VoiceFarmWizard() {
   const askQuestion = async (id: string, overrideTranscript?: string): Promise<void> => {
     const q = FARM_QUESTIONS.find((x) => x.id === id)!
     setCurrentId(id)
+    const history: { role: "assistant" | "farmer"; text: string }[] = []
     let transcript: string | null = overrideTranscript ?? null
     if (!transcript) {
       const text = await questionText(id)
       if (q.kind === "location" && detectedRef.current?.lat) pushLog("system", promptsRef.current.location_found)
       await say(text)
+      history.push({ role: "assistant", text })
     }
 
-    for (let round = 0; round < 3; round++) {
+    // Optional fields get one clarification, required fields two; then we accept what we have.
+    const maxClarify = q.allowUnknown ? 1 : 2
+    let clarifications = 0
+    let silence = 0
+    let lastHeard: string | null = null
+
+    while (true) {
       if (!transcript) {
         transcript = await hear()
         if (!transcript) {
-          if (round === 2 && q.allowUnknown) {
-            setAnswer(id, { value: null, display: "—", unknown: true, details: {}, transcript: "" })
-            await say(promptsRef.current.unknown_ok)
-            return
-          }
+          silence++
+          if (silence >= 3) break
           await say(promptsRef.current.not_heard)
           continue
         }
       }
+      lastHeard = transcript
+      history.push({ role: "farmer", text: transcript })
       const out = await think(
         llm<{ ok: boolean; unknown: boolean; value: string | null; display: string; clarify: string | null; details: Record<string, unknown> }>({
           mode: "extract",
           language: langRef.current,
           questionId: id,
           transcript,
+          history,
           answers: answersRef.current,
           detected: detectedRef.current,
         })
@@ -342,7 +350,7 @@ export function VoiceFarmWizard() {
       if (out.ok || out.unknown) {
         setAnswer(id, {
           value: out.unknown ? null : out.value ?? transcript,
-          display: out.display || out.value || transcript,
+          display: out.unknown ? "—" : out.display || out.value || transcript,
           unknown: Boolean(out.unknown),
           details: out.details || {},
           transcript,
@@ -350,11 +358,21 @@ export function VoiceFarmWizard() {
         if (out.unknown) await say(promptsRef.current.unknown_ok)
         return
       }
+      if (clarifications >= maxClarify) break
+      clarifications++
+      const follow = out.clarify || promptsRef.current.not_heard
+      await say(follow)
+      history.push({ role: "assistant", text: follow })
       transcript = null
-      await say(out.clarify || promptsRef.current.not_heard)
     }
-    // Could not extract after 3 rounds: keep raw words so the farmer can fix it in review.
-    setAnswer(id, { value: null, display: "—", unknown: q.allowUnknown ?? false, details: {}, transcript: "" })
+
+    // Fallback: never throw away what the farmer said. Optional -> unknown; required -> keep raw words.
+    if (q.allowUnknown || !lastHeard) {
+      setAnswer(id, { value: null, display: "—", unknown: true, details: {}, transcript: lastHeard || "" })
+      if (lastHeard || silence >= 3) await say(promptsRef.current.unknown_ok)
+    } else {
+      setAnswer(id, { value: lastHeard, display: lastHeard, unknown: false, details: {}, transcript: lastHeard })
+    }
   }
 
   const review = async (): Promise<"saved" | "cancelled"> => {

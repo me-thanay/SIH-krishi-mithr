@@ -182,6 +182,21 @@ Return {"question": "<one or two short spoken sentences>"}`
         const transcript = String(body.transcript || '')
         const detected = body.detected as DetectedLocation | undefined
         const answers = body.answers as Answers | undefined
+        const history = (Array.isArray(body.history) ? body.history : []) as { role: 'assistant' | 'farmer'; text: string }[]
+        const historyText = history.length
+          ? history.map((h) => `${h.role === 'assistant' ? 'Assistant' : 'Farmer'}: ${h.text}`).join('\n')
+          : '(none)'
+        const kindRules: Record<string, string> = {
+          text: 'ANY non-empty reply is the name — names can be any words, including people or brand names ("Krishi Mitra", "Trisha"). Strip lead-ins like "call it" / "name is". Never ask to clarify a name; set ok=true.',
+          crop: 'Accept any plausible crop even if the transcript is a phonetic spelling (e.g. "పొటాటో" = Potato, "మిరప" = Chilli). Clarify only if no crop can be inferred.',
+          variety: 'If the farmer says they know but gives no name, ask once for the name. If they then still give no variety name, or say anything like "don\'t know", "you tell me", "skip", "leave it", set unknown=true and ok=true.',
+          location: 'A "yes/correct/that is right" confirms the GPS suggestion. Otherwise take the places named.',
+          area: 'Infer number words in the farmer\'s language ("రెండున్నర" = 2.5). If a number is given without a unit, assume acres and say so in display.',
+          sowing: 'Relative expressions are fine ("two weeks ago", "last month", "before Dasara"). If only a month is given, use the 15th of that month and approximate=true. Ask to clarify only if no time reference at all.',
+          stage: 'Map any description to one stage. "just planted / small plants" = seedling, "growing / leaves" = vegetative, "flowers" = flowering, "fruits / grains forming" = fruiting, "ready to cut" = maturity.',
+          soil: 'Colour words count ("black soil", "red"). "don\'t know" → unknown=true, ok=true.',
+          irrigation: 'Map to drip / sprinkler / surface (flood, canal, borewell, furrow) / rainfed. "motor" or "borewell" alone = surface.',
+        }
         const kindSchema: Record<string, string> = {
           text: '"details": {}',
           crop: '"details": {"crop_en": "<English crop name>", "crop_local": "<name as farmer said>"}',
@@ -198,18 +213,27 @@ Return {"question": "<one or two short spoken sentences>"}`
             ? `GPS suggestion: village "${detected.village || ''}", district "${detected.district || ''}", state "${detected.state || ''}". If the farmer says yes/correct/that's right, use the GPS suggestion and set confirmed_gps=true. If they give a different place, use what they said.`
             : ''
         const out = await chatJson(
-          `${BASE_SYSTEM}\n${languageInstruction(language)}\nToday is ${today}.`,
-          `Field: ${q.id} (${q.label}). Guidance: ${q.hint}${q.allowUnknown ? ' The farmer is allowed to say they do not know.' : ''}
+          `${BASE_SYSTEM}\n${languageInstruction(language)}\nToday is ${today}.
+You are filling ONE form field from a spoken conversation. The farmer's latest reply is always an attempt to answer
+the assistant's most recent line in the conversation below — interpret it in that context, not in isolation.
+Speech recognition is noisy: choose the most plausible reading rather than rejecting. Clarify only when truly ambiguous,
+and never ask the same clarification twice.`,
+          `Field: ${q.id} (${q.label}). Guidance: ${q.hint}
+Rules for this field: ${kindRules[q.kind] || ''}${q.allowUnknown ? ' The farmer may say they do not know; that is a valid answer (unknown=true, ok=true).' : ''}
 ${gps}
-Known answers so far: ${answersContext(answers)}
-The farmer answered (speech transcript, may contain recognition errors): "${transcript}"
+Known answers to earlier fields: ${answersContext(answers)}
+
+Conversation for THIS field so far (oldest first):
+${historyText}
+
+Farmer's latest reply (speech transcript): "${transcript}"
 
 Decide:
-- ok: true if a usable answer was captured (or farmer clearly said they don't know).
-- unknown: true only if the farmer said they do not know / skip.
-- value: normalized value to store (English where the hint asks, otherwise the farmer's words), or null.
+- ok: true if a usable answer was captured (or farmer said they don't know).
+- unknown: true only if the farmer said they do not know / skip / you decide.
+- value: normalized value to store (English where the guidance asks, otherwise the farmer's words), or null.
 - display: the value written in the farmer's language for reading back.
-- clarify: if ok is false, one short follow-up question in the farmer's language; else null.
+- clarify: only if ok is false — one short, specific follow-up in the farmer's language that acknowledges what they just said; else null.
 Return {"ok": true|false, "unknown": true|false, "value": "<string or null>", "display": "<string>", "clarify": "<string or null>", ${kindSchema[q.kind]}}`,
           0.1
         )

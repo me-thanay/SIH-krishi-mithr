@@ -9,6 +9,10 @@ type Head = {
   confidence?: number
   advice?: string
   value?: number
+  display?: string
+  hide_confidence?: boolean
+  observation?: boolean
+  timestamp?: string
 }
 
 type Advisory = {
@@ -33,17 +37,17 @@ function Pill({
   head?: Head
 }) {
   if (!head) return null
-  const value =
-    head.value != null
-      ? `${head.value}/100`
-      : `${head.label || "—"}${head.confidence != null ? ` (${Math.round(head.confidence * 100)}%)` : ""}`
+  const headline = head.display || (head.value != null ? `${head.value}/100` : head.label || "—")
   return (
     <div className="rounded-2xl bg-stone-50 px-4 py-3">
       <div className="flex items-center gap-2 text-stone-800">
         {icon}
         <p className="text-sm font-semibold">{title}</p>
       </div>
-      <p className="mt-1 text-sm capitalize text-stone-700">{value}</p>
+      <p className="mt-1 text-sm text-stone-700">{headline}</p>
+      {head.observation && (
+        <p className="mt-0.5 text-[11px] uppercase tracking-wide text-stone-400">Observation · not an AI prediction</p>
+      )}
       {head.advice && <p className="mt-1 text-xs leading-relaxed text-stone-500">{head.advice}</p>}
     </div>
   )
@@ -51,7 +55,6 @@ function Pill({
 
 function advisoryUrl(city: string) {
   const qs = `city=${encodeURIComponent(city)}`
-  // Same-origin proxy avoids localtunnel/ngrok browser interstitial pages (511 HTML).
   return `/api/advisory/predict?${qs}`
 }
 
@@ -121,11 +124,11 @@ export function XgboostAdvisoryPanel({ city = "Hyderabad" }: { city?: string }) 
     <Card className="border-2 border-emerald-100 bg-white p-4 sm:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400">XGBoost advisory</p>
-          <h2 className="mt-1 text-lg font-semibold text-stone-800">Sensors + weather decisions</h2>
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400">Field decision aid</p>
+          <h2 className="mt-1 text-lg font-semibold text-stone-800">Sensors + weather (not prescriptions)</h2>
           <p className="mt-1 text-xs text-stone-500">
             {data?.inputs?.weather_city || city}
-            {data?.inputs?.sensor_used ? " · using latest ESP sensors" : " · weather only (no sensor row yet)"}
+            {data?.inputs?.sensor_used ? " · latest ESP sensors" : " · weather only (no ESP row yet)"}
           </p>
         </div>
         <button
@@ -154,7 +157,7 @@ export function XgboostAdvisoryPanel({ city = "Hyderabad" }: { city?: string }) 
         <Pill icon={<Activity className="h-4 w-4 text-amber-600" />} title="Crop stress" head={data?.stress_risk} />
         <Pill icon={<Bug className="h-4 w-4 text-red-600" />} title="Disease climate" head={data?.disease_climate_risk} />
         <Pill icon={<Power className="h-4 w-4 text-emerald-700" />} title="Motor / pump" head={data?.motor} />
-        <Pill icon={<Sprout className="h-4 w-4 text-green-700" />} title="Growing score" head={data?.yield_score} />
+        <Pill icon={<Sprout className="h-4 w-4 text-green-700" />} title="Growing index" head={data?.yield_score} />
         <Pill icon={<TrendingUp className="h-4 w-4 text-indigo-600" />} title="Price trend" head={data?.price_trend} />
       </div>
 

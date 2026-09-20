@@ -125,10 +125,14 @@ async def predict_advisory(body: AdvisoryRequest):
             "temperature",
             "humidity",
             "soil_moisture",
+            "soilMoisture",
             "TDS",
+            "tds_ppm",
             "CO2_ppm",
             "light",
             "motion_detected",
+            "motor",
+            "motor_on",
             "timestamp",
         )
         if sensor

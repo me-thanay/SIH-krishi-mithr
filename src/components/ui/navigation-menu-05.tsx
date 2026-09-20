@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react";
-import { BookOpen, Bug, Home, Rss } from "lucide-react";
+import { BookOpen, Bug, Home, Rss, Sprout } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ const navigationMenuItems = [
   { title: "Diagnose", href: "/pest-demo", icon: Bug },
   { title: "Market", href: "/market-prices", icon: Rss },
   { title: "Analyze", href: "/dashboard", icon: BookOpen },
+  { title: "My Farm", href: "/my-farm", icon: Sprout },
 ];
 
 function goToLanding(event: React.MouseEvent) {

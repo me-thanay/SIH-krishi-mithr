@@ -1,0 +1,267 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+import {
+  FARM_QUESTIONS,
+  SUPPORTED_LANGUAGES,
+  languageByCode,
+  type Answers,
+  type DetectedLocation,
+} from '../../../src/lib/my-farm-schema'
+
+/**
+ * My Farm voice assistant brain.
+ * All calls go to OpenRouter -> google/gemini-2.5-flash-lite and return strict JSON.
+ *
+ * modes:
+ *   detect_language   { transcript }
+ *   translate_prompts { language }
+ *   phrase_question   { language, questionId, answers, detected }
+ *   extract           { language, questionId, transcript, answers, detected }
+ *   summary           { language, answers }
+ *   review_intent     { language, transcript, answers }
+ */
+
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash-lite'
+
+function stripFences(text: string): string {
+  const t = text.trim()
+  const fenced = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
+  return fenced ? fenced[1] : t
+}
+
+async function chatJson<T = any>(system: string, user: string, temperature = 0.2, maxTokens = 700): Promise<T> {
+  const key = process.env.OPENROUTER_API_KEY
+  if (!key) throw new Error('OPENROUTER_API_KEY is not configured on the server')
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 25_000)
+  try {
+    const r = await fetch(OPENROUTER_URL, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://krishi-mithr.vercel.app',
+        'X-Title': 'Krishi Mithr My Farm',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        temperature,
+        // Without an explicit cap OpenRouter reserves the model's full output window
+        // (65k for flash-lite) against the account balance and returns 402 on small credits.
+        max_tokens: maxTokens,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+      }),
+    })
+    const text = await r.text()
+    if (!r.ok) {
+      throw new Error(`OpenRouter ${r.status}: ${text.slice(0, 300)}`)
+    }
+    const data = JSON.parse(text)
+    const content: string = data?.choices?.[0]?.message?.content ?? ''
+    if (!content) throw new Error('Empty model response')
+    return JSON.parse(stripFences(content)) as T
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const BASE_SYSTEM = `You are the voice assistant of Krishi Mithr, an Indian farm app.
+You talk to farmers who may be low-literacy. Use short, warm, simple spoken sentences.
+Always answer with a single JSON object and nothing else. Never add markdown.`
+
+function languageInstruction(code: string) {
+  const lang = languageByCode(code)
+  return `The farmer's language is ${lang.name} (${lang.code}). Write every farmer-facing string in ${lang.name} using its native script${
+    lang.code === 'en-IN' ? '' : ' (not romanized)'
+  }. Farm words that are commonly spoken in English (drip, sprinkler, acre, hybrid) may be kept as-is inside the sentence.`
+}
+
+function answersContext(answers: Answers | undefined) {
+  if (!answers) return '{}'
+  const compact: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(answers)) {
+    compact[k] = { value: v.value, unknown: v.unknown, details: v.details }
+  }
+  return JSON.stringify(compact)
+}
+
+function questionById(id: string) {
+  const q = FARM_QUESTIONS.find((x) => x.id === id)
+  if (!q) throw new Error(`Unknown questionId ${id}`)
+  return q
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+  const body = req.body || {}
+  const mode = String(body.mode || '')
+  const today = new Date().toISOString().slice(0, 10)
+
+  try {
+    switch (mode) {
+      case 'detect_language': {
+        const transcript = String(body.transcript || '')
+        const list = SUPPORTED_LANGUAGES.map((l) => `${l.code} = ${l.name} / ${l.native}`).join('\n')
+        const out = await chatJson(
+          BASE_SYSTEM,
+          `A farmer was asked which language they prefer. They said: "${transcript}".
+The utterance may be in any Indian language or English, and may name the language or simply be spoken in it.
+Pick the best match from this list:
+${list}
+Return {"code": "<code from list or null>", "confidence": 0-1}`,
+          0
+        )
+        return res.status(200).json(out)
+      }
+
+      case 'translate_prompts': {
+        const language = String(body.language || 'en-IN')
+        const qs = FARM_QUESTIONS.map((q) => `- ${q.id}: "${q.question}"${q.allowUnknown ? ' (farmer may say they do not know)' : ''}`).join('\n')
+        const out = await chatJson(
+          `${BASE_SYSTEM}\n${languageInstruction(language)}`,
+          `Translate these farm-form questions and assistant prompts. Keep meaning exact, keep them short and natural for speech.
+
+Questions:
+${qs}
+
+Prompts:
+- welcome: "Great, we will continue in this language. I will ask a few questions about your field. Answer by speaking after the beep."
+- listening: "Listening"
+- not_heard: "Sorry, I did not catch that. Please say it again."
+- unknown_ok: "No problem, we will leave that blank."
+- review_intro: "Here are the details you gave me."
+- confirm_ask: "Is everything correct? Say yes to save, or tell me what to change."
+- edit_which: "Which detail should I change?"
+- saving: "Saving your field details."
+- saved: "Your field has been saved. Thank you."
+- save_failed: "Sorry, saving failed. Please try again."
+- location_found: "I found your location from GPS."
+- location_missing: "I could not detect your location automatically."
+- yes_words: comma-separated list of 6 common ways to say yes/correct in this language
+- no_words: comma-separated list of 6 common ways to say no/change in this language
+
+Return {"questions": {"<id>": "<translated>"}, "prompts": {"<key>": "<translated>"}}`,
+          0.2,
+          2500
+        )
+        return res.status(200).json(out)
+      }
+
+      case 'phrase_question': {
+        const language = String(body.language || 'en-IN')
+        const q = questionById(String(body.questionId))
+        const detected = body.detected as DetectedLocation | undefined
+        const answers = body.answers as Answers | undefined
+        const extra =
+          q.kind === 'location' && detected?.lat
+            ? `GPS reverse-geocode found: village/town "${detected.village || ''}", district "${detected.district || ''}", state "${detected.state || ''}". Ask the farmer to confirm this location or tell the correct village, district and state.`
+            : q.kind === 'stage' && answers?.crop?.value
+              ? `The crop is "${answers.crop.value}". Name the growth stages using words a ${answers.crop.value} farmer uses (e.g. for rice: nursery, tillering, panicle, grain filling; for tomato: seedling, flowering, fruit setting).`
+              : ''
+        const out = await chatJson(
+          `${BASE_SYSTEM}\n${languageInstruction(language)}`,
+          `Phrase this question for speech. Base question (English): "${q.question}". ${q.hint}
+${extra}
+Known answers so far: ${answersContext(answers)}
+Return {"question": "<one or two short spoken sentences>"}`
+        )
+        return res.status(200).json(out)
+      }
+
+      case 'extract': {
+        const language = String(body.language || 'en-IN')
+        const q = questionById(String(body.questionId))
+        const transcript = String(body.transcript || '')
+        const detected = body.detected as DetectedLocation | undefined
+        const answers = body.answers as Answers | undefined
+        const kindSchema: Record<string, string> = {
+          text: '"details": {}',
+          crop: '"details": {"crop_en": "<English crop name>", "crop_local": "<name as farmer said>"}',
+          variety: '"details": {}',
+          location: '"details": {"village": "", "district": "", "state": "", "confirmed_gps": true|false}',
+          area: '"details": {"number": <float>, "unit": "<acre|hectare|gunta|cent|bigha|kanal|katha|other>", "unit_local": "<as said>"}',
+          sowing: '"details": {"date_iso": "YYYY-MM-DD or null", "approximate": true|false, "method": "<sowing|transplanting|direct seeding|unknown>"}',
+          stage: '"details": {"stage": "<seedling|vegetative|flowering|fruiting|maturity>"}',
+          soil: '"details": {"soil": "<black|red|sandy|loamy|clay|alluvial|laterite|other|unknown>"}',
+          irrigation: '"details": {"method": "<drip|sprinkler|surface|rainfed|other>"}',
+        }
+        const gps =
+          q.kind === 'location' && detected?.lat
+            ? `GPS suggestion: village "${detected.village || ''}", district "${detected.district || ''}", state "${detected.state || ''}". If the farmer says yes/correct/that's right, use the GPS suggestion and set confirmed_gps=true. If they give a different place, use what they said.`
+            : ''
+        const out = await chatJson(
+          `${BASE_SYSTEM}\n${languageInstruction(language)}\nToday is ${today}.`,
+          `Field: ${q.id} (${q.label}). Guidance: ${q.hint}${q.allowUnknown ? ' The farmer is allowed to say they do not know.' : ''}
+${gps}
+Known answers so far: ${answersContext(answers)}
+The farmer answered (speech transcript, may contain recognition errors): "${transcript}"
+
+Decide:
+- ok: true if a usable answer was captured (or farmer clearly said they don't know).
+- unknown: true only if the farmer said they do not know / skip.
+- value: normalized value to store (English where the hint asks, otherwise the farmer's words), or null.
+- display: the value written in the farmer's language for reading back.
+- clarify: if ok is false, one short follow-up question in the farmer's language; else null.
+Return {"ok": true|false, "unknown": true|false, "value": "<string or null>", "display": "<string>", "clarify": "<string or null>", ${kindSchema[q.kind]}}`,
+          0.1
+        )
+        return res.status(200).json(out)
+      }
+
+      case 'summary': {
+        const language = String(body.language || 'en-IN')
+        const answers = body.answers as Answers
+        const lines = FARM_QUESTIONS.map((q) => {
+          const a = answers?.[q.id]
+          return `- ${q.id} (${q.label}): ${a ? (a.unknown ? 'not known' : a.display || a.value || '') : 'not answered'}`
+        }).join('\n')
+        const out = await chatJson(
+          `${BASE_SYSTEM}\n${languageInstruction(language)}`,
+          `Read these field details back to the farmer so they can check them. One short sentence per item, in order, then ask if everything is correct or what to change.
+${lines}
+Return {"summary": "<spoken read-back>", "question": "<is everything correct or what should I change>"}`,
+          0.2,
+          1200
+        )
+        return res.status(200).json(out)
+      }
+
+      case 'review_intent': {
+        const language = String(body.language || 'en-IN')
+        const transcript = String(body.transcript || '')
+        const answers = body.answers as Answers | undefined
+        const ids = FARM_QUESTIONS.map((q) => `${q.id} = ${q.label}`).join('; ')
+        const out = await chatJson(
+          `${BASE_SYSTEM}\n${languageInstruction(language)}`,
+          `The farmer just heard the read-back of their field details and was asked whether everything is correct or what to change.
+They said: "${transcript}"
+Fields: ${ids}
+Current answers: ${answersContext(answers)}
+
+Classify:
+- "confirm" if they agree / say save.
+- "edit" if they want to change something. Set field_id to the field they mean. If they also said the new value in the same sentence, put the exact spoken part in new_value_transcript, otherwise null.
+- "cancel" if they want to stop without saving.
+- "unclear" otherwise.
+Return {"action": "confirm|edit|cancel|unclear", "field_id": "<id or null>", "new_value_transcript": "<string or null>", "message": "<one short sentence to speak back in the farmer's language>"}`,
+          0.1
+        )
+        return res.status(200).json(out)
+      }
+
+      default:
+        return res.status(400).json({ error: `Unknown mode '${mode}'` })
+    }
+  } catch (error: any) {
+    console.error('[my-farm/llm]', mode, error?.message || error)
+    return res.status(502).json({ error: error?.message || 'LLM request failed', mode })
+  }
+}

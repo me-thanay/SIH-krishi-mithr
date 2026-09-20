@@ -1,7 +1,8 @@
-"use client"
+﻿"use client"
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Mic, Square, Volume2, MapPin, Save, RotateCcw, Loader2, CheckCircle2, Pencil, Languages } from "lucide-react"
+import { Mic } from "lucide-react"
+import { ThinkingOrb, type OrbState } from "@/components/ui/thinking-orbs"
 import {
   FARM_QUESTIONS,
   SUPPORTED_LANGUAGES,
@@ -690,304 +691,122 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
 
   const busy = !["idle", "done", "error", "review", "language"].includes(phase) || (phase === "review" && interim !== "")
   const lang = useMemo(() => languageByCode(language), [language])
-  const answeredCount = FARM_QUESTIONS.filter((q) => answers[q.id]).length
 
-  const statusText: Record<Phase, string> = {
-    idle: "Press Start and answer by voice.",
-    language: "Say your language, or tap one below.",
-    preparing: `Preparing questions in ${lang.name}…`,
-    asking: "Speaking…",
-    listening: prompts.listening || "Listening…",
-    thinking: "Understanding your answer…",
-    review: "Review the details, then confirm by voice or tap Save.",
-    saving: "Saving…",
-    done: "Saved.",
-    error: "Something went wrong.",
+  const orbByPhase: Record<Phase, { state: OrbState; label: string }> = {
+    idle: { state: "listening", label: "Tap to begin" },
+    language: { state: "listening", label: "Listening…." },
+    preparing: { state: "working", label: "Working…." },
+    asking: { state: "composing", label: "Speaking…." },
+    listening: { state: "listening", label: "Listening…." },
+    thinking: { state: "solving", label: "Solving…." },
+    review: { state: "shaping", label: "Checking…." },
+    saving: { state: "working", label: "Saving…." },
+    done: { state: "solving", label: "Saved." },
+    error: { state: "searching", label: "Try again" },
   }
+  const orb = orbByPhase[phase]
+
+  const spoken = log.filter((l) => l.who !== "system")
+  const visible = [
+    ...spoken.slice(-3),
+    ...(interim ? [{ who: "farmer" as const, text: interim }] : []),
+  ]
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
-      {/* Conversation */}
-      <section className="lg:col-span-3 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400">Voice registration</p>
-            <h2 className="mt-1 text-xl font-semibold text-stone-800">Tell me about your field</h2>
-            <p className="mt-1 text-sm text-stone-500">
-              {language ? `${lang.native} · ` : ""}
-              {statusText[phase]}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {busy ? (
-              <button
-                type="button"
-                onClick={() => {
-                  stopAll()
-                  setPhase(language ? "review" : "idle")
-                }}
-                className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-              >
-                <Square className="h-4 w-4" /> Stop
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void startFresh()}
-                className="inline-flex items-center gap-2 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
-              >
-                <Mic className="h-4 w-4" /> {phase === "idle" ? "Start" : "Start again"}
-              </button>
-            )}
-          </div>
-        </div>
+    <div className="relative flex min-h-[calc(100vh-4rem)] w-full flex-col items-center justify-center px-6">
+      <button
+        type="button"
+        onClick={() => {
+          if (busy) {
+            stopAll()
+            setPhase(language ? "review" : "idle")
+            return
+          }
+          void startFresh()
+        }}
+        className="group flex flex-col items-center gap-5"
+        aria-label={busy ? "Stop" : "Start farm setup"}
+      >
+        <span className="[&_canvas]:!size-[4.5rem] sm:[&_canvas]:!size-20">
+          <ThinkingOrb state={orb.state} size={64} theme="dark" />
+        </span>
+        <span
+          className="inline-flex h-[52px] items-center rounded-full px-6 text-base tracking-wide sm:h-[58px] sm:text-lg"
+          style={{
+            color: "rgba(251,251,251,0.55)",
+            background: "rgba(29,29,29,0.42)",
+            boxShadow: "inset 0 0 0 1px rgba(44,47,54,0.31), inset 0 0 50px 0 rgba(255,255,255,0.012)",
+          }}
+        >
+          {orb.label}
+        </span>
+      </button>
 
-        {(!support.stt || !support.tts) && (
-          <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            {!support.stt
-              ? "Speech recognition is not available in this browser. Use Chrome or Edge on phone or laptop, or type into the form."
-              : "Speech output is not available; questions will be shown as text."}
-          </p>
-        )}
-
-        {/* Language picker (always available while choosing) */}
-        {(phase === "language" || phase === "idle" || (phase === "error" && !language)) && (
-          <div className="mt-4">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-stone-500">
-              <Languages className="h-3.5 w-3.5" /> Or tap your language
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {SUPPORTED_LANGUAGES.map((l) => (
-                <button
-                  key={l.code}
-                  type="button"
-                  onClick={() => void pickLanguageManually(l.code)}
-                  className="rounded-full border border-stone-200 px-3 py-1.5 text-sm text-stone-700 hover:border-green-500 hover:bg-green-50"
-                >
-                  {l.native}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Mic visual */}
-        <div className="mt-5 flex items-center gap-4">
-          <div
-            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full ${
-              phase === "listening"
-                ? "bg-red-500 text-white shadow-[0_0_0_10px_rgba(239,68,68,0.15)] animate-pulse"
-                : phase === "asking"
-                  ? "bg-emerald-500 text-white"
-                  : phase === "thinking" || phase === "preparing" || phase === "saving"
-                    ? "bg-stone-200 text-stone-600"
-                    : "bg-stone-100 text-stone-500"
-            }`}
-          >
-            {phase === "listening" ? (
-              <Mic className="h-7 w-7" />
-            ) : phase === "asking" ? (
-              <Volume2 className="h-7 w-7" />
-            ) : phase === "thinking" || phase === "preparing" || phase === "saving" ? (
-              <Loader2 className="h-7 w-7 animate-spin" />
-            ) : phase === "done" ? (
-              <CheckCircle2 className="h-7 w-7 text-green-600" />
-            ) : (
-              <Mic className="h-7 w-7" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            {interim ? (
-              <p className="truncate text-base text-stone-800">{interim}</p>
-            ) : currentId ? (
-              <p className="text-sm text-stone-600">
-                Question {FARM_QUESTIONS.findIndex((q) => q.id === currentId) + 1} of {FARM_QUESTIONS.length} ·{" "}
-                {FARM_QUESTIONS.find((q) => q.id === currentId)?.label}
-              </p>
-            ) : (
-              <p className="text-sm text-stone-500">
-                {answeredCount}/{FARM_QUESTIONS.length} answered
-              </p>
-            )}
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
-              <div
-                className="h-full rounded-full bg-green-500 transition-all"
-                style={{ width: `${(answeredCount / FARM_QUESTIONS.length) * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-            {/OPENROUTER_API_KEY/.test(error) && (
-              <p className="mt-1 text-xs text-red-600/80">Add OPENROUTER_API_KEY in Vercel → Settings → Environment Variables, then Redeploy.</p>
-            )}
-            {(micStatus === "denied" || micStatus === "error" || micStatus === "unavailable") && (
-              <button
-                type="button"
-                onClick={() => void retryMic()}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
-              >
-                <Mic className="h-3.5 w-3.5" /> Retry microphone
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Transcript log */}
-        <div className="mt-5 max-h-80 space-y-2 overflow-y-auto rounded-2xl bg-stone-50 p-3">
-          {log.length === 0 && (
-            <p className="text-sm text-stone-400">
-              The assistant will first ask your language, then the {FARM_QUESTIONS.length} field questions, read everything back, and save
-              only after you confirm.
-            </p>
-          )}
-          {log.map((line, i) => (
-            <div key={i} className={`flex ${line.who === "farmer" ? "justify-end" : "justify-start"}`}>
-              <p
-                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                  line.who === "farmer"
-                    ? "bg-green-600 text-white"
-                    : line.who === "system"
-                      ? "bg-stone-200 text-stone-600 text-xs"
-                      : "bg-white text-stone-800 shadow-sm"
-                }`}
-              >
-                {line.text}
-              </p>
-            </div>
+      {(phase === "idle" || phase === "language" || (phase === "error" && !language)) && (
+        <div className="mt-8 flex max-w-md flex-wrap justify-center gap-2">
+          {SUPPORTED_LANGUAGES.slice(0, 6).map((l) => (
+            <button
+              key={l.code}
+              type="button"
+              onClick={() => void pickLanguageManually(l.code)}
+              className="rounded-full px-3 py-1 text-xs text-white/35 transition hover:bg-white/5 hover:text-white/70"
+            >
+              {l.native}
+            </button>
           ))}
-          <div ref={logEndRef} />
         </div>
-      </section>
+      )}
 
-      {/* Form + location */}
-      <section className="lg:col-span-2 space-y-4">
-        <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-stone-800">Field form</h3>
-            <span className="text-xs text-stone-400">filled by your voice · editable</span>
-          </div>
-          <div className="mt-3 space-y-3">
-            {FARM_QUESTIONS.map((q, idx) => {
-              const a = answers[q.id]
-              const active = currentId === q.id
-              return (
-                <div key={q.id} className={`rounded-xl border px-3 py-2 ${active ? "border-green-500 bg-green-50/40" : "border-stone-100"}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-xs font-medium text-stone-500">
-                      {idx + 1}. {q.label}
-                    </label>
-                    {language && !busy && (
-                      <button
-                        type="button"
-                        title="Ask again by voice"
-                        onClick={() => void reaskField(q.id)}
-                        className="inline-flex items-center gap-1 text-[11px] text-stone-400 hover:text-green-700"
-                      >
-                        <Mic className="h-3 w-3" /> re-ask
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    value={a ? (a.unknown ? "" : a.display || a.value || "") : ""}
-                    placeholder={a?.unknown ? "Unknown" : "—"}
-                    onChange={(e) => typeAnswer(q.id, e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-sm text-stone-800 focus:border-green-500 focus:outline-none"
-                  />
-                  {q.id === "location" && detected?.lat && (
-                    <p className="mt-1 text-[11px] text-stone-400">
-                      GPS: {detected.lat.toFixed(5)}, {detected.lon.toFixed(5)}
-                      {detected.accuracy ? ` (±${Math.round(detected.accuracy)} m)` : ""}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={!language || busy}
-              onClick={() => void reviewAgain()}
-              className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-40"
+      <div className="mt-10 flex min-h-[7.5rem] w-full max-w-xl flex-col items-center justify-end">
+        {visible.length === 0 && phase === "idle" && (
+          <p className="text-center text-sm text-white/25">Speak after the orb. Nothing else is shown.</p>
+        )}
+        {visible.map((line, i) => {
+          const fromEnd = visible.length - 1 - i
+          const opacity = fromEnd === 0 ? 1 : fromEnd === 1 ? 0.38 : 0.14
+          const scale = fromEnd === 0 ? 1 : fromEnd === 1 ? 0.96 : 0.92
+          return (
+            <p
+              key={`${i}-${line.text.slice(0, 24)}`}
+              className="mb-3 max-w-full text-center leading-relaxed transition-all duration-700"
+              style={{
+                opacity,
+                transform: `scale(${scale}) translateY(${fromEnd * -4}px)`,
+                color: line.who === "farmer" ? "rgba(251,251,251,0.92)" : "rgba(251,251,251,0.48)",
+                fontSize: fromEnd === 0 ? "1.125rem" : "0.95rem",
+              }}
             >
-              <RotateCcw className="h-4 w-4" /> Read back
-            </button>
-            <button
-              type="button"
-              disabled={busy || !answers.field_name?.value || !answers.crop?.value}
-              onClick={() => void saveNow()}
-              className="inline-flex items-center gap-1.5 rounded-full bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40"
-            >
-              <Save className="h-4 w-4" /> Save
-            </button>
-            {savedId && (
-              <span className="inline-flex items-center gap-1 text-xs text-green-700">
-                <CheckCircle2 className="h-4 w-4" /> Saved
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h3 className="flex items-center gap-1.5 text-base font-semibold text-stone-800">
-              <MapPin className="h-4 w-4 text-red-500" /> Where you are
-            </h3>
-            <button
-              type="button"
-              onClick={() => void locate()}
-              disabled={locating}
-              className="text-xs text-stone-500 hover:text-green-700 disabled:opacity-50"
-            >
-              {locating ? "Locating…" : "Detect again"}
-            </button>
-          </div>
-          {detected?.lat ? (
-            <>
-              <p className="mt-1 text-sm text-stone-700">
-                {[detected.village, detected.district, detected.state].filter(Boolean).join(", ") || detected.display || "Coordinates only"}
-              </p>
-              <iframe
-                title="Field location"
-                className="mt-3 h-48 w-full rounded-xl border border-stone-100"
-                loading="lazy"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${detected.lon - 0.01},${detected.lat - 0.008},${detected.lon + 0.01},${detected.lat + 0.008}&layer=mapnik&marker=${detected.lat},${detected.lon}`}
-              />
-            </>
-          ) : (
-            <p className="mt-1 text-sm text-stone-500">
-              {locating ? "Asking the browser for GPS…" : "Location is detected when you press Start (allow the location prompt)."}
+              {line.text}
             </p>
+          )
+        })}
+        <div ref={logEndRef} />
+      </div>
+
+      {error && (
+        <div className="mt-6 max-w-md text-center text-sm text-red-300/90">
+          <p>{error}</p>
+          {(micStatus === "denied" || micStatus === "error" || micStatus === "unavailable") && (
+            <button
+              type="button"
+              onClick={() => void retryMic()}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/80 hover:bg-white/15"
+            >
+              <Mic className="h-3.5 w-3.5" /> Retry microphone
+            </button>
           )}
         </div>
+      )}
 
-        {saved.length > 0 && (
-          <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-semibold text-stone-800">Saved fields</h3>
-            <ul className="mt-2 divide-y divide-stone-100">
-              {saved.map((f) => (
-                <li key={f.id} className="flex items-start justify-between gap-2 py-2">
-                  <div>
-                    <p className="text-sm font-medium text-stone-800">
-                      {f.fieldName || "Field"} · {f.crop || "—"}
-                    </p>
-                    <p className="text-xs text-stone-500">
-                      {[f.location?.village, f.location?.district, f.location?.state].filter(Boolean).join(", ")}
-                      {f.area?.value ? ` · ${f.area.value} ${f.area.unit || ""}` : ""}
-                    </p>
-                  </div>
-                  {f.createdAt && <span className="text-[11px] text-stone-400">{new Date(f.createdAt).toLocaleDateString("en-IN")}</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
+      {phase === "review" && !busy && (
+        <button
+          type="button"
+          onClick={() => void saveNow()}
+          className="mt-6 text-xs text-white/30 hover:text-white/60"
+        >
+          Save
+        </button>
+      )}
     </div>
   )
 }

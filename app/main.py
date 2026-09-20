@@ -20,6 +20,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+@app.on_event("startup")
+async def start_goa_mqtt_ingest() -> None:
+    """Subscribe to Goa ESP32 HiveMQ topic so XGBoost/dashboard see live sensors."""
+    try:
+        from app.services.mqtt_ingest import start_mqtt_ingest
+
+        start_mqtt_ingest()
+    except Exception as exc:  # noqa: BLE001
+        print(f"MQTT ingest not started: {exc}")
+
+
 # Custom CORS middleware to ensure headers are always present
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):

@@ -113,3 +113,32 @@ async def get_mqtt_status():
             "topic": TOPIC_PUB
         }
 
+
+@router.get("/latest-sensor")
+async def latest_sensor_reading():
+    """Latest Goa ESP32 payload from in-memory MQTT ingest (and Mongo if available)."""
+    from app.services.sensor_bus import get_latest
+
+    live = get_latest()
+    if live:
+        out = dict(live)
+        ts = out.get("timestamp")
+        if hasattr(ts, "isoformat"):
+            out["timestamp"] = ts.isoformat()
+        return {"ok": True, "source": "mqtt_live", "data": out}
+    try:
+        from app.camera_scans import get_db
+
+        db = get_db()
+        if db is not None:
+            doc = db["sensor_readings"].find_one(sort=[("timestamp", -1)])
+            if doc:
+                doc.pop("_id", None)
+                ts = doc.get("timestamp")
+                if hasattr(ts, "isoformat"):
+                    doc["timestamp"] = ts.isoformat()
+                return {"ok": True, "source": "mongo", "data": doc}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "source": None, "data": None, "error": str(exc)}
+    return {"ok": False, "source": None, "data": None, "message": "No ESP32 reading yet"}
+

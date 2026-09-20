@@ -43,8 +43,8 @@ Write-Host "Starting uvicorn on http://0.0.0.0:$Port (GPU diagnose)" -Foreground
 Write-Host "  INFERENCE_DEVICE=$env:INFERENCE_DEVICE"
 Write-Host "  DIAGNOSE_SKIP_YOLO=$env:DIAGNOSE_SKIP_YOLO"
 Write-Host "Health: http://127.0.0.1:$Port/health"
-Write-Host "Next:  powershell -File scripts\start_tunnel_cloudflare.ps1"
-Write-Host "   or: powershell -File scripts\start_tunnel_ngrok.ps1"
+Write-Host "MQTT:   Goa ESP32 -> krishimithr/sensor/data (ingest starts with API)"
+Write-Host "Next:  powershell -File scripts\start_tunnel_named.ps1"
 Write-Host ""
 
 & $Python -m uvicorn app.main:app --host 0.0.0.0 --port $Port

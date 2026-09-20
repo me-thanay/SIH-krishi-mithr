@@ -116,14 +116,14 @@ def save_sensor_data(data):
         hv_state = data.get("hv", "false")
         hv_auto_state = data.get("hv_auto", "false")
         
-        # MQ135 Air Quality sensors
-        co2 = data.get("CO2_ppm")
-        nh3 = data.get("NH3_ppm")
-        benzene = data.get("Benzene_ppm")
-        smoke = data.get("Smoke_ppm")
+        # TDS and Water Quality (Goa firmware uses tds_ppm; SIH also accepts TDS)
+        tds_value = data.get("TDS", data.get("tds_ppm"))
         
-        # TDS and Water Quality
-        tds_value = data.get("TDS")
+        # MQ135 Air Quality sensors (Goa + legacy key names)
+        co2 = data.get("CO2_ppm", data.get("co2_ppm"))
+        nh3 = data.get("NH3_ppm", data.get("nh3_ppm"))
+        benzene = data.get("Benzene_ppm", data.get("benzene_ppm"))
+        smoke = data.get("Smoke_ppm", data.get("smoke_ppm"))
         # Treat 0 and any numeric value as valid (only skip if missing/placeholder)
         water_quality = (
             calculate_water_quality(tds_value)

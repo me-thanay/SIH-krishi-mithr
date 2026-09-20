@@ -80,10 +80,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     
     if (latest.length === 0) {
+      // Fall back to FastAPI MQTT ingest (Goa ESP32 live buffer)
+      try {
+        const backend = (
+          process.env.NEXT_PUBLIC_BACKEND_URL ||
+          process.env.NEXT_PUBLIC_API_URL ||
+          ''
+        ).replace(/\/$/, '')
+        if (backend) {
+          const headers: Record<string, string> = { accept: 'application/json' }
+          if (/loca\.lt/i.test(backend)) headers['bypass-tunnel-reminder'] = 'true'
+          if (/ngrok/i.test(backend)) headers['ngrok-skip-browser-warning'] = 'true'
+          const r = await fetch(`${backend}/api/mqtt/latest-sensor`, { headers })
+          if (r.ok) {
+            const j = await r.json()
+            if (j?.data) {
+              return res.status(200).json({
+                data: j.data,
+                updated: true,
+                timestamp: j.data.timestamp || new Date().toISOString(),
+                available_fields: Object.keys(j.data),
+                missing_fields: [],
+                source: j.source || 'fastapi_mqtt',
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[sensor-data] FastAPI MQTT fallback failed', e)
+      }
       return res.status(200).json({ 
         data: null, 
         updated: false,
-        message: 'No sensor data available',
+        message: 'No sensor data available — flash Goa ESP32 and keep FastAPI MQTT ingest running',
         missing_fields: ['temperature', 'humidity', 'CO2_ppm', 'NH3_ppm', 'Benzene_ppm', 'Smoke_ppm']
       })
     }

@@ -34,6 +34,15 @@ def _get_advisor():
 
 
 async def _latest_sensor() -> Dict[str, Any]:
+    # Prefer live Goa ESP32 reading held in-process by MQTT ingest.
+    try:
+        from app.services.sensor_bus import get_latest
+
+        live = get_latest()
+        if live:
+            return live
+    except Exception:
+        pass
     try:
         from app.camera_scans import get_db
 

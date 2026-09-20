@@ -17,7 +17,9 @@ const nextConfig = {
         headers: [
           {
             key: "Permissions-Policy",
-            value: "camera=(self), microphone=(), publickey-credentials-get=(self), publickey-credentials-create=(self)",
+            // microphone=(self) is required for the My Farm voice assistant (and voice demo);
+            // geolocation=(self) lets My Farm pin the field from GPS.
+            value: "camera=(self), microphone=(self), geolocation=(self), publickey-credentials-get=(self), publickey-credentials-create=(self)",
           },
         ],
       },

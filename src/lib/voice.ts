@@ -66,22 +66,48 @@ export function stopSpeaking() {
   }
 }
 
-export type MicStatus = 'granted' | 'denied' | 'unavailable'
+export type MicStatus = 'granted' | 'denied' | 'unavailable' | 'error'
+
+export interface MicCheck {
+  status: MicStatus
+  /** DOMException name, e.g. NotAllowedError, NotReadableError. */
+  errorName?: string
+  errorMessage?: string
+  /** Number of audio input devices the browser can see (labels hidden until permission). */
+  inputs?: number
+}
 
 /**
  * Ask for the microphone inside the user's click so the browser prompt appears right away.
  * Speech recognition then starts without a second prompt.
  */
-export async function ensureMicPermission(): Promise<MicStatus> {
-  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return 'unavailable'
+export async function ensureMicPermission(): Promise<MicCheck> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    return { status: 'unavailable', errorName: 'NoMediaDevices' }
+  }
+  let inputs: number | undefined
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    inputs = devices.filter((d) => d.kind === 'audioinput').length
+  } catch {
+    /* ignore */
+  }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     stream.getTracks().forEach((t) => t.stop())
-    return 'granted'
+    return { status: 'granted', inputs }
   } catch (e: any) {
-    if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') return 'denied'
-    if (e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError') return 'unavailable'
-    return 'denied'
+    const errorName = e?.name || 'Error'
+    const errorMessage = e?.message || ''
+    if (errorName === 'NotAllowedError' || errorName === 'SecurityError' || errorName === 'PermissionDeniedError') {
+      return { status: 'denied', errorName, errorMessage, inputs }
+    }
+    if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError' || errorName === 'OverconstrainedError' || inputs === 0) {
+      return { status: 'unavailable', errorName, errorMessage, inputs }
+    }
+    // NotReadableError / AbortError / TrackStartError: device exists but could not start
+    // (Windows privacy toggle, another app holding the mic, driver issue).
+    return { status: 'error', errorName, errorMessage, inputs }
   }
 }
 

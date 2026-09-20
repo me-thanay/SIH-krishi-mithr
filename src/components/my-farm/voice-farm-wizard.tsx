@@ -65,6 +65,20 @@ const ENGLISH_PROMPTS: Prompts = {
 const MIC_DENIED_MESSAGE =
   "Microphone is blocked for this site. Click the lock/camera icon in the address bar, set Microphone to Allow, then press Retry microphone."
 
+const WINDOWS_MIC_HINT =
+  "If Chrome already says Allow: open Windows Settings → Privacy & security → Microphone, turn on “Microphone access” and “Let desktop apps access your microphone”, close other apps using the mic (Zoom, Teams, Discord), then press Retry microphone."
+
+function micProblemMessage(check: { status: string; errorName?: string; errorMessage?: string; inputs?: number }) {
+  const detail = check.errorName ? ` (${check.errorName}${check.errorMessage ? `: ${check.errorMessage}` : ""})` : ""
+  if (check.status === "unavailable") {
+    return `No microphone was found on this device${detail}. Plug in or enable a mic, or type the answers in the form.`
+  }
+  if (check.status === "denied") {
+    return `${MIC_DENIED_MESSAGE}${detail} ${WINDOWS_MIC_HINT}`
+  }
+  return `The microphone could not start${detail}. ${WINDOWS_MIC_HINT}`
+}
+
 function getClientId() {
   if (typeof window === "undefined") return ""
   let id = localStorage.getItem("km_client_id")
@@ -164,7 +178,7 @@ export function VoiceFarmWizard() {
       if (e instanceof VoiceAbort) throw e
       if (e?.message === "mic-denied") {
         setMicStatus("denied")
-        throw new Error(MIC_DENIED_MESSAGE)
+        throw new Error(`${MIC_DENIED_MESSAGE} ${WINDOWS_MIC_HINT}`)
       }
       if (e?.message === "unsupported") {
         throw new Error("This browser has no speech recognition. Use Chrome or Edge, or type the answers in the form.")
@@ -457,10 +471,10 @@ export function VoiceFarmWizard() {
       setPhase("error")
       return false
     }
-    const status = await ensureMicPermission()
-    setMicStatus(status)
-    if (status === "granted") return true
-    setError(status === "denied" ? MIC_DENIED_MESSAGE : "No microphone was found on this device. You can still type the answers in the form.")
+    const check = await ensureMicPermission()
+    setMicStatus(check.status)
+    if (check.status === "granted") return true
+    setError(micProblemMessage(check))
     setPhase("error")
     return false
   }
@@ -710,7 +724,7 @@ export function VoiceFarmWizard() {
             {/OPENROUTER_API_KEY/.test(error) && (
               <p className="mt-1 text-xs text-red-600/80">Add OPENROUTER_API_KEY in Vercel → Settings → Environment Variables, then Redeploy.</p>
             )}
-            {micStatus === "denied" && (
+            {(micStatus === "denied" || micStatus === "error" || micStatus === "unavailable") && (
               <button
                 type="button"
                 onClick={() => void retryMic()}

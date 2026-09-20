@@ -71,6 +71,12 @@ def _save_mongo(doc: Dict[str, Any]) -> None:
             {"$set": sensor_doc},
             upsert=True,
         )
+        try:
+            from app.services.hourly_rollup import roll_hourly
+
+            roll_hourly(db, {**sensor_doc, **doc})
+        except Exception as roll_exc:  # noqa: BLE001
+            print(f"Hourly rollup skipped: {roll_exc}")
         client.close()
     except Exception as exc:  # noqa: BLE001
         print(f"MQTT ingest Mongo save skipped: {exc}")

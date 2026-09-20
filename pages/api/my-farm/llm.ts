@@ -6,6 +6,7 @@ import {
   type Answers,
   type DetectedLocation,
 } from '../../../src/lib/my-farm-schema'
+import { chatJson } from '../../../src/lib/gemini'
 
 /**
  * My Farm voice assistant brain.
@@ -19,57 +20,6 @@ import {
  *   summary           { language, answers }
  *   review_intent     { language, transcript, answers }
  */
-
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash-lite'
-
-function stripFences(text: string): string {
-  const t = text.trim()
-  const fenced = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
-  return fenced ? fenced[1] : t
-}
-
-async function chatJson<T = any>(system: string, user: string, temperature = 0.2, maxTokens = 700): Promise<T> {
-  const key = process.env.OPENROUTER_API_KEY
-  if (!key) throw new Error('OPENROUTER_API_KEY is not configured on the server')
-
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 25_000)
-  try {
-    const r = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://krishi-mithr.vercel.app',
-        'X-Title': 'Krishi Mithr My Farm',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        temperature,
-        // Without an explicit cap OpenRouter reserves the model's full output window
-        // (65k for flash-lite) against the account balance and returns 402 on small credits.
-        max_tokens: maxTokens,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-      }),
-    })
-    const text = await r.text()
-    if (!r.ok) {
-      throw new Error(`OpenRouter ${r.status}: ${text.slice(0, 300)}`)
-    }
-    const data = JSON.parse(text)
-    const content: string = data?.choices?.[0]?.message?.content ?? ''
-    if (!content) throw new Error('Empty model response')
-    return JSON.parse(stripFences(content)) as T
-  } finally {
-    clearTimeout(timer)
-  }
-}
 
 const BASE_SYSTEM = `You are the voice assistant of Krishi Mithr, an Indian farm app.
 You talk to farmers who may be low-literacy. Use short, warm, simple spoken sentences.
@@ -298,6 +248,32 @@ message rules: for edit with has_new_value=false, message MUST be a short questi
 (e.g. "Okay, what should the field name be?"). For edit with has_new_value=true, a short acknowledgement. For confirm/cancel/unclear, one short sentence.
 Return {"action": "confirm|edit|cancel|unclear", "field_id": "<id or null>", "has_new_value": true|false, "new_value_transcript": "<string or null>", "message": "<spoken sentence in the farmer's language>"}`,
           0.1
+        )
+        return res.status(200).json(out)
+      }
+
+      case 'daily_brief': {
+        const language = String(body.language || 'en-IN')
+        const out = await chatJson(
+          `${BASE_SYSTEM}\n${languageInstruction(language)}
+You write a daily field brief for a farmer. Be conservative: do not invent irrigation volumes, disease names, or yield.
+If a fact is missing, say it is missing. Use the comparison numbers as evidence.`,
+          `Farm profile: ${JSON.stringify(body.profile || {})}
+Comparison of last 24 hourly summaries vs this crop/stage: ${JSON.stringify(body.comparison || {})}
+Hourly summaries (oldest first): ${JSON.stringify(body.hours || [])}
+Recent motor/rain events: ${JSON.stringify(body.events || [])}
+Tomorrow weather (if any): ${JSON.stringify(body.weather || {})}
+Yesterday brief (if any): ${JSON.stringify(body.previous || null)}
+
+Return {
+  "headline": "<one short line>",
+  "today": "<what happened today, 2-4 sentences>",
+  "attention": ["<condition that needs a look>"],
+  "tomorrow": ["<suggested check or task for tomorrow>"],
+  "missing": ["<what data is missing>"]
+}`,
+          0.3,
+          1200
         )
         return res.status(200).json(out)
       }

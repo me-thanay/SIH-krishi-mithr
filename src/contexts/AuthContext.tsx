@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import { authAPI, tokenManager } from '@/lib/auth-client'
+import { routeAfterAuth } from '@/lib/after-auth'
 
 const AuthModal = dynamic(
   () => import('@/components/ui/auth-modal').then((mod) => mod.AuthModal),
@@ -134,6 +135,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUser(nextUser)
           setIsLoading(false)
           hideAuthModal()
+          void routeAfterAuth()
         }}
       />
     </AuthContext.Provider>

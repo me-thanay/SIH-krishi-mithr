@@ -110,7 +110,7 @@ async function llm<T = any>(payload: Record<string, unknown>): Promise<T> {
   return j as T
 }
 
-export function VoiceFarmWizard() {
+export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "settings" }) {
   const [phase, setPhase] = useState<Phase>("idle")
   const [language, setLanguage] = useState<string | null>(null)
   const [prompts, setPrompts] = useState<Prompts>(ENGLISH_PROMPTS)
@@ -152,10 +152,21 @@ export function VoiceFarmWizard() {
     setLog((prev) => [...prev, { who, text }])
   }, [])
 
+  const persistDraft = useCallback((next: Answers) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
+    if (!token) return
+    void fetch("/api/farm/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ answers: next, language: langRef.current, detected: detectedRef.current }),
+    }).catch(() => undefined)
+  }, [])
+
   const setAnswer = useCallback((id: string, a: Answer) => {
     answersRef.current = { ...answersRef.current, [id]: a }
     setAnswers(answersRef.current)
-  }, [])
+    persistDraft(answersRef.current)
+  }, [persistDraft])
 
   const checkAbort = () => {
     if (runSignal.current.aborted) throw new VoiceAbort()
@@ -248,12 +259,46 @@ export function VoiceFarmWizard() {
   const loadSaved = async () => {
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
+      if (token) {
+        const p = await fetch("/api/farm/profile", { headers: { Authorization: `Bearer ${token}` } })
+        if (p.ok) {
+          const j = await p.json()
+          if (j.draft?.answers && Object.keys(j.draft.answers).length) {
+            answersRef.current = j.draft.answers
+            setAnswers(j.draft.answers)
+            if (j.draft.language) {
+              langRef.current = j.draft.language
+              setLanguage(j.draft.language)
+            }
+            if (j.draft.detected) {
+              detectedRef.current = j.draft.detected
+              setDetected(j.draft.detected)
+            }
+            pushLog("system", "Resuming the answers you already gave.")
+          }
+          if (j.setupComplete && j.profile) {
+            setSaved([
+              {
+                id: j.profile.field_id || j.profile.id,
+                fieldName: j.profile.fieldName,
+                crop: j.profile.crop,
+                location: j.profile.location,
+                area: j.profile.area,
+              },
+            ])
+            if (mode === "setup" && !j.draft?.answers) {
+              window.location.href = "/dashboard"
+              return
+            }
+          }
+        }
+      }
       const r = await fetch(`/api/my-farm/fields?clientId=${encodeURIComponent(getClientId())}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (r.ok) {
         const j = await r.json()
-        setSaved(j.fields || [])
+        setSaved((prev) => (prev.length ? prev : j.fields || []))
       }
     } catch {
       /* ignore */
@@ -471,21 +516,25 @@ export function VoiceFarmWizard() {
     await say(promptsRef.current.saving)
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
-      const r = await fetch("/api/my-farm/fields", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      if (!token) throw new Error("Sign in first so this field is saved with your farmer profile.")
+      const r = await fetch("/api/farm/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           answers: answersRef.current,
           detected: detectedRef.current,
           language: langRef.current,
-          clientId: getClientId(),
         }),
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j?.error || `Save failed (${r.status})`)
-      setSavedId(j.id)
+      setSavedId(j.profile?.field_id || j.profile?.id || "saved")
       setPhase("done")
       await say(promptsRef.current.saved)
+      if (mode === "setup") {
+        window.location.href = "/dashboard"
+        return
+      }
       void loadSaved()
     } catch (e: any) {
       setError(e?.message || "Save failed")

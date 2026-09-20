@@ -67,6 +67,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const live = await fetchMqttLive()
     if (live) {
+      try {
+        const { rollHourlyFromReading } = await import('../../../src/lib/sensor-hourly')
+        await rollHourlyFromReading(live.data)
+      } catch (e) {
+        console.warn('[sensor-data] hourly rollup skipped', e)
+      }
       return res.status(200).json({
         data: live.data,
         updated: true,

@@ -176,13 +176,21 @@ export default function ProfilePage() {
               </h1>
               <p className="text-gray-600 mt-2">Manage your personal and agricultural information</p>
             </div>
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              {isEditing ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
-              {isEditing ? 'Cancel' : 'Edit Profile'}
-            </button>
+            <div className="flex items-center gap-2">
+              <a
+                href="/my-farm?edit=1"
+                className="flex items-center gap-2 px-4 py-2 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 transition-colors"
+              >
+                Farm setup
+              </a>
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                {isEditing ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                {isEditing ? 'Cancel' : 'Edit Profile'}
+              </button>
+            </div>
           </div>
         </div>
 

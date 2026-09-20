@@ -16,6 +16,7 @@ import { ToastContainer } from "./ui/toast-notification"
 import { useNotifications } from "@/hooks/useNotifications"
 import { CameraScanPanel } from "./ui/camera-scan-panel"
 import { XgboostAdvisoryPanel } from "./ui/xgboost-advisory-panel"
+import { FieldDecisionPanel } from "./ui/field-decision-panel"
 import { GoaSensorStrip } from "./ui/goa-sensor-strip"
 import { NewNavbar } from './ui/new-navbar'
 import { VoiceChat } from "./ui/ia-siri-chat"
@@ -474,6 +475,8 @@ const SmartAgriTechComponent = ({ hideNavbar = false }: { hideNavbar?: boolean }
               <RelayControls speechLanguage={speechLanguage} />
 
               <GoaSensorStrip />
+
+              <FieldDecisionPanel />
 
               <XgboostAdvisoryPanel city="Hyderabad" />
 

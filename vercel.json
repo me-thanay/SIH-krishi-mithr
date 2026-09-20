@@ -9,6 +9,12 @@
       "memory": 1024
     }
   },
+  "crons": [
+    {
+      "path": "/api/farm/cron",
+      "schedule": "15 18 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

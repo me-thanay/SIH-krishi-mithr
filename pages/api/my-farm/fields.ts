@@ -146,6 +146,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const inserted = await withDb((db) => db.collection(COLLECTION).insertOne({ ...doc, createdAt: now }))
+
+      if (userId) {
+        try {
+          const { randomUUID } = await import('crypto')
+          const { COLLECTIONS } = await import('../../../src/lib/mongo')
+          await withDb(async (db) => {
+            const existing = await db.collection(COLLECTIONS.farmProfiles).findOne({ farmer_id: userId })
+            const field_id = existing?.field_id || String(inserted.insertedId)
+            const cropChanged = existing?.crop && structured.crop && existing.crop !== structured.crop
+            const cycles = Array.isArray(existing?.cropCycles) ? [...existing.cropCycles] : []
+            if (cropChanged && cycles.length) cycles[cycles.length - 1].endedAt = now.toISOString()
+            if (!cycles.length || cropChanged) {
+              cycles.push({
+                id: randomUUID(),
+                crop: structured.crop,
+                variety: structured.variety,
+                sownAt: structured.sowing.date,
+                endedAt: null,
+                growthStage: structured.growthStage,
+              })
+            }
+            await db.collection(COLLECTIONS.farmProfiles).updateOne(
+              { farmer_id: userId },
+              {
+                $set: {
+                  farmer_id: userId,
+                  field_id,
+                  setupComplete: true,
+                  ...structured,
+                  language,
+                  timezone: existing?.timezone || 'Asia/Kolkata',
+                  deviceId: existing?.deviceId || 'esp32_goa',
+                  cropCycles: cycles,
+                  answers,
+                  draft: null,
+                  updatedAt: now,
+                },
+                $setOnInsert: { createdAt: now },
+              },
+              { upsert: true }
+            )
+          })
+        } catch (e) {
+          console.warn('[my-farm/fields] farm_profiles sync skipped', e)
+        }
+      }
+
       return res.status(201).json({ success: true, id: String(inserted.insertedId), field: { id: String(inserted.insertedId), ...doc, createdAt: now } })
     }
 

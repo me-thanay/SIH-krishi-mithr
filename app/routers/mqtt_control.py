@@ -138,7 +138,7 @@ async def latest_sensor_reading():
                 if hasattr(ts, "isoformat"):
                     doc["timestamp"] = ts.isoformat()
                 return {"ok": True, "source": "mongo", "data": doc}
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "source": None, "data": None, "error": str(exc)}
+    except Exception:
+        pass
     return {"ok": False, "source": None, "data": None, "message": "No ESP32 reading yet"}
 

@@ -1,4 +1,4 @@
-"""Background MQTT subscriber: HiveMQ → sensor_bus (+ optional MongoDB).
+"""Background MQTT subscriber: HiveMQ -> sensor_bus (+ optional MongoDB).
 
 Topics match Goa ESP32 firmware:
   publish  krishimithr/sensor/data
@@ -136,4 +136,4 @@ def start_mqtt_ingest() -> None:
     _thread = threading.Thread(target=run, name="mqtt-ingest", daemon=True)
     _thread.start()
     _started = True
-    print("MQTT ingest thread started (Goa ESP32 → sensor_bus)")
+    print("MQTT ingest thread started (Goa ESP32 -> sensor_bus)")

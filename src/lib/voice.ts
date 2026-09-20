@@ -48,22 +48,86 @@ export async function hasVoiceFor(lang: string) {
 }
 
 let currentUtterance: SpeechSynthesisUtterance | null = null
+let currentAudio: HTMLAudioElement | null = null
 
 export function stopSpeaking() {
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel()
   }
   currentUtterance = null
+  if (currentAudio) {
+    try {
+      currentAudio.pause()
+      currentAudio.src = ''
+    } catch {
+      /* ignore */
+    }
+    currentAudio = null
+  }
 }
 
-/** Speak text and resolve when finished (or immediately if TTS is unavailable). */
-export async function speak(text: string, lang: string, signal?: { aborted: boolean }): Promise<void> {
-  if (!text || typeof window === 'undefined' || !('speechSynthesis' in window)) return
-  if (signal?.aborted) throw new VoiceAbort()
+export type MicStatus = 'granted' | 'denied' | 'unavailable'
+
+/**
+ * Ask for the microphone inside the user's click so the browser prompt appears right away.
+ * Speech recognition then starts without a second prompt.
+ */
+export async function ensureMicPermission(): Promise<MicStatus> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return 'unavailable'
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    stream.getTracks().forEach((t) => t.stop())
+    return 'granted'
+  } catch (e: any) {
+    if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') return 'denied'
+    if (e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError') return 'unavailable'
+    return 'denied'
+  }
+}
+
+/** Play server-rendered speech (for languages the browser has no voice for). */
+async function speakRemote(text: string, lang: string, signal?: { aborted: boolean }): Promise<boolean> {
+  try {
+    const url = `/api/my-farm/tts?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(text)}`
+    const r = await fetch(url)
+    if (!r.ok) return false
+    const blob = await r.blob()
+    if (!blob.size) return false
+    if (signal?.aborted) throw new VoiceAbort()
+    const objectUrl = URL.createObjectURL(blob)
+    const audio = new Audio(objectUrl)
+    currentAudio = audio
+    await new Promise<void>((resolve, reject) => {
+      let settled = false
+      const done = () => {
+        if (settled) return
+        settled = true
+        URL.revokeObjectURL(objectUrl)
+        if (currentAudio === audio) currentAudio = null
+        resolve()
+      }
+      audio.onended = done
+      audio.onerror = done
+      audio.onpause = () => {
+        if (audio.ended || audio.currentTime === 0) return
+        done()
+      }
+      audio.play().catch((e) => {
+        settled = true
+        URL.revokeObjectURL(objectUrl)
+        reject(e)
+      })
+    })
+    return true
+  } catch (e) {
+    if (e instanceof VoiceAbort) throw e
+    return false
+  }
+}
+
+function speakLocal(text: string, lang: string, voice: SpeechSynthesisVoice | null): Promise<void> {
   const synth = window.speechSynthesis
-  synth.cancel()
-  const voice = await pickVoice(lang)
-  await new Promise<void>((resolve) => {
+  return new Promise<void>((resolve) => {
     const u = new SpeechSynthesisUtterance(text)
     u.lang = voice?.lang || lang
     if (voice) u.voice = voice
@@ -71,11 +135,15 @@ export async function speak(text: string, lang: string, signal?: { aborted: bool
     u.pitch = 1
     u.volume = 1
     let settled = false
+    let started = false
     const finish = () => {
       if (settled) return
       settled = true
       currentUtterance = null
       resolve()
+    }
+    u.onstart = () => {
+      started = true
     }
     u.onend = finish
     u.onerror = finish
@@ -83,9 +151,39 @@ export async function speak(text: string, lang: string, signal?: { aborted: bool
     // Chrome occasionally never fires onend for long utterances; guard with a timer.
     const words = text.split(/\s+/).length
     setTimeout(finish, Math.min(60_000, 2500 + words * 600))
-    // Delay so cancel() above has flushed.
-    setTimeout(() => synth.speak(u), 80)
+    // Delay so cancel() has flushed, then detect a silently dropped utterance.
+    setTimeout(() => {
+      synth.speak(u)
+      setTimeout(() => {
+        if (!started && !synth.speaking && !synth.pending) finish()
+      }, 1500)
+    }, 80)
   })
+}
+
+/**
+ * Speak text and resolve when finished.
+ * Uses the browser voice when one exists for the language; otherwise streams audio
+ * from /api/my-farm/tts so Telugu/Tamil/... still play on desktop browsers.
+ */
+export async function speak(text: string, lang: string, signal?: { aborted: boolean }): Promise<void> {
+  if (!text || typeof window === 'undefined') return
+  if (signal?.aborted) throw new VoiceAbort()
+  const hasSynth = 'speechSynthesis' in window
+  if (hasSynth) window.speechSynthesis.cancel()
+
+  const voice = hasSynth ? await pickVoice(lang) : null
+  const prefix = lang.split('-')[0].toLowerCase()
+  const voiceMatches = Boolean(voice && voice.lang.replace('_', '-').toLowerCase().startsWith(prefix))
+
+  if (!voiceMatches) {
+    const ok = await speakRemote(text, lang, signal)
+    if (ok) {
+      if (signal?.aborted) throw new VoiceAbort()
+      return
+    }
+  }
+  if (hasSynth) await speakLocal(text, lang, voice)
   if (signal?.aborted) throw new VoiceAbort()
 }
 

@@ -10,7 +10,7 @@ import {
   type Answer,
   type DetectedLocation,
 } from "@/lib/my-farm-schema"
-import { beep, listenOnce, speak, speechSupported, stopSpeaking, VoiceAbort } from "@/lib/voice"
+import { beep, ensureMicPermission, listenOnce, speak, speechSupported, stopSpeaking, VoiceAbort, type MicStatus } from "@/lib/voice"
 
 type Phase =
   | "idle"
@@ -62,6 +62,9 @@ const ENGLISH_PROMPTS: Prompts = {
   location_missing: "I could not detect your location automatically.",
 }
 
+const MIC_DENIED_MESSAGE =
+  "Microphone is blocked for this site. Click the lock/camera icon in the address bar, set Microphone to Allow, then press Retry microphone."
+
 function getClientId() {
   if (typeof window === "undefined") return ""
   let id = localStorage.getItem("km_client_id")
@@ -98,6 +101,7 @@ export function VoiceFarmWizard() {
   const [savedId, setSavedId] = useState<string | null>(null)
   const [saved, setSaved] = useState<SavedField[]>([])
   const [support, setSupport] = useState({ tts: true, stt: true })
+  const [micStatus, setMicStatus] = useState<MicStatus | "unknown">("unknown")
 
   // Mutable mirrors for the async conversation loop.
   const answersRef = useRef<Answers>({})
@@ -159,7 +163,8 @@ export function VoiceFarmWizard() {
       setInterim("")
       if (e instanceof VoiceAbort) throw e
       if (e?.message === "mic-denied") {
-        throw new Error("Microphone permission was denied. Allow the mic in the browser and press Start again.")
+        setMicStatus("denied")
+        throw new Error(MIC_DENIED_MESSAGE)
       }
       if (e?.message === "unsupported") {
         throw new Error("This browser has no speech recognition. Use Chrome or Edge, or type the answers in the form.")
@@ -445,6 +450,30 @@ export function VoiceFarmWizard() {
     setPhase("error")
   }
 
+  /** Ask for the mic inside the click; returns false (and shows guidance) when blocked. */
+  const requestMic = async (): Promise<boolean> => {
+    if (!support.stt) {
+      setError("This browser has no speech recognition. Use Chrome or Edge, or type the answers in the form.")
+      setPhase("error")
+      return false
+    }
+    const status = await ensureMicPermission()
+    setMicStatus(status)
+    if (status === "granted") return true
+    setError(status === "denied" ? MIC_DENIED_MESSAGE : "No microphone was found on this device. You can still type the answers in the form.")
+    setPhase("error")
+    return false
+  }
+
+  const retryMic = async () => {
+    setError(null)
+    const ok = await requestMic()
+    if (!ok) return
+    if (currentId && language) await reaskField(currentId)
+    else if (language) await reviewAgain()
+    else await startFresh()
+  }
+
   const startFresh = async () => {
     stopAll()
     runSignal.current = { aborted: false }
@@ -454,6 +483,7 @@ export function VoiceFarmWizard() {
     answersRef.current = {}
     setAnswers({})
     setCurrentId(null)
+    if (!(await requestMic())) return
     try {
       const locationPromise = locate()
       const code = await askLanguage()
@@ -484,6 +514,10 @@ export function VoiceFarmWizard() {
     stopAll()
     runSignal.current = { aborted: false }
     setError(null)
+    langRef.current = code
+    setLanguage(code)
+    setPhase("preparing")
+    if (micStatus !== "granted" && !(await requestMic())) return
     try {
       const locationPromise = detectedRef.current ? undefined : locate()
       await runFrom(code, locationPromise)
@@ -603,7 +637,7 @@ export function VoiceFarmWizard() {
         )}
 
         {/* Language picker (always available while choosing) */}
-        {(phase === "language" || phase === "idle") && (
+        {(phase === "language" || phase === "idle" || (phase === "error" && !language)) && (
           <div className="mt-4">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-stone-500">
               <Languages className="h-3.5 w-3.5" /> Or tap your language
@@ -675,6 +709,15 @@ export function VoiceFarmWizard() {
             {error}
             {/OPENROUTER_API_KEY/.test(error) && (
               <p className="mt-1 text-xs text-red-600/80">Add OPENROUTER_API_KEY in Vercel → Settings → Environment Variables, then Redeploy.</p>
+            )}
+            {micStatus === "denied" && (
+              <button
+                type="button"
+                onClick={() => void retryMic()}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+              >
+                <Mic className="h-3.5 w-3.5" /> Retry microphone
+              </button>
             )}
           </div>
         )}

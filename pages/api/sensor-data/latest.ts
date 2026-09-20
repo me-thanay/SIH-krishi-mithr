@@ -1,150 +1,85 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { MongoClient } from 'mongodb'
+
+function backendBase(): string {
+  const raw = (
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    ''
+  ).trim()
+  let url = raw.replace(/\/$/, '')
+  if (url.startsWith('http://') && /(onrender\.com|ngrok|trycloudflare\.com|loca\.lt)/i.test(url)) {
+    url = url.replace(/^http:\/\//, 'https://')
+  }
+  return url
+}
+
+function tunnelHeaders(): Record<string, string> {
+  const base = backendBase()
+  const headers: Record<string, string> = { accept: 'application/json' }
+  if (/ngrok/i.test(base)) headers['ngrok-skip-browser-warning'] = 'true'
+  if (/loca\.lt/i.test(base)) headers['bypass-tunnel-reminder'] = 'true'
+  return headers
+}
+
+/** Hardcoded demo row from the old fallback — never show this as live ESP data. */
+function isFakeDemoRow(data: any): boolean {
+  if (!data || typeof data !== 'object') return false
+  return (
+    Number(data.temperature) === 34 &&
+    Number(data.humidity) === 68 &&
+    Number(data.soil_moisture ?? data.soilMoisture) === 18 &&
+    Number(data.TDS ?? data.tds_ppm) === 950
+  )
+}
+
+async function fetchMqttLive(): Promise<{ data: any; source: string } | null> {
+  const base = backendBase()
+  if (!base) return null
+  try {
+    const r = await fetch(`${base}/api/mqtt/latest-sensor`, {
+      headers: tunnelHeaders(),
+    })
+    if (!r.ok) return null
+    const j = await r.json()
+    if (j?.data && !isFakeDemoRow(j.data)) {
+      return { data: j.data, source: j.source || 'mqtt_live' }
+    }
+  } catch (e) {
+    console.warn('[sensor-data] FastAPI MQTT fetch failed', e)
+  }
+  return null
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const sendMockData = () => {
-    const mock = {
-      temperature: 34,
-      humidity: 68,
-      TDS: 950,
-      soil_moisture: 18,
-      CO2_ppm: 120,
-      NH3_ppm: 25,
-      Benzene_ppm: 5,
-      Smoke_ppm: 12,
-      light: 850,
-      motion: 0,
-      motion_detected: false,
-      timestamp: new Date().toISOString()
-    }
-
-    return res.status(200).json({
-      data: mock,
-      updated: true,
-      timestamp: mock.timestamp,
-      available_fields: Object.keys(mock),
-      missing_fields: [],
-      mock: true,
-      message: 'Serving mock sensor data (database unreachable)'
+  const empty = (message: string) =>
+    res.status(200).json({
+      data: null,
+      updated: false,
+      mock: false,
+      message,
+      timestamp: new Date().toISOString(),
     })
-  }
 
   try {
-    if (!process.env.DATABASE_URL) {
-      console.warn('[sensor-data] DATABASE_URL missing, serving mock data')
-      return sendMockData()
-    }
-
-    const client = new MongoClient(process.env.DATABASE_URL)
-    await client.connect()
-    const db = client.db('krishi-mithr')
-    const collection = db.collection('sensor_readings')
-    
-    // Get last update timestamp from query (for incremental updates)
-    const lastUpdate = req.query.lastUpdate as string | undefined
-    
-    // Get current sensor reading (data is updated in place, so latest = current)
-    // If multiple devices, get the most recent one
-    let query: any = {}
-    
-    // If lastUpdate is provided, only get data updated after that timestamp
-    if (lastUpdate) {
-      try {
-        const lastUpdateDate = new Date(lastUpdate)
-        query.timestamp = { $gt: lastUpdateDate }
-      } catch (e) {
-        // Invalid date, ignore and return all data
-      }
-    }
-    
-    const latest = await collection
-      .find(query)
-      .sort({ timestamp: -1 })
-      .limit(1)
-      .toArray()
-    
-    await client.close()
-    
-    // If querying for updates and nothing found, return no changes
-    if (lastUpdate && latest.length === 0) {
-      return res.status(200).json({ 
-        data: null,
-        updated: false,
-        message: 'No updates since last fetch',
-        timestamp: new Date().toISOString()
+    const live = await fetchMqttLive()
+    if (live) {
+      return res.status(200).json({
+        data: live.data,
+        updated: true,
+        mock: false,
+        source: live.source,
+        timestamp: live.data.timestamp || new Date().toISOString(),
+        available_fields: Object.keys(live.data),
+        missing_fields: [],
       })
     }
-    
-    if (latest.length === 0) {
-      // Fall back to FastAPI MQTT ingest (Goa ESP32 live buffer)
-      try {
-        const backend = (
-          process.env.NEXT_PUBLIC_BACKEND_URL ||
-          process.env.NEXT_PUBLIC_API_URL ||
-          ''
-        ).replace(/\/$/, '')
-        if (backend) {
-          const headers: Record<string, string> = { accept: 'application/json' }
-          if (/loca\.lt/i.test(backend)) headers['bypass-tunnel-reminder'] = 'true'
-          if (/ngrok/i.test(backend)) headers['ngrok-skip-browser-warning'] = 'true'
-          const r = await fetch(`${backend}/api/mqtt/latest-sensor`, { headers })
-          if (r.ok) {
-            const j = await r.json()
-            if (j?.data) {
-              return res.status(200).json({
-                data: j.data,
-                updated: true,
-                timestamp: j.data.timestamp || new Date().toISOString(),
-                available_fields: Object.keys(j.data),
-                missing_fields: [],
-                source: j.source || 'fastapi_mqtt',
-              })
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('[sensor-data] FastAPI MQTT fallback failed', e)
-      }
-      return res.status(200).json({ 
-        data: null, 
-        updated: false,
-        message: 'No sensor data available — flash Goa ESP32 and keep FastAPI MQTT ingest running',
-        missing_fields: ['temperature', 'humidity', 'CO2_ppm', 'NH3_ppm', 'Benzene_ppm', 'Smoke_ppm']
-      })
-    }
-    
-    const data = latest[0]
-    
-    // Check which fields are missing
-    const missingFields: string[] = []
-    const availableFields: string[] = []
-    
-    const fields = ['temperature', 'humidity', 'CO2_ppm', 'NH3_ppm', 'Benzene_ppm', 'Smoke_ppm', 
-                     'soil_moisture', 'rain_status', 'motor_state', 'motor_on', 'TDS', 
-                     'water_quality', 'light', 'light_status', 'motion', 'motion_detected',
-                     'air_quality_status', 'CO2_ppm', 'NH3_ppm', 'Benzene_ppm', 'Smoke_ppm']
-    fields.forEach(field => {
-      if (data[field] === null || data[field] === undefined) {
-        missingFields.push(field)
-      } else {
-        availableFields.push(field)
-      }
-    })
-    
-    return res.status(200).json({ 
-      data: data,
-      updated: true,
-      timestamp: data.timestamp || new Date().toISOString(),
-      available_fields: availableFields,
-      missing_fields: missingFields
-    })
+    return empty('Waiting for Goa ESP32 MQTT. Keep FastAPI + tunnel running; Serial should say Published successfully.')
   } catch (error: any) {
-    console.error('Error fetching sensor data, serving mock:', error?.message || error)
-    return sendMockData()
+    console.error('Error fetching sensor data:', error?.message || error)
+    return empty('Sensor backend unreachable — start run_local_gpu.ps1 and the tunnel.')
   }
 }
-

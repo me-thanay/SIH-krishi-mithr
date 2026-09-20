@@ -126,19 +126,5 @@ async def latest_sensor_reading():
         if hasattr(ts, "isoformat"):
             out["timestamp"] = ts.isoformat()
         return {"ok": True, "source": "mqtt_live", "data": out}
-    try:
-        from app.camera_scans import get_db
-
-        db = get_db()
-        if db is not None:
-            doc = db["sensor_readings"].find_one(sort=[("timestamp", -1)])
-            if doc:
-                doc.pop("_id", None)
-                ts = doc.get("timestamp")
-                if hasattr(ts, "isoformat"):
-                    doc["timestamp"] = ts.isoformat()
-                return {"ok": True, "source": "mongo", "data": doc}
-    except Exception:
-        pass
-    return {"ok": False, "source": None, "data": None, "message": "No ESP32 reading yet"}
+    return {"ok": False, "source": None, "data": None, "message": "No ESP32 MQTT reading yet"}
 

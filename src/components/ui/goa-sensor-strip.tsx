@@ -16,6 +16,16 @@ type SensorRow = {
   timestamp?: string
 }
 
+function isFakeDemoRow(data: SensorRow | null): boolean {
+  if (!data) return false
+  return (
+    Number(data.temperature) === 34 &&
+    Number(data.humidity) === 68 &&
+    Number(data.soil_moisture ?? data.soilMoisture) === 18 &&
+    Number(data.TDS ?? data.tds_ppm) === 950
+  )
+}
+
 export function GoaSensorStrip() {
   const [data, setData] = useState<SensorRow | null>(null)
   const [source, setSource] = useState<string>("")
@@ -25,13 +35,20 @@ export function GoaSensorStrip() {
     try {
       const r = await fetch("/api/sensor-data/latest")
       const j = await r.json()
+      if (j?.mock || isFakeDemoRow(j?.data)) {
+        setData(null)
+        setSource("")
+        setError("Demo numbers blocked. Waiting for real ESP32 MQTT…")
+        return
+      }
       if (j?.data) {
         setData(j.data)
-        setSource(j.source || "live")
+        setSource(j.source || "esp32")
         setError(null)
       } else {
         setData(null)
-        setError(j?.message || "Waiting for Goa ESP32…")
+        setSource("")
+        setError(j?.message || "Waiting for Goa ESP32 MQTT publish…")
       }
     } catch {
       setError("Sensor API unreachable")
@@ -40,7 +57,7 @@ export function GoaSensorStrip() {
 
   useEffect(() => {
     void load()
-    const t = setInterval(() => void load(), 8000)
+    const t = setInterval(() => void load(), 5000)
     return () => clearInterval(t)
   }, [])
 

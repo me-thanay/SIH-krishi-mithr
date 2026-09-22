@@ -1,8 +1,14 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Form, Header
+from fastapi.responses import Response
 from typing import Any, Callable, Dict, List, Optional
 import os
 import threading
+import time
 from datetime import datetime, timezone
+from urllib.request import urlopen
+
+# Same URL/port as the Streamlit IP Webcam dashboard — do not change the port.
+PHONE_SNAPSHOT_URL = "http://192.0.0.4:8080/shot.jpg"
 
 router = APIRouter()
 
@@ -368,3 +374,23 @@ async def latest_device_scan(device_id: Optional[str] = Query(None)):
     if not doc:
         return {"data": None, "message": "No camera scans yet"}
     return {"data": doc, "updated": True}
+
+
+@router.get("/phone-snapshot")
+async def phone_ip_webcam_snapshot():
+    """Proxy the phone IP Webcam still (Streamlit /shot.jpg on port 8080)."""
+    url = f"{PHONE_SNAPSHOT_URL}?t={int(time.time() * 1000)}"
+    try:
+        with urlopen(url, timeout=4) as resp:
+            data = resp.read()
+            content_type = resp.headers.get_content_type() or "image/jpeg"
+        return Response(
+            content=data,
+            media_type=content_type,
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to fetch image from phone IP Webcam app. Make sure the server is running.",
+        )

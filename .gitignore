@@ -51,5 +51,6 @@ build/
 /generated/prisma
 /data/local-users.json
 /data/krishi-mithr-users.json
+/data/krishi-mithr-farms.json
 
 # Local tunnel runtime note (optional; example committed as tunnel-named.json)

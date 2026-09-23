@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { COLLECTIONS, getDb } from '../../../src/lib/mongo'
+import { getLocalFarmProfile } from '../../../src/lib/farm-local-store'
 import { userIdFromRequest } from '../../../src/lib/farm-profile'
 import { compareHourlyToProfile } from '../../../src/lib/sensor-hourly'
 
@@ -9,21 +10,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!userId) return res.status(401).json({ error: 'Unauthorized' })
   try {
     const hours = Number(req.query.hours || 24)
-    const db = await getDb()
-    const profile = await db.collection(COLLECTIONS.farmProfiles).findOne({ farmer_id: userId })
+    let profile: any = null
+    let rows: any[] = []
+    let events: any[] = []
+    try {
+      const db = await getDb()
+      profile = await db.collection(COLLECTIONS.farmProfiles).findOne({ farmer_id: userId })
+      if (profile) {
+        const since = new Date(Date.now() - hours * 60 * 60 * 1000)
+        rows = await db
+          .collection(COLLECTIONS.sensorHourly)
+          .find({ farmer_id: userId, field_id: profile.field_id, hour_start: { $gte: since } })
+          .sort({ hour_start: 1 })
+          .toArray()
+        events = await db
+          .collection(COLLECTIONS.sensorEvents)
+          .find({ farmer_id: userId, field_id: profile.field_id, timestamp: { $gte: since } })
+          .sort({ timestamp: -1 })
+          .limit(40)
+          .toArray()
+      }
+    } catch {
+      profile = null
+    }
+    if (!profile) profile = getLocalFarmProfile(userId)
     if (!profile) return res.status(200).json({ hours: [], comparison: null, profile: null })
-    const since = new Date(Date.now() - hours * 60 * 60 * 1000)
-    const rows = await db
-      .collection(COLLECTIONS.sensorHourly)
-      .find({ farmer_id: userId, field_id: profile.field_id, hour_start: { $gte: since } })
-      .sort({ hour_start: 1 })
-      .toArray()
-    const events = await db
-      .collection(COLLECTIONS.sensorEvents)
-      .find({ farmer_id: userId, field_id: profile.field_id, timestamp: { $gte: since } })
-      .sort({ timestamp: -1 })
-      .limit(40)
-      .toArray()
     return res.status(200).json({
       profile: {
         setupComplete: Boolean(profile.setupComplete),

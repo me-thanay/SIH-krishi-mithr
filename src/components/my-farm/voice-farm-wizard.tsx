@@ -12,6 +12,7 @@ import {
   type DetectedLocation,
 } from "@/lib/my-farm-schema"
 import { beep, ensureMicPermission, listenOnce, speak, speechSupported, stopSpeaking, VoiceAbort, type MicStatus } from "@/lib/voice"
+import { saveFarmLocal, snapshotFromAnswers } from "@/lib/farm-local-client"
 
 type Phase =
   | "idle"
@@ -515,6 +516,8 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
   const saveField = async () => {
     setPhase("saving")
     await say(promptsRef.current.saving)
+    const local = snapshotFromAnswers(answersRef.current, detectedRef.current, langRef.current)
+    saveFarmLocal(local)
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
       if (!token) throw new Error("Sign in first so this field is saved with your farmer profile.")
@@ -528,8 +531,11 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
         }),
       })
       const j = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(j?.error || `Save failed (${r.status})`)
-      setSavedId(j.profile?.field_id || j.profile?.id || "saved")
+      if (r.ok && j.profile) saveFarmLocal(j.profile)
+      else if (!r.ok && !(local.fieldName && local.crop)) {
+        throw new Error("Could not save the farm. Add the field name and crop, then try again.")
+      }
+      setSavedId(j.profile?.field_id || j.profile?.id || local.field_id || "saved")
       setPhase("done")
       await say(promptsRef.current.saved)
       if (mode === "setup") {
@@ -538,6 +544,13 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
       }
       void loadSaved()
     } catch (e: any) {
+      if (local.fieldName && local.crop) {
+        setSavedId(local.field_id)
+        setPhase("done")
+        await say(promptsRef.current.saved)
+        if (mode === "setup") window.location.href = "/dashboard"
+        return
+      }
       setError(e?.message || "Save failed")
       setPhase("error")
       await say(promptsRef.current.save_failed)

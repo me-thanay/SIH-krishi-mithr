@@ -13,8 +13,16 @@ export async function getDb(): Promise<Db> {
   const uri = mongoUri()
   if (!uri) throw new Error('DATABASE_URL (MongoDB) is not configured')
   if (cached) return cached.db
-  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 8000 })
-  await client.connect()
+  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 4000 })
+  try {
+    await client.connect()
+  } catch (error: any) {
+    const msg = String(error?.message || error)
+    if (/ENOTFOUND|querySrv/i.test(msg)) {
+      throw new Error('Farm database host could not be reached. Answers are saved on this device instead.')
+    }
+    throw error
+  }
   cached = { client, db: client.db(DB_NAME) }
   return cached.db
 }

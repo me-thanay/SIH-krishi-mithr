@@ -18,6 +18,7 @@ import {
 import { Card } from "./card"
 import Link from "next/link"
 import { ScrollReveal } from "./scroll-reveal"
+import { loadFarmLocal } from "@/lib/farm-local-client"
 
 const reveal = {
   hidden: { opacity: 0, y: 24 },
@@ -138,7 +139,7 @@ export function FieldDecisionPanel() {
     try {
       const h = await fetch("/api/farm/hourly?hours=24", { headers: headers() })
       const hj = await h.json()
-      const nextProfile = hj.profile
+      const nextProfile = hj.profile || loadFarmLocal()
       setProfile(nextProfile)
       setHours(hj.hours || [])
       const ready = Boolean(nextProfile?.setupComplete && nextProfile?.crop)
@@ -149,7 +150,11 @@ export function FieldDecisionPanel() {
         return
       }
       const [b] = await Promise.all([
-        fetch(`/api/farm/brief${refresh ? "?refresh=1" : ""}`, { headers: headers() }),
+        fetch("/api/farm/brief", {
+          method: "POST",
+          headers: { ...headers(), "Content-Type": "application/json" },
+          body: JSON.stringify({ profile: nextProfile, force: refresh }),
+        }),
         loadAdvisory(nextProfile),
       ])
       const bj = await b.json()

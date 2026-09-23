@@ -26,45 +26,66 @@ async function weatherTomorrow(lat?: number | null, lon?: number | null, city?: 
   }
 }
 
-export async function generateBriefForUser(userId: string, force = false) {
-  const db = await getDb()
-  const profile = await db.collection(COLLECTIONS.farmProfiles).findOne({ farmer_id: userId, setupComplete: true })
-  if (!profile) return null
+export async function generateBriefForUser(userId: string, force = false, profileOverride?: any) {
+  let db: Awaited<ReturnType<typeof getDb>> | null = null
+  let profile: any = null
+  try {
+    db = await getDb()
+    profile = await db.collection(COLLECTIONS.farmProfiles).findOne({ farmer_id: userId, setupComplete: true })
+  } catch {
+    db = null
+  }
+  if (!profile) {
+    const { getLocalFarmProfile } = await import('../../../src/lib/farm-local-store')
+    profile = getLocalFarmProfile(userId)
+  }
+  if (!profile?.setupComplete && profileOverride?.setupComplete) profile = profileOverride
+  if (!profile?.setupComplete) return null
   const tz = profile.timezone || 'Asia/Kolkata'
   const date = localDateInTz(new Date(), tz)
-  const existing = await db.collection(COLLECTIONS.dailyBriefs).findOne({ farmer_id: userId, field_id: profile.field_id, date })
+  const existing = db
+    ? await db.collection(COLLECTIONS.dailyBriefs).findOne({ farmer_id: userId, field_id: profile.field_id, date })
+    : null
   if (existing && !force) {
     const { _id, ...rest } = existing
     return rest
   }
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
-  const hours = await db
-    .collection(COLLECTIONS.sensorHourly)
-    .find({ farmer_id: userId, field_id: profile.field_id, hour_start: { $gte: since } })
-    .sort({ hour_start: 1 })
-    .toArray()
-  const events = await db
-    .collection(COLLECTIONS.sensorEvents)
-    .find({ farmer_id: userId, field_id: profile.field_id, timestamp: { $gte: since } })
-    .sort({ timestamp: -1 })
-    .limit(20)
-    .toArray()
-  const previous = await db
-    .collection(COLLECTIONS.dailyBriefs)
-    .find({ farmer_id: userId, field_id: profile.field_id, date: { $ne: date } })
-    .sort({ date: -1 })
-    .limit(1)
-    .next()
+  const hours = db
+    ? await db
+        .collection(COLLECTIONS.sensorHourly)
+        .find({ farmer_id: userId, field_id: profile.field_id, hour_start: { $gte: since } })
+        .sort({ hour_start: 1 })
+        .toArray()
+    : []
+  const events = db
+    ? await db
+        .collection(COLLECTIONS.sensorEvents)
+        .find({ farmer_id: userId, field_id: profile.field_id, timestamp: { $gte: since } })
+        .sort({ timestamp: -1 })
+        .limit(20)
+        .toArray()
+    : []
+  const previous = db
+    ? await db
+        .collection(COLLECTIONS.dailyBriefs)
+        .find({ farmer_id: userId, field_id: profile.field_id, date: { $ne: date } })
+        .sort({ date: -1 })
+        .limit(1)
+        .next()
+    : null
   const weather = await weatherTomorrow(profile.location?.lat, profile.location?.lon)
   const comparison = compareHourlyToProfile(profile, hours)
   const lang = languageByCode(profile.language)
   let camera: Record<string, unknown> | null = null
   try {
-    const scan = await db.collection('camera_scans').findOne(
-      {},
-      { sort: { timestamp: -1 }, projection: { annotated_image: 0, leaves: 0, pests: 0 } }
-    )
+    const scan = db
+      ? await db.collection('camera_scans').findOne(
+          {},
+          { sort: { timestamp: -1 }, projection: { annotated_image: 0, leaves: 0, pests: 0 } }
+        )
+      : null
     if (scan) {
       const { _id, ...rest } = scan
       camera = {
@@ -81,10 +102,12 @@ export async function generateBriefForUser(userId: string, force = false) {
   }
   let liveSensor: Record<string, unknown> | null = null
   try {
-    const row = await db.collection(COLLECTIONS.sensorReadings).findOne(
-      { device_id: profile.deviceId || 'esp32_goa' },
-      { sort: { timestamp: -1 } }
-    )
+    const row = db
+      ? await db.collection(COLLECTIONS.sensorReadings).findOne(
+          { device_id: profile.deviceId || 'esp32_goa' },
+          { sort: { timestamp: -1 } }
+        )
+      : null
     if (row) {
       liveSensor = {
         temperature: row.temperature,
@@ -154,11 +177,13 @@ Return {"headline":"","today":"","attention":[],"tomorrow":[],"missing":[]}`,
     generated_at: new Date(),
     model: 'gemini-2.5-flash-lite',
   }
-  await db.collection(COLLECTIONS.dailyBriefs).updateOne(
-    { farmer_id: userId, field_id: profile.field_id, date },
-    { $set: brief },
-    { upsert: true }
-  )
+  if (db) {
+    await db.collection(COLLECTIONS.dailyBriefs).updateOne(
+      { farmer_id: userId, field_id: profile.field_id, date },
+      { $set: brief },
+      { upsert: true }
+    )
+  }
   return brief
 }
 
@@ -173,7 +198,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ brief })
     }
     if (req.method === 'POST') {
-      const brief = await generateBriefForUser(userId, true)
+      const force = req.body?.force !== false
+      const brief = await generateBriefForUser(userId, force, req.body?.profile)
       return res.status(200).json({ brief })
     }
     return res.status(405).json({ error: 'Method not allowed' })

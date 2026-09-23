@@ -97,8 +97,20 @@ const HINDI_QUESTIONS: Record<string, string> = {
   area: "खेत कितना बड़ा है? एकड़ या हेक्टेयर बोलिए।",
   sowing: "फसल कब बोई या रोपी थी?",
   stage: "फसल किस अवस्था में है — पौधा, फूल, या फल?",
-  soil: "मिट्टी कैसी है — काली, लाल, रेतीली? नहीं पता तो बोल दीजिए।",
+  soil: "मिट्टी कैसी है — काली, लाल, रेतीली? नहीं तो कह दीजिए।",
   irrigation: "पानी कैसे देते हैं — ड्रिप, फव्वारा, नाली, या बारिश?",
+}
+
+const HINDI_LABELS: Record<string, string> = {
+  field_name: "खेत का नाम",
+  crop: "फसल",
+  variety: "किस्म",
+  location: "जगह",
+  area: "क्षेत्र",
+  sowing: "बुवाई",
+  stage: "अवस्था",
+  soil: "मिट्टी",
+  irrigation: "सिंचाई",
 }
 
 const CROP_ALIASES: [RegExp, string][] = [
@@ -119,6 +131,29 @@ function normSpeech(s: string) {
 
 function isUnknownPhrase(text: string) {
   return /nahi\s*pata|nahin\s*pata|nahi\s*malum|don't know|do not know|unknown|no idea|पता\s*नहीं|नहीं\s*पता|नही\s*पता|मालूम\s*नहीं|नाही\s*माहीत/i.test(text)
+}
+
+function confirmIntent(text: string): "confirm" | "edit" | "cancel" | null {
+  const t = normSpeech(text)
+  if (!t) return null
+  if (/cancel|रद्द|मत सेव|don't save|do not save/i.test(t)) return "cancel"
+  if (/बदल|change|गलत|wrong|edit|सुधार/i.test(t)) return "edit"
+  if (/हाँ|हां|हा |yes|yeah|सही|ठीक|okay|\bok\b|theek|sahi|सेव|save|confirm|बिल्कुल/i.test(t)) return "confirm"
+  return null
+}
+
+function spokenReview(answers: Answers, lang: string) {
+  const hi = lang === "hi-IN"
+  const lines = FARM_QUESTIONS.map((q) => {
+    const a = answers[q.id]
+    const label = hi ? HINDI_LABELS[q.id] || q.label : q.label
+    const val = !a || a.unknown ? (hi ? "पता नहीं" : "not known") : a.display || a.value || ""
+    return `${label} ${val}`
+  })
+  return {
+    summary: lines.join(". "),
+    question: hi ? "क्या यह सब सही है? हाँ बोलिए, या जो बदलना है बताइए।" : "Is everything correct? Say yes to save, or tell me what to change.",
+  }
 }
 
 function isQuestionEcho(heard: string, asked: string) {
@@ -560,14 +595,20 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
     for (let loops = 0; loops < 6; loops++) {
       setCurrentId(null)
       setPhase("review")
-      const s = await think(
-        llm<{ summary: string; question: string }>({
-          mode: "summary",
-          language: langRef.current,
-          answers: answersRef.current,
-          changedField: lastChanged,
-        })
-      )
+      let s = spokenReview(answersRef.current, langRef.current)
+      try {
+        const llmSummary = await think(
+          llm<{ summary: string; question: string }>({
+            mode: "summary",
+            language: langRef.current,
+            answers: answersRef.current,
+            changedField: lastChanged,
+          })
+        )
+        if (llmSummary?.summary) s = { summary: llmSummary.summary, question: llmSummary.question || s.question }
+      } catch {
+        /* local read-back is enough */
+      }
       if (!lastChanged) await say(promptsRef.current.review_intro)
       await say(s.summary)
       await say(s.question || promptsRef.current.confirm_ask)
@@ -581,13 +622,22 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
           await say(promptsRef.current.not_heard)
           continue
         }
-        const out = await think(
-          llm<ReviewIntent>({ mode: "review_intent", language: langRef.current, transcript: heard, answers: answersRef.current })
-        )
-        if (out && out.action !== "unclear") {
-          intent = out
-          heardIntent = heard
-        } else if (out?.message) await say(out.message)
+        heardIntent = heard
+        const local = confirmIntent(heard)
+        if (local === "confirm" || local === "cancel" || local === "edit") {
+          intent = { action: local, field_id: null, has_new_value: false, new_value_transcript: null, message: "" }
+          break
+        }
+        try {
+          const out = await think(
+            llm<ReviewIntent>({ mode: "review_intent", language: langRef.current, transcript: heard, answers: answersRef.current })
+          )
+          if (out && out.action !== "unclear") {
+            intent = out
+          } else if (out?.message) await say(out.message)
+        } catch {
+          await say(promptsRef.current.confirm_ask)
+        }
       }
       if (!intent) {
         setPhase("review")
@@ -695,7 +745,12 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
       return
     }
     console.error(e)
-    setError(e?.message || "Something went wrong")
+    if (String(e?.message || "") === "assistant-timeout" && (answersRef.current.field_name || answersRef.current.crop)) {
+      setError(null)
+      setPhase("review")
+      return
+    }
+    setError(String(e?.message || "") === "assistant-timeout" ? "The assistant was slow. Tap to continue." : e?.message || "Something went wrong")
     setPhase("error")
   }
 

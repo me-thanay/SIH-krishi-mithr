@@ -74,6 +74,84 @@ const ENGLISH_PROMPTS: Prompts = {
   location_missing: "I could not detect your location automatically.",
 }
 
+const HINDI_PROMPTS: Prompts = {
+  welcome: "अच्छा, हम हिंदी में बात करेंगे। खेत के बारे में कुछ सवाल पूछूँगा। बीप के बाद जवाब बोलिए।",
+  listening: "सुन रहा हूँ",
+  not_heard: "सुनाई नहीं दिया। फिर से बोलिए।",
+  unknown_ok: "कोई बात नहीं, इसे खाली छोड़ देते हैं।",
+  review_intro: "आपने यह बताया।",
+  confirm_ask: "सब सही है? हाँ बोलिए, या जो बदलना है वह बताइए।",
+  edit_which: "कौन सी बात बदलनी है?",
+  saving: "खेत की जानकारी सेव कर रहा हूँ।",
+  saved: "सेव हो गया। धन्यवाद।",
+  save_failed: "सेव नहीं हो पाया। फिर कोशिश कीजिए।",
+  location_found: "जीपीएस से जगह मिल गई।",
+  location_missing: "जगह अपने आप नहीं मिली।",
+}
+
+const HINDI_QUESTIONS: Record<string, string> = {
+  field_name: "इस खेत का नाम क्या रखना है?",
+  crop: "आप कौन सी फसल उगा रहे हैं?",
+  variety: "किस्म का नाम पता है? नहीं पता तो बोल दीजिए।",
+  location: "यह खेत कहाँ है — गाँव, ज़िला, राज्य?",
+  area: "खेत कितना बड़ा है? एकड़ या हेक्टेयर बोलिए।",
+  sowing: "फसल कब बोई या रोपी थी?",
+  stage: "फसल किस अवस्था में है — पौधा, फूल, या फल?",
+  soil: "मिट्टी कैसी है — काली, लाल, रेतीली? नहीं पता तो बोल दीजिए।",
+  irrigation: "पानी कैसे देते हैं — ड्रिप, फव्वारा, नाली, या बारिश?",
+}
+
+const CROP_ALIASES: [RegExp, string][] = [
+  [/tomato|टामेटो|टमाटर|tamatar/i, "Tomato"],
+  [/rice|paddy|धान|चावल/i, "Rice"],
+  [/chilli|chili|mirchi|मिर्ची|मिर्च/i, "Chilli"],
+  [/cotton|कपास/i, "Cotton"],
+  [/wheat|गेहूं|गेहूँ/i, "Wheat"],
+  [/maize|corn|मक्का/i, "Maize"],
+  [/onion|प्याज/i, "Onion"],
+  [/brinjal|baingan|बैंगन/i, "Brinjal"],
+  [/groundnut|मूंगफली|मूँगफली/i, "Groundnut"],
+]
+
+function normSpeech(s: string) {
+  return s.replace(/[\s?.!,।]+/g, " ").trim().toLowerCase()
+}
+
+function isQuestionEcho(heard: string, asked: string) {
+  const h = normSpeech(heard)
+  const a = normSpeech(asked)
+  if (!h || !a) return false
+  if (h === a) return true
+  if (h.length >= 4 && a.includes(h)) return true
+  if (a.length >= 6 && h.includes(a)) return true
+  return false
+}
+
+function isUnknownPhrase(text: string) {
+  return /nahi pata|nahi malum|don't know|do not know|unknown|no idea|पता नहीं|नहीं पता|मालूम नहीं|नाही माहीत/i.test(text)
+}
+
+function quickAnswer(id: string, transcript: string): Answer | null {
+  const t = transcript.trim()
+  if (t.length < 1) return null
+  const q = FARM_QUESTIONS.find((x) => x.id === id)
+  if (!q) return null
+  if (isUnknownPhrase(t) && q.allowUnknown) {
+    return { value: null, display: "—", unknown: true, details: {}, transcript: t }
+  }
+  if (q.kind === "text" || q.kind === "crop" || q.kind === "variety") {
+    let value = t
+    const details: Record<string, unknown> = {}
+    if (q.kind === "crop") {
+      const hit = CROP_ALIASES.find(([re]) => re.test(t))
+      if (hit) value = hit[1]
+      details.crop_local = t
+    }
+    return { value, display: t, unknown: false, details, transcript: t }
+  }
+  return null
+}
+
 const MIC_DENIED_MESSAGE =
   "Microphone is blocked for this site. Click the lock/camera icon in the address bar, set Microphone to Allow, then press Retry microphone."
 
@@ -102,14 +180,24 @@ function getClientId() {
 }
 
 async function llm<T = any>(payload: Record<string, unknown>): Promise<T> {
-  const r = await fetch("/api/my-farm/llm", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  })
-  const j = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(j?.error || `Assistant error (${r.status})`)
-  return j as T
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 7000)
+  try {
+    const r = await fetch("/api/my-farm/llm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j?.error || `Assistant error (${r.status})`)
+    return j as T
+  } catch (e: any) {
+    if (e?.name === "AbortError") throw new Error("assistant-timeout")
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "settings" }) {
@@ -331,12 +419,24 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
     setPhase("preparing")
     langRef.current = code
     setLanguage(code)
-    const out = await llm<{ questions: Record<string, string>; prompts: Prompts }>({
-      mode: "translate_prompts",
-      language: code,
-    })
-    questionsRef.current = out.questions || {}
-    promptsRef.current = { ...ENGLISH_PROMPTS, ...(out.prompts || {}) }
+    if (code === "hi-IN") {
+      questionsRef.current = HINDI_QUESTIONS
+      promptsRef.current = HINDI_PROMPTS
+      setQuestions(HINDI_QUESTIONS)
+      setPrompts(HINDI_PROMPTS)
+      return
+    }
+    try {
+      const out = await llm<{ questions: Record<string, string>; prompts: Prompts }>({
+        mode: "translate_prompts",
+        language: code,
+      })
+      questionsRef.current = out.questions || {}
+      promptsRef.current = { ...ENGLISH_PROMPTS, ...(out.prompts || {}) }
+    } catch {
+      questionsRef.current = {}
+      promptsRef.current = ENGLISH_PROMPTS
+    }
     setQuestions(questionsRef.current)
     setPrompts(promptsRef.current)
   }
@@ -377,6 +477,7 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
       history.push({ role: "assistant", text: promptText })
     }
 
+    const askedText = history.find((h) => h.role === "assistant")?.text || ""
     // Optional fields get one clarification, required fields two; then we accept what we have.
     const maxClarify = q.allowUnknown ? 1 : 2
     let clarifications = 0
@@ -393,19 +494,35 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
           continue
         }
       }
+      if (isQuestionEcho(transcript, askedText)) {
+        transcript = null
+        continue
+      }
       lastHeard = transcript
       history.push({ role: "farmer", text: transcript })
-      const out = await think(
-        llm<{ ok: boolean; unknown: boolean; value: string | null; display: string; clarify: string | null; details: Record<string, unknown> }>({
-          mode: "extract",
-          language: langRef.current,
-          questionId: id,
-          transcript,
-          history,
-          answers: answersRef.current,
-          detected: detectedRef.current,
-        })
-      )
+      const instant = quickAnswer(id, transcript)
+      if (instant) {
+        setAnswer(id, instant)
+        if (instant.unknown) await say(promptsRef.current.unknown_ok)
+        return
+      }
+      let out: { ok: boolean; unknown: boolean; value: string | null; display: string; clarify: string | null; details: Record<string, unknown> }
+      try {
+        out = await think(
+          llm<{ ok: boolean; unknown: boolean; value: string | null; display: string; clarify: string | null; details: Record<string, unknown> }>({
+            mode: "extract",
+            language: langRef.current,
+            questionId: id,
+            transcript,
+            history,
+            answers: answersRef.current,
+            detected: detectedRef.current,
+          })
+        )
+      } catch {
+        setAnswer(id, { value: transcript, display: transcript, unknown: false, details: {}, transcript })
+        return
+      }
       if (out.ok || out.unknown) {
         setAnswer(id, {
           value: out.unknown ? null : out.value ?? transcript,
@@ -711,7 +828,7 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
     preparing: { state: "working", label: "Working…." },
     asking: { state: "composing", label: "Speaking…." },
     listening: { state: "listening", label: "Listening…." },
-    thinking: { state: "solving", label: "Solving…." },
+    thinking: { state: "solving", label: "…" },
     review: { state: "shaping", label: "Checking…." },
     saving: { state: "working", label: "Saving…." },
     done: { state: "solving", label: "Saved." },

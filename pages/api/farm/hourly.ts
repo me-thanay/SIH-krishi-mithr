@@ -26,6 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .toArray()
     return res.status(200).json({
       profile: {
+        setupComplete: Boolean(profile.setupComplete),
         fieldName: profile.fieldName,
         crop: profile.crop,
         growthStage: profile.growthStage,

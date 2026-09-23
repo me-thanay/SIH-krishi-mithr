@@ -15,7 +15,6 @@ import { FarmAnalysis } from "./ui/farm-analysis"
 import { ToastContainer } from "./ui/toast-notification"
 import { useNotifications } from "@/hooks/useNotifications"
 import { CameraScanPanel } from "./ui/camera-scan-panel"
-import { XgboostAdvisoryPanel } from "./ui/xgboost-advisory-panel"
 import { FieldDecisionPanel } from "./ui/field-decision-panel"
 import { GoaSensorStrip } from "./ui/goa-sensor-strip"
 import { NewNavbar } from './ui/new-navbar'
@@ -477,8 +476,6 @@ const SmartAgriTechComponent = ({ hideNavbar = false }: { hideNavbar?: boolean }
               <GoaSensorStrip />
 
               <FieldDecisionPanel />
-
-              <XgboostAdvisoryPanel city="Hyderabad" />
 
               <CameraScanPanel />
                 </div>

@@ -59,6 +59,45 @@ export async function generateBriefForUser(userId: string, force = false) {
   const weather = await weatherTomorrow(profile.location?.lat, profile.location?.lon)
   const comparison = compareHourlyToProfile(profile, hours)
   const lang = languageByCode(profile.language)
+  let camera: Record<string, unknown> | null = null
+  try {
+    const scan = await db.collection('camera_scans').findOne(
+      {},
+      { sort: { timestamp: -1 }, projection: { annotated_image: 0, leaves: 0, pests: 0 } }
+    )
+    if (scan) {
+      const { _id, ...rest } = scan
+      camera = {
+        summary: rest.summary,
+        certainty: rest.certainty,
+        advice: rest.advice,
+        findings: rest.findings,
+        timestamp: rest.timestamp,
+        device_id: rest.device_id,
+      }
+    }
+  } catch {
+    camera = null
+  }
+  let liveSensor: Record<string, unknown> | null = null
+  try {
+    const row = await db.collection(COLLECTIONS.sensorReadings).findOne(
+      { device_id: profile.deviceId || 'esp32_goa' },
+      { sort: { timestamp: -1 } }
+    )
+    if (row) {
+      liveSensor = {
+        temperature: row.temperature,
+        humidity: row.humidity,
+        soil_moisture: row.soil_moisture ?? row.soilMoisture,
+        TDS: row.TDS ?? row.tds_ppm,
+        motor_on: row.motor_on ?? row.motor,
+        timestamp: row.timestamp,
+      }
+    }
+  } catch {
+    liveSensor = null
+  }
   const slimHours = hours.map((h) => ({
     start: h.hour_start,
     soil: h.soil_moisture,
@@ -72,8 +111,14 @@ export async function generateBriefForUser(userId: string, force = false) {
   }))
 
   const llm = await chatJson(
-    `You are the Krishi Mithr field advisor. Write in ${lang.name} (${lang.code}), native script. Conservative: no invented volumes, diseases, or yield. JSON only.`,
-    `Farm: ${JSON.stringify({
+    `You are the Krishi Mithr field advisor. Write in ${lang.name} (${lang.code}), native script.
+The farmer already finished the My Farm survey. Recommendations MUST combine:
+1) the farm survey (crop, stage, soil, irrigation, location),
+2) ESP sensor numbers,
+3) the latest leaf/camera diagnose if present,
+4) weather.
+Do not invent a disease from weather alone if there is no photo finding. Do not invent irrigation litres. If a source is missing, list it in missing[]. JSON only.`,
+    `Farm survey: ${JSON.stringify({
       fieldName: profile.fieldName,
       crop: profile.crop,
       variety: profile.variety,
@@ -83,9 +128,11 @@ export async function generateBriefForUser(userId: string, force = false) {
       sown: profile.sowing,
       location: profile.location,
     })}
+Live ESP sensors: ${JSON.stringify(liveSensor)}
 Comparison vs crop/stage moisture band: ${JSON.stringify(comparison)}
 Last 24 hourly summaries: ${JSON.stringify(slimHours)}
 Events: ${JSON.stringify(events.map(({ _id, ...e }) => e))}
+Latest camera diagnose: ${JSON.stringify(camera)}
 Tomorrow weather: ${JSON.stringify(weather)}
 Yesterday headline: ${previous?.headline || 'none'}
 
@@ -102,6 +149,8 @@ Return {"headline":"","today":"","attention":[],"tomorrow":[],"missing":[]}`,
     ...llm,
     comparison,
     weather,
+    camera,
+    liveSensor,
     generated_at: new Date(),
     model: 'gemini-2.5-flash-lite',
   }

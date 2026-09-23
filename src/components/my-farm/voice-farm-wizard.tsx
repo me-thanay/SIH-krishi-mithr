@@ -70,6 +70,7 @@ const ENGLISH_PROMPTS: Prompts = {
   saving: "Saving your field details.",
   saved: "Your field has been saved. Thank you.",
   save_failed: "Sorry, saving failed. Please try again.",
+  redirecting: "Redirecting you to the farm dashboard.",
   location_found: "I found your location from GPS.",
   location_missing: "I could not detect your location automatically.",
 }
@@ -85,6 +86,7 @@ const HINDI_PROMPTS: Prompts = {
   saving: "खेत की जानकारी सेव कर रहा हूँ।",
   saved: "सेव हो गया। धन्यवाद।",
   save_failed: "सेव नहीं हो पाया। फिर कोशिश कीजिए।",
+  redirecting: "अब आपको डैशबोर्ड पर ले जा रहा हूँ।",
   location_found: "जीपीएस से जगह मिल गई।",
   location_missing: "जगह अपने आप नहीं मिली।",
 }
@@ -684,6 +686,12 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
     return "cancelled"
   }
 
+  const goToDashboard = async () => {
+    const line = promptsRef.current.redirecting || ENGLISH_PROMPTS.redirecting
+    await say(line)
+    window.location.href = "/dashboard"
+  }
+
   const saveField = async () => {
     setPhase("saving")
     await say(promptsRef.current.saving)
@@ -709,17 +717,13 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
       setSavedId(j.profile?.field_id || j.profile?.id || local.field_id || "saved")
       setPhase("done")
       await say(promptsRef.current.saved)
-      if (mode === "setup") {
-        window.location.href = "/dashboard"
-        return
-      }
-      void loadSaved()
+      await goToDashboard()
     } catch (e: any) {
       if (local.fieldName && local.crop) {
         setSavedId(local.field_id)
         setPhase("done")
         await say(promptsRef.current.saved)
-        if (mode === "setup") window.location.href = "/dashboard"
+        await goToDashboard()
         return
       }
       setError(e?.message || "Save failed")

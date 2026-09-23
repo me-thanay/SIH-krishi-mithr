@@ -93,6 +93,7 @@ Prompts:
 - saving: "Saving your field details."
 - saved: "Your field has been saved. Thank you."
 - save_failed: "Sorry, saving failed. Please try again."
+- redirecting: "Redirecting you to the farm dashboard."
 - location_found: "I found your location from GPS."
 - location_missing: "I could not detect your location automatically."
 - yes_words: comma-separated list of 6 common ways to say yes/correct in this language

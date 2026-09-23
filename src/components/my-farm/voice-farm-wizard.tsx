@@ -92,7 +92,7 @@ const HINDI_PROMPTS: Prompts = {
 const HINDI_QUESTIONS: Record<string, string> = {
   field_name: "इस खेत का नाम क्या रखना है?",
   crop: "आप कौन सी फसल उगा रहे हैं?",
-  variety: "किस्म का नाम पता है? नहीं पता तो बोल दीजिए।",
+  variety: "किस्म का नाम मालूम है? नहीं तो कह दीजिए।",
   location: "यह खेत कहाँ है — गाँव, ज़िला, राज्य?",
   area: "खेत कितना बड़ा है? एकड़ या हेक्टेयर बोलिए।",
   sowing: "फसल कब बोई या रोपी थी?",
@@ -117,18 +117,22 @@ function normSpeech(s: string) {
   return s.replace(/[\s?.!,।]+/g, " ").trim().toLowerCase()
 }
 
+function isUnknownPhrase(text: string) {
+  return /nahi\s*pata|nahin\s*pata|nahi\s*malum|don't know|do not know|unknown|no idea|पता\s*नहीं|नहीं\s*पता|नही\s*पता|मालूम\s*नहीं|नाही\s*माहीत/i.test(text)
+}
+
 function isQuestionEcho(heard: string, asked: string) {
   const h = normSpeech(heard)
   const a = normSpeech(asked)
   if (!h || !a) return false
+  if (isUnknownPhrase(heard) || isUnknownPhrase(h)) return false
   if (h === a) return true
-  if (h.length >= 4 && a.includes(h)) return true
-  if (a.length >= 6 && h.includes(a)) return true
-  return false
-}
-
-function isUnknownPhrase(text: string) {
-  return /nahi pata|nahi malum|don't know|do not know|unknown|no idea|पता नहीं|नहीं पता|मालूम नहीं|नाही माहीत/i.test(text)
+  // Short replies are answers. "नहीं पता" appears inside the variety question — that is not an echo.
+  if (h.length < 16) return false
+  const overlap = a.includes(h) || h.includes(a)
+  const shorter = Math.min(h.length, a.length)
+  const longer = Math.max(h.length, a.length)
+  return overlap && shorter >= longer * 0.55
 }
 
 function quickAnswer(id: string, transcript: string): Answer | null {

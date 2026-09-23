@@ -206,11 +206,28 @@ export async function speak(text: string, lang: string, signal?: { aborted: bool
     const ok = await speakRemote(text, lang, signal)
     if (ok) {
       if (signal?.aborted) throw new VoiceAbort()
+      await waitUntilQuiet(550)
       return
     }
   }
   if (hasSynth) await speakLocal(text, lang, voice)
+  await waitUntilQuiet(550)
   if (signal?.aborted) throw new VoiceAbort()
+}
+
+/** Do not open the mic until TTS/audio has fully stopped, or we hear our own question as the answer. */
+export async function waitUntilQuiet(afterMs = 400): Promise<void> {
+  if (typeof window === 'undefined') return
+  const started = Date.now()
+  while (Date.now() - started < 10_000) {
+    const talking = Boolean(
+      ('speechSynthesis' in window && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) ||
+        (currentAudio && !currentAudio.paused && !currentAudio.ended)
+    )
+    if (!talking) break
+    await new Promise((r) => setTimeout(r, 80))
+  }
+  await new Promise((r) => setTimeout(r, afterMs))
 }
 
 export interface ListenOptions {
@@ -222,7 +239,7 @@ export interface ListenOptions {
   signal?: { aborted: boolean; recognition?: any }
 }
 
-/** Listen for a single utterance. Rejects with Error('no-speech') when nothing was heard. */
+/** Listen until the farmer finishes a reply. Restarts after Chrome's short no-speech cutoff. */
 export function listenOnce(opts: ListenOptions): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     if (typeof window === 'undefined') return reject(new Error('unsupported'))
@@ -231,60 +248,102 @@ export function listenOnce(opts: ListenOptions): Promise<string> {
     if (!Ctor) return reject(new Error('unsupported'))
     if (opts.signal?.aborted) return reject(new VoiceAbort())
 
-    const rec = new Ctor()
-    rec.lang = opts.lang
-    rec.continuous = false
-    rec.interimResults = true
-    rec.maxAlternatives = 1
-    if (opts.signal) opts.signal.recognition = rec
-
+    const timeoutMs = opts.timeoutMs ?? 28_000
+    const deadline = Date.now() + timeoutMs
     let finalText = ''
     let interimText = ''
     let settled = false
-    const timeout = setTimeout(() => {
+    let rec: any = null
+    let quietTimer: ReturnType<typeof setTimeout> | null = null
+    const hardStop = setTimeout(() => {
       try {
-        rec.stop()
+        rec?.stop()
       } catch {
         /* ignore */
       }
-    }, opts.timeoutMs ?? 12_000)
+    }, timeoutMs)
 
     const settle = (fn: () => void) => {
       if (settled) return
       settled = true
-      clearTimeout(timeout)
+      clearTimeout(hardStop)
+      if (quietTimer) clearTimeout(quietTimer)
+      try {
+        rec?.abort?.()
+      } catch {
+        /* ignore */
+      }
       fn()
     }
 
-    rec.onstart = () => opts.onStart?.()
-    rec.onresult = (event: any) => {
-      let interim = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const r = event.results[i]
-        if (r.isFinal) finalText += r[0].transcript
-        else interim += r[0].transcript
+    const heard = () => (finalText || interimText).trim()
+
+    const startRec = () => {
+      if (settled || opts.signal?.aborted) return
+      if (Date.now() >= deadline) {
+        const text = heard()
+        return settle(() => (text ? resolve(text) : reject(new Error('no-speech'))))
       }
-      interimText = interim
-      opts.onInterim?.(finalText || interim)
-    }
-    rec.onerror = (event: any) => {
-      if (event.error === 'aborted' && opts.signal?.aborted) return settle(() => reject(new VoiceAbort()))
-      if (event.error === 'no-speech' || event.error === 'aborted') return settle(() => reject(new Error('no-speech')))
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        return settle(() => reject(new Error('mic-denied')))
+      try {
+        rec = new Ctor()
+      } catch (e: any) {
+        return settle(() => reject(new Error(e?.message || 'speech-start-failed')))
       }
-      settle(() => reject(new Error(event.error || 'speech-error')))
+      rec.lang = opts.lang
+      rec.continuous = true
+      rec.interimResults = true
+      rec.maxAlternatives = 1
+      if (opts.signal) opts.signal.recognition = rec
+
+      rec.onstart = () => opts.onStart?.()
+      rec.onresult = (event: any) => {
+        let interim = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const r = event.results[i]
+          if (r.isFinal) finalText += `${r[0].transcript} `
+          else interim += r[0].transcript
+        }
+        interimText = interim
+        opts.onInterim?.(heard())
+        if (quietTimer) clearTimeout(quietTimer)
+        // Wait for a real pause after they finish — do not cut them off mid-thought.
+        quietTimer = setTimeout(() => {
+          if (heard()) {
+            try {
+              rec?.stop()
+            } catch {
+              /* ignore */
+            }
+          }
+        }, 1600)
+      }
+      rec.onerror = (event: any) => {
+        if (event.error === 'aborted' && opts.signal?.aborted) return settle(() => reject(new VoiceAbort()))
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          return settle(() => reject(new Error('mic-denied')))
+        }
+        if (event.error === 'no-speech' || event.error === 'aborted') return
+        if (heard()) return
+      }
+      rec.onend = () => {
+        if (settled) return
+        if (opts.signal?.aborted) return settle(() => reject(new VoiceAbort()))
+        if (heard()) return settle(() => resolve(heard()))
+        if (Date.now() < deadline - 200) {
+          setTimeout(startRec, 180)
+          return
+        }
+        settle(() => reject(new Error('no-speech')))
+      }
+      try {
+        rec.start()
+      } catch (e: any) {
+        if (Date.now() < deadline - 400) setTimeout(startRec, 250)
+        else settle(() => reject(new Error(e?.message || 'speech-start-failed')))
+      }
     }
-    rec.onend = () => {
-      const text = (finalText || interimText).trim()
-      if (opts.signal?.aborted) return settle(() => reject(new VoiceAbort()))
-      settle(() => (text ? resolve(text) : reject(new Error('no-speech'))))
-    }
-    try {
-      rec.start()
-    } catch (e: any) {
-      settle(() => reject(new Error(e?.message || 'speech-start-failed')))
-    }
+
+    startRec()
   })
 }
 

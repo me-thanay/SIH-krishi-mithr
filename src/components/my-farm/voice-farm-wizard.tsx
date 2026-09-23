@@ -180,7 +180,7 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
     await speak(text, langRef.current, runSignal.current)
   }
 
-  const hear = async (timeoutMs = 12_000): Promise<string | null> => {
+  const hear = async (timeoutMs = 28_000): Promise<string | null> => {
     checkAbort()
     setInterim("")
     setPhase("listening")
@@ -313,8 +313,8 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
     pushLog("assistant", "Which language would you like to speak in? Please say the language name.")
     await speak("Which language would you like to speak in? Please say the language name.", "en-IN", runSignal.current)
     await speak("आप किस भाषा में बात करना चाहेंगे? भाषा का नाम बोलिए।", "hi-IN", runSignal.current)
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const heard = await hear(9_000)
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const heard = await hear(28_000)
       if (!heard) {
         if (attempt === 0) await speak("Please say the language name, for example Telugu, Hindi or English.", "en-IN", runSignal.current)
         continue
@@ -387,7 +387,7 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
         transcript = await hear()
         if (!transcript) {
           silence++
-          if (silence >= 3) break
+          if (silence >= 8) break
           await say(promptsRef.current.not_heard)
           continue
         }
@@ -454,7 +454,7 @@ export function VoiceFarmWizard({ mode = "settings" }: { mode?: "setup" | "setti
       let intent: ReviewIntent | null = null
       let heardIntent = ""
       for (let tries = 0; tries < 3 && !intent; tries++) {
-        const heard = await hear(12_000)
+        const heard = await hear(28_000)
         if (!heard) {
           await say(promptsRef.current.not_heard)
           continue
